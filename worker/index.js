@@ -39,6 +39,7 @@ let engagementTablesPromise;
 let moderationTablesPromise;
 let experienceOptionColumnsPromise;
 let evidenceCleanupTablePromise;
+let messagingTablesPromise;
 
 export default {
   async fetch(request, env) {
@@ -64,6 +65,12 @@ export default {
     if (request.method === "GET" && url.pathname === "/profile") {
       if (!(await getCurrentUser(request, env))) {
         return Response.redirect(new URL("/login?return_to=%2Fprofile", url), 302);
+      }
+      return html(PAGE_HTML);
+    }
+    if (request.method === "GET" && url.pathname === "/messages") {
+      if (!(await getCurrentUser(request, env))) {
+        return Response.redirect(new URL("/login?return_to=%2Fmessages", url), 302);
       }
       return html(PAGE_HTML);
     }
@@ -127,6 +134,18 @@ export default {
     }
     if (url.pathname === "/api/friends" && ["GET", "POST"].includes(request.method)) {
       return manageFriends(request, env);
+    }
+    if (request.method === "GET" && url.pathname === "/api/messages") {
+      return listMessageThreads(request, env);
+    }
+    const messagesMatch = url.pathname.match(/^\/api\/messages\/([0-9a-f-]{36})(?:\/(seen))?$/i);
+    if (messagesMatch && request.method === "GET" && !messagesMatch[2]) {
+      return getFriendMessages(request, env, messagesMatch[1]);
+    }
+    if (messagesMatch && request.method === "POST") {
+      return messagesMatch[2]
+        ? markFriendMessagesSeen(request, env, messagesMatch[1])
+        : sendFriendMessage(request, env, messagesMatch[1]);
     }
     const friendActionMatch = url.pathname.match(/^\/api\/friends\/([0-9a-f-]{36})(?:\/(accept))?$/i);
     if (friendActionMatch && request.method === "POST" && friendActionMatch[2] === "accept") {
@@ -978,6 +997,162 @@ async function manageFriends(request, env) {
   } catch (error) {
     console.error("NFD friends update failed", error);
     return json({ error: "NFD friends could not be updated right now. Please try again." }, 503);
+  }
+}
+
+async function ensureMessagingTables(env) {
+  if (!env.DB) throw new Error("The NFD database is unavailable.");
+  messagingTablesPromise ||= (async () => {
+    await env.DB.prepare(`
+      CREATE TABLE IF NOT EXISTS nfd_messages (
+        id TEXT PRIMARY KEY NOT NULL,
+        sender_id TEXT NOT NULL,
+        recipient_id TEXT NOT NULL,
+        body TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        seen_at TEXT,
+        expires_at TEXT,
+        FOREIGN KEY (sender_id) REFERENCES nfd_users(id) ON DELETE CASCADE,
+        FOREIGN KEY (recipient_id) REFERENCES nfd_users(id) ON DELETE CASCADE
+      )
+    `).run();
+    await env.DB.prepare("CREATE INDEX IF NOT EXISTS nfd_messages_sender_recipient_created_idx ON nfd_messages (sender_id, recipient_id, created_at)").run();
+    await env.DB.prepare("CREATE INDEX IF NOT EXISTS nfd_messages_recipient_sender_created_idx ON nfd_messages (recipient_id, sender_id, created_at)").run();
+    await env.DB.prepare("CREATE INDEX IF NOT EXISTS nfd_messages_expires_idx ON nfd_messages (expires_at)").run();
+  })().catch((error) => { messagingTablesPromise = undefined; throw error; });
+  await messagingTablesPromise;
+}
+
+async function getAcceptedFriend(env, userId, friendId) {
+  if (!/^[0-9a-f-]{36}$/i.test(friendId) || friendId === userId) return null;
+  return env.DB.prepare(`
+    SELECT u.id, COALESCE(NULLIF(trim(u.display_name), ''), 'NFD member') AS name
+    FROM nfd_friend_requests f
+    INNER JOIN nfd_users u ON u.id = CASE WHEN f.from_user_id = ? THEN f.to_user_id ELSE f.from_user_id END
+    WHERE f.status = 'accepted' AND (f.from_user_id = ? OR f.to_user_id = ?)
+      AND u.id = ?
+    LIMIT 1
+  `).bind(userId, userId, userId, friendId).first();
+}
+
+async function listMessageThreads(request, env) {
+  const user = await getCurrentUser(request, env);
+  if (!user) return json({ error: "Sign in to open your messages." }, 401);
+  if (!env.DB) return json({ error: "NFD messages are unavailable right now." }, 503);
+  try {
+    await ensureMessagingTables(env);
+    const now = new Date().toISOString();
+    await env.DB.prepare("DELETE FROM nfd_messages WHERE expires_at IS NOT NULL AND expires_at <= ?").bind(now).run();
+    const result = await env.DB.prepare(`
+      SELECT u.id AS user_id, COALESCE(NULLIF(trim(u.display_name), ''), 'NFD member') AS name,
+        (SELECT substr(m.body, 1, 100) FROM nfd_messages m
+          WHERE ((m.sender_id = ? AND m.recipient_id = u.id) OR (m.sender_id = u.id AND m.recipient_id = ?))
+          ORDER BY m.created_at DESC LIMIT 1) AS last_message,
+        (SELECT m.created_at FROM nfd_messages m
+          WHERE ((m.sender_id = ? AND m.recipient_id = u.id) OR (m.sender_id = u.id AND m.recipient_id = ?))
+          ORDER BY m.created_at DESC LIMIT 1) AS last_message_at,
+        (SELECT COUNT(*) FROM nfd_messages m
+          WHERE m.sender_id = u.id AND m.recipient_id = ? AND m.seen_at IS NULL) AS unread_count
+      FROM nfd_friend_requests f
+      INNER JOIN nfd_users u ON u.id = CASE WHEN f.from_user_id = ? THEN f.to_user_id ELSE f.from_user_id END
+      WHERE f.status = 'accepted' AND (f.from_user_id = ? OR f.to_user_id = ?)
+      ORDER BY COALESCE(last_message_at, f.updated_at) DESC, lower(name)
+    `).bind(user.id, user.id, user.id, user.id, user.id, user.id, user.id, user.id).all();
+    return json({ currentUserId: user.id, friends: (result.results || []).map((row) => ({
+      id: row.user_id, name: row.name, lastMessage: row.last_message || "",
+      lastMessageAt: row.last_message_at || "", unreadCount: Number(row.unread_count) || 0,
+    })) });
+  } catch (error) {
+    console.error("NFD message inbox query failed", error);
+    return json({ error: "Your messages could not be loaded right now." }, 503);
+  }
+}
+
+async function getFriendMessages(request, env, friendId) {
+  const user = await getCurrentUser(request, env);
+  if (!user) return json({ error: "Sign in to open your messages." }, 401);
+  if (!env.DB) return json({ error: "NFD messages are unavailable right now." }, 503);
+  try {
+    await ensureMessagingTables(env);
+    const friend = await getAcceptedFriend(env, user.id, friendId);
+    if (!friend) return json({ error: "Messages are available only between accepted NFD friends." }, 403);
+    const now = new Date().toISOString();
+    await env.DB.prepare("DELETE FROM nfd_messages WHERE expires_at IS NOT NULL AND expires_at <= ?").bind(now).run();
+    const result = await env.DB.prepare(`
+      SELECT id, sender_id, recipient_id, body, created_at, seen_at, expires_at
+      FROM nfd_messages
+      WHERE ((sender_id = ? AND recipient_id = ?) OR (sender_id = ? AND recipient_id = ?))
+        AND (expires_at IS NULL OR expires_at > ?)
+      ORDER BY created_at DESC LIMIT 300
+    `).bind(user.id, friend.id, friend.id, user.id, now).all();
+    const messages = (result.results || []).reverse().map((row) => ({
+      id: row.id, senderId: row.sender_id, recipientId: row.recipient_id,
+      body: row.body, createdAt: row.created_at, seenAt: row.seen_at || "", expiresAt: row.expires_at || "",
+    }));
+    return json({ friend: { id: friend.id, name: friend.name }, messages });
+  } catch (error) {
+    console.error("NFD friend conversation query failed", error);
+    return json({ error: "This conversation could not be opened right now." }, 503);
+  }
+}
+
+async function sendFriendMessage(request, env, friendId) {
+  const user = await getCurrentUser(request, env);
+  if (!user) return json({ error: "Sign in to send a message." }, 401);
+  if (!env.DB) return json({ error: "NFD messages are unavailable right now." }, 503);
+  if (!request.headers.get("content-type")?.toLowerCase().includes("application/json")) {
+    return json({ error: "Write a text message to send." }, 415);
+  }
+  const contentLength = Number(request.headers.get("content-length"));
+  if (Number.isFinite(contentLength) && contentLength > 16000) return json({ error: "That message is too long." }, 413);
+  try {
+    await ensureMessagingTables(env);
+    const friend = await getAcceptedFriend(env, user.id, friendId);
+    if (!friend) return json({ error: "You can message only accepted NFD friends." }, 403);
+    const body = await request.json().catch(() => null);
+    const message = typeof body?.body === "string" ? body.body.replace(/\r\n/g, "\n").replace(/\u0000/g, "").trim() : "";
+    if (!message) return json({ error: "Write a message before sending." }, 400);
+    if (message.length > 2000) return json({ error: "Messages can be up to 2,000 characters." }, 400);
+    const id = crypto.randomUUID();
+    const createdAt = new Date().toISOString();
+    await env.DB.prepare(`
+      INSERT INTO nfd_messages (id, sender_id, recipient_id, body, created_at, seen_at, expires_at)
+      VALUES (?, ?, ?, ?, ?, NULL, NULL)
+    `).bind(id, user.id, friend.id, message, createdAt).run();
+    return json({ ok: true, message: { id, senderId: user.id, recipientId: friend.id, body: message, createdAt, seenAt: "", expiresAt: "" } }, 201);
+  } catch (error) {
+    console.error("NFD friend message send failed", error);
+    return json({ error: "Your message could not be sent right now." }, 503);
+  }
+}
+
+async function markFriendMessagesSeen(request, env, friendId) {
+  const user = await getCurrentUser(request, env);
+  if (!user) return json({ error: "Sign in to open your messages." }, 401);
+  if (!env.DB) return json({ error: "NFD messages are unavailable right now." }, 503);
+  if (!request.headers.get("content-type")?.toLowerCase().includes("application/json")) {
+    return json({ error: "NFD could not mark those messages as seen." }, 415);
+  }
+  try {
+    await ensureMessagingTables(env);
+    const friend = await getAcceptedFriend(env, user.id, friendId);
+    if (!friend) return json({ error: "Messages are available only between accepted NFD friends." }, 403);
+    const body = await request.json().catch(() => null);
+    const messageIds = Array.isArray(body?.messageIds)
+      ? [...new Set(body.messageIds.filter((id) => typeof id === "string" && /^[0-9a-f-]{36}$/i.test(id)))].slice(0, 50)
+      : [];
+    if (!messageIds.length) return json({ ok: true, marked: 0 });
+    const seenAt = new Date().toISOString();
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+    const placeholders = messageIds.map(() => "?").join(", ");
+    const result = await env.DB.prepare(`
+      UPDATE nfd_messages SET seen_at = ?, expires_at = ?
+      WHERE id IN (${placeholders}) AND sender_id = ? AND recipient_id = ? AND seen_at IS NULL
+    `).bind(seenAt, expiresAt, ...messageIds, friend.id, user.id).run();
+    return json({ ok: true, marked: Number(result.meta?.changes) || 0, seenAt, expiresAt });
+  } catch (error) {
+    console.error("NFD message seen update failed", error);
+    return json({ error: "NFD could not update the message status right now." }, 503);
   }
 }
 

@@ -48,6 +48,8 @@
       .feed-load-more{width:100%;margin-top:14px}
     }
     @media(max-width:420px){.account-menu-button{width:44px;height:44px}.feed-card-main{padding:17px 14px}.feed-engagement{margin-left:12px;margin-right:12px}.feed-reactions{gap:6px}.feed-reaction{font-size:12px}.feed-heading-actions .feed-filter-toggle{width:46px;height:46px}}
+    .messages-page{display:grid;gap:20px}.messages-page[hidden],.message-thread-header[hidden],.message-list[hidden],.message-compose[hidden],.message-thread-empty[hidden],.message-inbox-empty[hidden]{display:none!important}.messages-layout{display:grid;grid-template-columns:minmax(210px,.75fr) minmax(0,1.5fr);min-height:540px;background:#fff;border:1px solid #e2e9e3;border-radius:18px;overflow:hidden;box-shadow:var(--shadow)}.message-inbox{padding:17px;border-right:1px solid #e9eeea;background:#fbfcfb}.message-inbox-title{font-size:14px;font-weight:750;color:#31483a}.message-inbox-status,.message-inbox-empty{font-size:11px;line-height:1.55;color:#7c8982}.message-inbox-empty a{color:var(--green);font-weight:700}.message-thread-list{display:grid;gap:7px;margin:12px 0 0;padding:0;list-style:none}.message-thread-item{min-width:0}.message-thread-button{width:100%;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 9px;text-align:left;padding:11px;border:1px solid transparent;border-radius:11px;background:transparent;cursor:pointer}.message-thread-button:hover,.message-thread-button[aria-current="true"]{border-color:#dce8de;background:#edf5ef}.message-thread-name{font-size:12px;font-weight:720;color:#31483a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.message-thread-preview{grid-column:1/-1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;color:#7d8982}.message-unread{align-self:center;min-width:20px;padding:3px 6px;border-radius:999px;background:#0d7054;color:#fff;text-align:center;font-size:9px;font-weight:750}.message-conversation{min-width:0;display:flex;flex-direction:column;min-height:540px}.message-thread-empty{flex:1;display:grid;place-items:center;padding:24px;color:#87938c;font-size:13px;text-align:center}.message-thread-header{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:16px 19px;border-bottom:1px solid #e9eeea}.message-thread-header>div{display:grid;gap:4px}.message-thread-header strong{font-size:14px;color:#31483a}.message-thread-header span{font-size:10px;color:#7c8982}.message-expiry-note{flex:none;padding:6px 8px;border-radius:999px;background:#f0f5f1}.message-list{flex:1;min-height:320px;max-height:560px;overflow:auto;display:flex;flex-direction:column;gap:9px;padding:18px;background:#fafcfa;overscroll-behavior:contain}.message-empty-conversation{margin:auto;color:#859189;font-size:12px;text-align:center}.message-bubble{max-width:min(82%,520px);display:grid;gap:6px;padding:10px 12px;border-radius:14px;background:#fff;border:1px solid #e5ebe6;align-self:flex-start;overflow-wrap:anywhere}.message-bubble.own{align-self:flex-end;background:#e8f3eb;border-color:#d6e8db;border-bottom-right-radius:5px}.message-bubble:not(.own){border-bottom-left-radius:5px}.message-bubble-text{font-size:13px;line-height:1.55;color:#31483a;white-space:pre-wrap}.message-bubble-meta{font-size:9px;color:#77857c;text-align:right}.message-compose{display:flex;align-items:flex-end;gap:9px;padding:13px 15px;border-top:1px solid #e9eeea}.message-compose textarea{flex:1;min-width:0;min-height:52px;max-height:140px;resize:vertical;padding:10px 12px;font-size:13px}.message-compose .submit{width:auto;min-height:46px}.message-feedback{min-height:15px;margin:0;padding:0 15px 10px;color:#748279;font-size:10px}.message-feedback.error{color:#a34e3e}.friend-action.message-friend{color:#0d7054;text-decoration:none}.friend-action.message-friend:hover{background:#edf5ef}
+    @media(max-width:720px){.messages-layout{grid-template-columns:1fr;min-height:0}.message-inbox{border-right:0;border-bottom:1px solid #e9eeea;padding:12px}.message-thread-list{display:flex;overflow-x:auto;gap:7px}.message-thread-item{flex:0 0 155px}.message-thread-button{height:100%;min-height:62px}.message-conversation{min-height:440px}.message-list{min-height:280px;max-height:55vh;padding:13px}.message-thread-header{align-items:flex-start;flex-direction:column}.message-expiry-note{align-self:flex-start}.message-compose{align-items:stretch;flex-direction:column}.message-compose .submit{width:100%}.message-bubble{max-width:90%}}
     :focus-visible{outline:3px solid rgba(25,132,95,.45);outline-offset:2px}
   </style>
 </head>
@@ -55,7 +57,7 @@
   <header class="topbar">
     <div class="shell topbar-inner">
       <a class="brand" href="/feed" aria-label="NFD — No Face Docs home"><span class="brand-mark"><img src="/nfd-icon.png" alt=""></span><span class="brand-copy"><span class="brand-name">NFD</span><span class="brand-subtitle">No Face Docs</span></span></a>
-      <nav class="top-actions" id="main-nav" aria-label="Main navigation" hidden><a class="feed-nav-link" href="/feed">Lore Feed</a><a class="nav-share-link" href="/share"><img src="/nfd-icon.png" alt="" aria-hidden="true"><span>Drop your story</span></a><a href="/admin" id="admin-nav-link" hidden>Admin</a><div class="account-menu-wrap"><button class="account-menu-button" type="button" id="account-menu-button" aria-label="Open your account menu" aria-expanded="false" aria-controls="account-menu"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="8" r="3.5" stroke="currentColor" stroke-width="1.7"/><path d="M5.2 20c.7-3.5 3.1-5.2 6.8-5.2s6.1 1.7 6.8 5.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button><div class="account-menu" id="account-menu" hidden><a href="/profile">My profile</a><a href="/admin" id="account-admin-link" hidden>Admin</a><a href="/auth/signout?return_to=%2Flogin" target="_top">Sign out</a></div></div></nav>
+      <nav class="top-actions" id="main-nav" aria-label="Main navigation" hidden><a class="feed-nav-link" href="/feed">Lore Feed</a><a class="messages-nav-link" href="/messages">Messages</a><a class="nav-share-link" href="/share"><img src="/nfd-icon.png" alt="" aria-hidden="true"><span>Drop your story</span></a><a href="/admin" id="admin-nav-link" hidden>Admin</a><div class="account-menu-wrap"><button class="account-menu-button" type="button" id="account-menu-button" aria-label="Open your account menu" aria-expanded="false" aria-controls="account-menu"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="8" r="3.5" stroke="currentColor" stroke-width="1.7"/><path d="M5.2 20c.7-3.5 3.1-5.2 6.8-5.2s6.1 1.7 6.8 5.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button><div class="account-menu" id="account-menu" hidden><a href="/profile">My profile</a><a href="/admin" id="account-admin-link" hidden>Admin</a><a href="/auth/signout?return_to=%2Flogin" target="_top">Sign out</a></div></div></nav>
     </div>
   </header>
   <main id="login-page" class="shell auth-page" hidden>
@@ -211,6 +213,19 @@
         <div class="profile-post-list" id="profile-post-list" aria-live="polite"></div>
         <div class="profile-message" id="profile-message" role="status" aria-live="polite" hidden></div>
       </section>
+      <section id="messages-page" class="messages-page" aria-labelledby="messages-heading" hidden>
+        <div class="profile-heading"><div><div class="eyebrow">Friends, off the feed</div><h1 id="messages-heading">Messages</h1><p class="intro">Private text chats between accepted NFD friends. When a message is visibly seen, it disappears an hour later. Unopened messages wait for their moment in the spotlight.</p></div></div>
+        <div class="messages-layout">
+          <aside class="message-inbox" aria-label="Your friends"><div class="message-inbox-title">Your friends</div><p id="message-inbox-status" class="message-inbox-status" role="status" aria-live="polite">Loading your friends…</p><ul id="message-thread-list" class="message-thread-list"></ul><p class="message-inbox-empty" id="message-inbox-empty" hidden>You need an accepted NFD friend to start a chat. <a href="/profile">Find friends on your profile</a>.</p></aside>
+          <section class="message-conversation" aria-label="Conversation">
+            <div class="message-thread-empty" id="message-thread-empty">Choose a friend to start chatting.</div>
+            <header class="message-thread-header" id="message-thread-header" hidden><div><strong id="message-friend-name"></strong><span>Only you and your friend can read this chat.</span></div><span class="message-expiry-note">Seen messages expire after 1 hour</span></header>
+            <div class="message-list" id="message-list" role="log" aria-live="polite" aria-relevant="additions text" hidden></div>
+            <form class="message-compose" id="message-compose" hidden><label class="sr-only" for="message-input">Write a message</label><textarea class="control" id="message-input" maxlength="2000" rows="2" placeholder="Write a message…" required></textarea><button class="submit" id="message-send" type="submit">Send</button></form>
+            <p class="message-feedback" id="message-feedback" role="status" aria-live="polite"></p>
+          </section>
+        </div>
+      </section>
       <div class="trust-note"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 2.8 20 6v5.3c0 5-3.4 8.5-8 10-4.6-1.5-8-5-8-10V6l8-3.2Z" stroke="currentColor" stroke-width="1.6"/><path d="m8.5 11.8 2.3 2.3 4.8-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>For real stories—and fewer “well, that was unexpected” moments.</div>
     </section>
   </main>
@@ -267,6 +282,23 @@
     document.addEventListener('click',event=>{if(!accountMenu.contains(event.target)&&!accountMenuButton.contains(event.target))closeAccountMenu()});
     document.addEventListener('keydown',event=>{if(event.key==='Escape'){closeAccountMenu();accountMenuButton.focus()}});
     const profilePage=document.getElementById('profile-page');
+    const messagesPage=document.getElementById('messages-page');
+    const messageThreadList=document.getElementById('message-thread-list');
+    const messageInboxStatus=document.getElementById('message-inbox-status');
+    const messageInboxEmpty=document.getElementById('message-inbox-empty');
+    const messageThreadEmpty=document.getElementById('message-thread-empty');
+    const messageThreadHeader=document.getElementById('message-thread-header');
+    const messageFriendName=document.getElementById('message-friend-name');
+    const messageList=document.getElementById('message-list');
+    const messageCompose=document.getElementById('message-compose');
+    const messageInput=document.getElementById('message-input');
+    const messageSend=document.getElementById('message-send');
+    const messageFeedback=document.getElementById('message-feedback');
+    let currentUserId='';
+    let currentMessageFriendId='';
+    let messageRefreshTimer;
+    let messageRefreshInFlight=false;
+    let messageSeenPending=new Set();
     const profileSummary=document.getElementById('profile-summary');
     const profilePostCount=document.getElementById('profile-post-count');
     const profilePostList=document.getElementById('profile-post-list');
@@ -574,6 +606,7 @@
         const item=document.createElement('li');item.className='friend-item';
         const person=document.createElement('div');person.className='friend-person';addText(person,'strong','',friend.name||'NFD member');addText(person,'span','',friend.email||'');item.append(person);
         const actions=document.createElement('div');actions.className='friend-actions';
+        if(kind==='friends'){const message=document.createElement('a');message.className='friend-action message-friend';message.href=`/messages?friend=${encodeURIComponent(friend.userId)}`;message.textContent='Message';message.setAttribute('aria-label',`Message ${friend.name||'friend'}`);actions.append(message)}
         const addAction=(label,action,method,style='')=>{const button=document.createElement('button');button.type='button';button.className=`friend-action ${style}`.trim();button.textContent=label;button.addEventListener('click',async()=>{
           button.disabled=true;setFriendsFeedback(action==='accept'?'Accepting request…':action==='remove'?'Updating friends…':'Removing request…');
           try{const response=await fetch(`/api/friends/${encodeURIComponent(friend.id)}${action==='accept'?'/accept':''}`,{method,headers:{accept:'application/json'}});const result=await response.json().catch(()=>({}));if(!response.ok)throw new Error(result.error||'Your friend list could not be updated.');setFriendsFeedback(action==='accept'?'You’re connected on NFD.':action==='remove'?'Connection removed.':'Request removed.');await loadFriends()}catch(error){button.disabled=false;setFriendsFeedback(error.message,true)}
@@ -612,6 +645,77 @@
       }catch(error){if(requestNumber!==friendSearchRequest)return;friendSuggestions.hidden=true;friendSearchFeedback.textContent=error.message;friendSearchFeedback.classList.add('error')}
     }
     friendSearchInput.addEventListener('input',()=>{clearTimeout(friendSearchTimer);friendSearchTimer=setTimeout(loadFriendSuggestions,220)});
+    function setMessageFeedback(message,error=false){messageFeedback.textContent=message;messageFeedback.classList.toggle('error',error)}
+    function formatMessageTime(value){if(!value)return'';return new Date(value).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'})}
+    function messageExpiryLabel(message){if(!message.seenAt)return'Sent';const remaining=Date.parse(message.expiresAt)-Date.now();if(remaining<=0)return'Disappearing…';const minutes=Math.ceil(remaining/60000);return`Seen · disappears in ${minutes<60?`${minutes}m`:`${Math.floor(minutes/60)}h ${minutes%60}m`}`}
+    async function loadMessageFriends(){
+      messageInboxStatus.textContent='Loading your friends…';messageInboxStatus.classList.remove('error');
+      try{
+        const response=await fetch('/api/messages',{headers:{accept:'application/json'},cache:'no-store'});const result=await response.json().catch(()=>({}));
+        if(!response.ok)throw new Error(result.error||'Your messages could not be loaded.');
+        currentUserId=result.currentUserId||currentUserId;const friends=result.friends||[];messageThreadList.replaceChildren();
+        messageInboxStatus.textContent=friends.length?`${friends.length} ${friends.length===1?'friend':'friends'}`:'Your accepted friends will appear here.';
+        messageInboxEmpty.hidden=friends.length>0;
+        friends.forEach(friend=>{
+          const item=document.createElement('li');item.className='message-thread-item';const button=document.createElement('button');button.type='button';button.className='message-thread-button';button.dataset.friendId=friend.id;button.setAttribute('aria-current',String(friend.id===currentMessageFriendId));
+          addText(button,'span','message-thread-name',friend.name);if(friend.unreadCount)addText(button,'span','message-unread',String(friend.unreadCount>99?'99+':friend.unreadCount));
+          addText(button,'span','message-thread-preview',friend.lastMessage||'Start a conversation');button.addEventListener('click',()=>openMessageThread(friend.id,friend.name));item.append(button);messageThreadList.append(item);
+        });
+        if(!friends.length){currentMessageFriendId='';messageThreadHeader.hidden=true;messageList.hidden=true;messageCompose.hidden=true;messageThreadEmpty.hidden=false}
+        else if(currentMessageFriendId&&!friends.some(friend=>friend.id===currentMessageFriendId)){currentMessageFriendId='';messageThreadHeader.hidden=true;messageList.hidden=true;messageCompose.hidden=true;messageThreadEmpty.hidden=false;messageThreadEmpty.textContent='You can message only accepted NFD friends.'}
+        return friends;
+      }catch(error){messageInboxStatus.textContent=error.message;messageInboxStatus.classList.add('error');return[]}
+    }
+    let messageSeenObserver;
+    async function markMessagesSeen(friendId,messageIds){
+      const fresh=messageIds.filter(id=>!messageSeenPending.has(id));if(!fresh.length)return;
+      fresh.forEach(id=>messageSeenPending.add(id));
+      try{
+        const response=await fetch(`/api/messages/${encodeURIComponent(friendId)}/seen`,{method:'POST',headers:{'content-type':'application/json',accept:'application/json'},body:JSON.stringify({messageIds:fresh})});const result=await response.json().catch(()=>({}));
+        if(!response.ok)throw new Error(result.error||'Message status could not be updated.');
+        await loadFriendMessages({quiet:true});
+      }catch(error){fresh.forEach(id=>messageSeenPending.delete(id));setMessageFeedback(error.message,true)}
+    }
+    function observeIncomingMessage(bubble,message,friendId){
+      if(message.seenAt)return;
+      if(messageSeenObserver)messageSeenObserver.observe(bubble);
+      else markMessagesSeen(friendId,[message.id]);
+    }
+    function renderMessageConversation(result,friendId){
+      if(friendId!==currentMessageFriendId)return;
+      messageFriendName.textContent=result.friend?.name||'NFD friend';messageThreadHeader.hidden=false;messageThreadEmpty.hidden=true;messageList.hidden=false;messageCompose.hidden=false;
+      const nearBottom=messageList.scrollHeight-messageList.scrollTop-messageList.clientHeight<100;const messages=result.messages||[];messageList.replaceChildren();
+      if(!messages.length)addText(messageList,'p','message-empty-conversation','No messages here yet. Say hi when you’re ready.');
+      messages.forEach(message=>{
+        const own=message.senderId===currentUserId;const bubble=document.createElement('article');bubble.className=`message-bubble${own?' own':''}`;bubble.dataset.messageId=message.id;
+        addText(bubble,'div','message-bubble-text',message.body);const meta=addText(bubble,'div','message-bubble-meta',`${formatMessageTime(message.createdAt)}${own?` · ${messageExpiryLabel(message)}`:''}`);meta.title=own&&message.seenAt?`Seen at ${new Date(message.seenAt).toLocaleString()}`:'';messageList.append(bubble);
+        if(!own&&!message.seenAt)observeIncomingMessage(bubble,message,friendId);
+      });
+      if(!messages.length||nearBottom)messageList.scrollTop=messageList.scrollHeight;
+    }
+    async function loadFriendMessages({quiet=false}={}){
+      const friendId=currentMessageFriendId;if(!friendId||messageRefreshInFlight)return;messageRefreshInFlight=true;
+      if(!quiet)setMessageFeedback('Loading conversation…');
+      try{const response=await fetch(`/api/messages/${encodeURIComponent(friendId)}`,{headers:{accept:'application/json'},cache:'no-store'});const result=await response.json().catch(()=>({}));if(!response.ok)throw new Error(result.error||'This conversation could not be loaded.');messageSeenPending=new Set((result.messages||[]).filter(message=>message.seenAt).map(message=>message.id));renderMessageConversation(result,friendId);if(!quiet)setMessageFeedback('Messages are private to you and your accepted friend.')}
+      catch(error){if(!quiet)setMessageFeedback(error.message,true)}finally{messageRefreshInFlight=false}
+    }
+    async function openMessageThread(friendId,friendName=''){
+      currentMessageFriendId=friendId;messageThreadHeader.hidden=false;messageFriendName.textContent=friendName||'Loading…';messageThreadEmpty.hidden=true;messageList.hidden=false;messageCompose.hidden=false;messageInput.focus();
+      messageThreadList.querySelectorAll('.message-thread-button').forEach(button=>button.setAttribute('aria-current',String(button.dataset.friendId===friendId)));
+      history.replaceState(null,'',`/messages?friend=${encodeURIComponent(friendId)}`);setMessageFeedback('');await loadFriendMessages();
+    }
+    messageSeenObserver='IntersectionObserver' in window?new IntersectionObserver(entries=>{const ids=[];let friendId='';entries.forEach(entry=>{if(entry.isIntersecting&&entry.intersectionRatio>=.25){const id=entry.target.dataset.messageId;if(id){ids.push(id);friendId=currentMessageFriendId;messageSeenObserver.unobserve(entry.target)}}});if(friendId&&ids.length)markMessagesSeen(friendId,ids)},{root:messageList,threshold:[.25]}):null;
+    messageCompose.addEventListener('submit',async event=>{
+      event.preventDefault();if(!currentMessageFriendId||!messageInput.value.trim())return;const body=messageInput.value;messageSend.disabled=true;messageSend.textContent='Sending…';
+      try{const response=await fetch(`/api/messages/${encodeURIComponent(currentMessageFriendId)}`,{method:'POST',headers:{'content-type':'application/json',accept:'application/json'},body:JSON.stringify({body})});const result=await response.json().catch(()=>({}));if(!response.ok)throw new Error(result.error||'Your message could not be sent.');messageInput.value='';setMessageFeedback('Sent. The one-hour timer starts when your friend sees it.');await Promise.all([loadFriendMessages({quiet:true}),loadMessageFriends()])}
+      catch(error){setMessageFeedback(error.message,true)}finally{messageSend.disabled=false;messageSend.textContent='Send'}
+    });
+    async function loadMessagesPage(){
+      const friends=await loadMessageFriends();const requestedFriend=new URLSearchParams(location.search).get('friend');const selected=requestedFriend&&friends.find(friend=>friend.id===requestedFriend);
+      if(selected)await openMessageThread(selected.id,selected.name);
+      else if(requestedFriend){messageThreadEmpty.textContent='You can message only accepted NFD friends.';messageThreadHeader.hidden=true;messageList.hidden=true;messageCompose.hidden=true}
+      clearInterval(messageRefreshTimer);messageRefreshTimer=setInterval(()=>{if(document.visibilityState==='visible'){loadMessageFriends();loadFriendMessages({quiet:true})}},15000);
+    }
     let acceptedFriendCount=0;
     function updateAudienceNote(){
       const visibility=document.querySelector('input[name="visibility"]:checked')?.value||'public';
@@ -779,7 +883,7 @@
         const response=await fetch('/api/auth-status',{headers:{accept:'application/json'},cache:'no-store'});
         if(!response.ok){mainNav.hidden=true;return}
         const result=await response.json().catch(()=>({}));
-        adminNavLink.hidden=!result.isAdmin;accountAdminLink.hidden=!result.isAdmin;mainNav.hidden=false;
+        currentUserId=result.userId||currentUserId;adminNavLink.hidden=!result.isAdmin;accountAdminLink.hidden=!result.isAdmin;mainNav.hidden=false;
       }catch{mainNav.hidden=true}
     }
     updateNavigation();
@@ -813,6 +917,9 @@
     }else if(location.pathname==='/profile'){
       appLayout.classList.add('profile-mode');form.hidden=true;reviewPage.hidden=true;feedPage.hidden=true;profilePage.hidden=false;
       document.title='Your profile — NFD';loadProfile();
+    }else if(location.pathname==='/messages'){
+      appLayout.classList.add('profile-mode');form.hidden=true;reviewPage.hidden=true;feedPage.hidden=true;profilePage.hidden=true;messagesPage.hidden=false;
+      document.title='Messages — NFD';loadMessagesPage();
     }else if(location.pathname==='/feed'||location.pathname==='/feed/'){
       appLayout.classList.add('feed-mode');form.hidden=true;reviewPage.hidden=true;feedPage.hidden=false;
       document.title='Lore Feed — NFD';

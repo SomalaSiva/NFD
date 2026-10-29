@@ -83,6 +83,20 @@ export const experienceComments = sqliteTable("experience_comments", {
   createdAt: text("created_at").notNull(),
 }, (table) => [index("experience_comments_experience_created_idx").on(table.experienceId, table.createdAt)]);
 
+export const nfdMessages = sqliteTable("nfd_messages", {
+  id: text("id").primaryKey(),
+  senderId: text("sender_id").notNull().references(() => nfdUsers.id, { onDelete: "cascade" }),
+  recipientId: text("recipient_id").notNull().references(() => nfdUsers.id, { onDelete: "cascade" }),
+  body: text("body").notNull(),
+  createdAt: text("created_at").notNull(),
+  seenAt: text("seen_at"),
+  expiresAt: text("expires_at"),
+}, (table) => [
+  index("nfd_messages_sender_recipient_created_idx").on(table.senderId, table.recipientId, table.createdAt),
+  index("nfd_messages_recipient_sender_created_idx").on(table.recipientId, table.senderId, table.createdAt),
+  index("nfd_messages_expires_idx").on(table.expiresAt),
+]);
+
 export const nfdActivityAudit = sqliteTable("nfd_activity_audit", {
   id: text("id").primaryKey(),
   actorUserId: text("actor_user_id").notNull().references(() => nfdUsers.id, { onDelete: "cascade" }),
