@@ -15,6 +15,6 @@ const worker = readFileSync(path.join(root, "worker/index.js"), "utf8");
 rmSync(dist, { recursive: true, force: true });
 mkdirSync(path.join(dist, "server"), { recursive: true });
 mkdirSync(path.join(dist, ".openai"), { recursive: true });
-writeFileSync(path.join(dist, "server/index.js"), `const PAGE_HTML = atob("${pageBase64}");\n${worker}`);
+writeFileSync(path.join(dist, "server/index.js"), `const PAGE_HTML = new TextDecoder().decode(Uint8Array.from(atob("${pageBase64}"), (character) => character.charCodeAt(0)));\n${worker}`);
 copyFileSync(path.join(root, ".openai/hosting.json"), path.join(dist, ".openai/hosting.json"));
 console.log("Built the NFD Site Worker.");
