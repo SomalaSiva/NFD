@@ -491,7 +491,7 @@
             const progress=document.createElement('div');progress.className='feed-gallery-progress';progress.setAttribute('role','progressbar');progress.setAttribute('aria-label','Photo position');progress.setAttribute('aria-valuemin','1');progress.setAttribute('aria-valuemax',String(images.length));
             const progressFill=document.createElement('span');progressFill.style.width=`${100/images.length}%`;progress.append(progressFill);status.append(progress);
             const next=document.createElement('button');next.type='button';next.className='feed-gallery-step';next.textContent='›';next.setAttribute('aria-label','Show next photo');
-            const currentIndex=()=>Math.max(0,Math.min(images.length-1,Math.round(gallery.scrollLeft/gallery.clientWidth)));
+            const currentIndex=()=>{let closest=0;let distance=Infinity;Array.from(gallery.children).forEach((photo,index)=>{const offset=Math.abs(photo.offsetLeft-gallery.scrollLeft);if(Number.isFinite(offset)&&offset<distance){closest=index;distance=offset}});return closest};
             const move=(direction)=>{const index=Math.max(0,Math.min(images.length-1,currentIndex()+direction));gallery.scrollTo({left:gallery.children[index].offsetLeft,behavior:'smooth'})};
             const update=()=>{const index=currentIndex();count.textContent=`Photo ${index+1} of ${images.length}`;progress.setAttribute('aria-valuenow',String(index+1));progressFill.style.width=`${((index+1)/images.length)*100}%`;previous.disabled=index===0;next.disabled=index===images.length-1};
             previous.addEventListener('click',()=>move(-1));next.addEventListener('click',()=>move(1));gallery.addEventListener('scroll',update,{passive:true});
