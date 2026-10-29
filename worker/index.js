@@ -83,6 +83,9 @@ export default {
     if (url.pathname === "/api/admins" && request.method === "DELETE") {
       return removeAdmin(request, env);
     }
+    if (request.method === "GET" && url.pathname === "/api/users") {
+      return listNfdUsers(request, env);
+    }
 
     if (request.method === "GET" && url.pathname === "/api/experiences") {
       return listExperiences(request, env);
@@ -491,6 +494,42 @@ async function removeAdmin(request, env) {
   } catch (error) {
     console.error("Admin access removal failed", error);
     return json({ error: "Administrator access could not be updated right now." }, 503);
+  }
+}
+
+async function listNfdUsers(request, env) {
+  if (!(await getCurrentUser(request, env))) {
+    return json({ error: "Sign in to view NFD members." }, 401);
+  }
+  if (!(await isOwner(request, env))) {
+    return json({ error: "Only the NFD owner can view the member directory." }, 403);
+  }
+  if (!env.DB) return json({ error: "The NFD member directory is unavailable right now." }, 503);
+  try {
+    await ensureIdentityTables(env);
+    const result = await env.DB.prepare(`
+      SELECT u.id, u.email, u.display_name, u.provider, u.created_at,
+        COUNT(e.id) AS shared_post_count
+      FROM nfd_users u
+      LEFT JOIN experiences e ON e.author_id = u.id AND e.status = 'shared'
+      GROUP BY u.id, u.email, u.display_name, u.provider, u.created_at
+      ORDER BY u.created_at DESC
+      LIMIT 500
+    `).all();
+    const users = result.results || [];
+    return json({
+      total: users.length,
+      users: users.map((user) => ({
+        email: user.email || "",
+        displayName: user.display_name || "",
+        provider: user.provider,
+        joinedAt: user.created_at,
+        sharedPostCount: Number(user.shared_post_count) || 0,
+      })),
+    });
+  } catch (error) {
+    console.error("NFD member directory query failed", error);
+    return json({ error: "The NFD member directory could not be loaded right now." }, 503);
   }
 }
 

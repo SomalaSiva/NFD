@@ -22,6 +22,7 @@
     .top-actions[hidden],.top-actions [hidden]{display:none}
     .profile-page[hidden]{display:none}.layout.profile-mode{display:block;max-width:980px}.layout.profile-mode .main{max-width:850px;margin:0 auto}.layout.profile-mode .side{display:none}.profile-heading h1{font-size:36px;line-height:1.14;letter-spacing:-1.5px;margin:12px 0 9px}.profile-heading .intro{margin:0 0 22px}.profile-summary{display:flex;align-items:center;gap:17px;padding:20px 22px;background:#fff;border:1px solid #e5ebe6;border-radius:15px;box-shadow:var(--shadow)}.profile-avatar{width:58px;height:58px;flex:none;border-radius:50%;display:grid;place-items:center;background:#e8f1eb;color:var(--green);font-size:20px;font-weight:750}.profile-identity{min-width:0}.profile-identity h2{margin:0;color:#203a30;font-size:17px;overflow-wrap:anywhere}.profile-identity p{margin:5px 0 0;color:#718079;font-size:12px;overflow-wrap:anywhere}.profile-provider{margin-left:auto;flex:none;padding:7px 10px;border-radius:999px;background:#f1f5f2;color:#557061;font-size:10px;font-weight:650}.profile-post-heading{display:flex;justify-content:space-between;align-items:center;gap:16px;margin:29px 0 13px}.profile-post-heading h2{margin:0;font-size:21px;letter-spacing:-.4px}.profile-post-heading p{margin:5px 0 0;color:#829087;font-size:11px}.profile-post-heading .secondary-button{flex:none}.profile-post-list{display:grid;gap:13px}.profile-post-card{min-width:0;padding:18px 20px;background:#fff;border:1px solid #e5ebe6;border-radius:14px;box-shadow:var(--shadow)}.profile-post-top{display:flex;justify-content:space-between;align-items:flex-start;gap:14px}.profile-post-title{margin:0;color:#203a30;font-size:15px;line-height:1.45;overflow-wrap:anywhere}.profile-post-category{display:block;margin-top:6px;color:#738279;font-size:10px}.profile-post-date{flex:none;color:#87938c;font-size:10px}.profile-post-meta{display:flex;flex-wrap:wrap;gap:7px 15px;margin-top:13px;color:#718079;font-size:10px}.profile-post-meta strong{color:#52645a}.profile-post-full{margin-top:13px;border-top:1px solid #edf1ed;padding-top:11px}.profile-post-full summary{color:var(--green);font-size:11px;font-weight:700;cursor:pointer}.profile-post-full p{margin:8px 0 0;color:#52645a;font-size:11px;line-height:1.65;white-space:pre-wrap;overflow-wrap:anywhere}.profile-post-evidence{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.profile-post-evidence a{display:inline-flex;align-items:center;gap:7px;max-width:100%;padding:7px 9px;border:1px solid #e1e9e3;border-radius:8px;color:#426b53;background:#fbfcfb;text-decoration:none;font-size:10px;font-weight:650;overflow-wrap:anywhere}.profile-post-evidence a:hover{border-color:#9bbba4}.profile-post-actions{display:flex;justify-content:flex-end;margin-top:14px}.profile-delete{padding:8px 12px;border:1px solid #efd7d0;border-radius:9px;background:#fff;color:#9a493b;font:inherit;font-size:10px;font-weight:700;cursor:pointer}.profile-delete:hover{background:#fff5f2}.profile-delete:disabled{opacity:.55;cursor:wait}.profile-empty,.profile-loading,.profile-error,.profile-message{padding:18px;border-radius:12px;background:#fff;border:1px solid #e5ebe6;color:#75827a;font-size:12px;line-height:1.6}.profile-empty{text-align:center;padding:28px 20px}.profile-empty strong{display:block;color:#385343;font-size:14px}.profile-empty p{margin:7px 0 15px}.profile-message{margin-top:12px}.profile-message.error{color:#8c4a35;background:#fff5f1;border-color:#f0d7cd}.layout.profile-mode .trust-note{margin-top:25px}@media(max-width:680px){.profile-heading h1{font-size:30px}.profile-summary{padding:16px;gap:12px;align-items:flex-start}.profile-avatar{width:46px;height:46px;font-size:17px}.profile-provider{font-size:9px;padding:6px 8px}.profile-post-heading{align-items:flex-start;flex-direction:column}.profile-post-heading .secondary-button{width:100%;justify-content:center}.profile-post-card{padding:16px}.profile-post-top{flex-direction:column;gap:6px}.profile-post-actions .profile-delete{width:100%}}
     #app-layout.profile-mode #form-heading{display:none}
+    .member-email{display:block;margin-top:4px;color:#748178;font-size:11px;font-weight:450;overflow-wrap:anywhere}
   </style>
 </head>
 <body>
@@ -60,6 +61,12 @@
         </form>
         <h3>People with admin access</h3>
         <ul class="admin-user-list" id="admin-user-list"></ul>
+      </section>
+      <section class="admin-user-management member-directory" id="member-directory" hidden aria-labelledby="member-directory-heading">
+        <h2 id="member-directory-heading">People using NFD</h2>
+        <p>Only you can view this list. It shows accounts that have signed in and the number of shared posts under each account.</p>
+        <p class="admin-feedback" id="member-directory-feedback" role="status" aria-live="polite">Loading NFD members…</p>
+        <ul class="admin-user-list" id="member-directory-list"></ul>
       </section>
       <div class="admin-links"><a class="submit" href="/feed">Open Do you know?</a><a class="secondary-button" href="/signout-with-chatgpt?return_to=%2Flogin" target="_top">Sign out</a></div>
     </section>
@@ -401,6 +408,9 @@
     const adminFeedback=document.getElementById('admin-feedback');
     const adminManagement=document.getElementById('admin-user-management');
     const adminUserList=document.getElementById('admin-user-list');
+    const memberDirectory=document.getElementById('member-directory');
+    const memberDirectoryFeedback=document.getElementById('member-directory-feedback');
+    const memberDirectoryList=document.getElementById('member-directory-list');
     function setAdminFeedback(message,isError=false){adminFeedback.textContent=message;adminFeedback.classList.toggle('error',isError)}
     function renderAdminUsers(data){
       adminUserList.replaceChildren();
@@ -427,14 +437,37 @@
       });
       if(!admins.length)setAdminFeedback('Your owner account is the only admin right now.');
     }
+    function renderMemberDirectory(data){
+      const users=data.users||[];memberDirectoryList.replaceChildren();
+      memberDirectoryFeedback.textContent=`${data.total||0} ${Number(data.total)===1?'account has':'accounts have'} signed in.`;
+      if(!users.length){memberDirectoryFeedback.textContent='No accounts have signed in yet.';return}
+      users.forEach(user=>{
+        const item=document.createElement('li');item.className='admin-user-item';
+        const label=document.createElement('div');label.className='admin-user-email';label.textContent=user.displayName||user.email||'NFD member';
+        if(user.email){const email=document.createElement('span');email.className='member-email';email.textContent=user.email;label.append(email)}
+        const method=user.provider==='google'?'Google':'ChatGPT';
+        const count=Number(user.sharedPostCount)||0;
+        const note=document.createElement('span');note.className='admin-user-added';note.textContent=`${method} · Joined ${prettyDate(user.joinedAt)} · ${count} shared ${count===1?'post':'posts'}`;
+        item.append(label,note);memberDirectoryList.append(item);
+      });
+    }
+    async function loadMemberDirectory(){
+      memberDirectory.hidden=false;memberDirectoryFeedback.textContent='Loading NFD members…';
+      try{
+        const response=await fetch('/api/users',{headers:{accept:'application/json'},cache:'no-store'});
+        const result=await response.json().catch(()=>({}));
+        if(!response.ok)throw new Error(result.error||'The member list could not be loaded.');
+        renderMemberDirectory(result);
+      }catch(error){memberDirectoryFeedback.textContent=error.message;memberDirectoryFeedback.classList.add('error')}
+    }
     async function loadAdminUsers(){
       setAdminFeedback('Checking administrator permissions…');
       try{
         const response=await fetch('/api/admins',{headers:{accept:'application/json'},cache:'no-store'});
         const result=await response.json().catch(()=>({}));
-        if(response.status===403){adminManagement.hidden=true;setAdminFeedback('You have admin access. Only the site owner can add or remove admins.');return}
+        if(response.status===403){adminManagement.hidden=true;memberDirectory.hidden=true;setAdminFeedback('You have admin access. Only the site owner can manage admins or view the member list.');return}
         if(!response.ok)throw new Error(result.error||'Administrator settings could not be loaded.');
-        adminManagement.hidden=false;renderAdminUsers(result);
+        adminManagement.hidden=false;renderAdminUsers(result);await loadMemberDirectory();
       }catch(error){setAdminFeedback(error.message,true)}
     }
     async function updateNavigation(){
