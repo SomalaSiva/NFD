@@ -86,6 +86,12 @@
         <p class="admin-feedback" id="activity-audit-feedback" role="status" aria-live="polite">Loading activity…</p>
         <ul class="admin-user-list" id="activity-audit-list"></ul>
       </section>
+      <section class="admin-user-management" id="moderation-settings" hidden aria-labelledby="moderation-heading">
+        <h2 id="moderation-heading">Automatic post review</h2>
+        <p>When enabled, Gemini checks story text and attached photos or videos against NFD Community Guidelines before a post can be shared. Posts that do not pass stay private to the person who wrote them, with a suggested edit when available. A 50-review daily cap helps control usage.</p>
+        <p class="admin-feedback" id="moderation-feedback" role="status" aria-live="polite">Loading review settings…</p>
+        <button class="secondary-button" id="moderation-toggle" type="button" aria-pressed="false" disabled>Loading…</button>
+      </section>
       <div class="admin-links"><a class="submit" href="/feed">Open Lore Feed</a><a class="secondary-button" href="/signout-with-chatgpt?return_to=%2Flogin" target="_top">Sign out</a></div>
     </section>
   </main>
@@ -136,7 +142,7 @@
           <div class="file-list" id="file-list" aria-live="polite"></div>
           <p class="privacy-note"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M8 10V7a4 4 0 0 1 8 0v3m-4 4v3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>Redact private details such as addresses, account numbers, or personal messages. Only upload material you have the right to share.</p>
         </section>
-        <footer class="form-footer"><div class="terms">By continuing, you agree to our <a href="#">Community Guidelines</a> and <a href="#">Terms</a>.</div><button class="submit" type="submit">Continue to review <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h13m-5-5 5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button></footer>
+        <footer class="form-footer"><div class="terms">By continuing, you agree to our <a href="/guidelines" target="_blank" rel="noopener">Community Guidelines</a> and <a href="#">Terms</a>.</div><button class="submit" type="submit">Continue to review <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h13m-5-5 5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button></footer>
       </form>
       <section id="review-page" class="review-page" aria-labelledby="review-heading" hidden>
         <div class="heading-row"><div><div class="eyebrow">The Zenx check · Before it goes live</div><h1 id="review-heading">One last look</h1><p class="intro">Give the details a once-over. Confirming sends it to the feed—no extra sharing lap.</p></div><span class="save-status"><i></i> Not shared yet</span></div>
@@ -147,6 +153,7 @@
           <div class="review-section"><div class="review-label">The full story</div><p class="review-full-description" id="review-full-description"></p></div>
           <div class="review-section"><div class="review-label">Who can see it</div><div class="review-value" id="review-audience"></div></div>
           <div class="review-section"><div class="review-section-head"><div><div class="review-label">Supporting evidence</div><div class="review-value" id="review-file-count"></div></div><span class="review-label">Shared with this submission</span></div><div class="review-files" id="review-files"></div></div>
+          <div class="review-section" id="ai-review-consent" hidden><label style="display:flex;gap:10px;align-items:flex-start;font-size:11px;line-height:1.55;color:#53645b"><input type="checkbox" id="ai-review-consent-checkbox" style="margin-top:2px;accent-color:#0d7054"><span>Automatic review sends your story text and attached photos or videos to Google Gemini; documents and your NFD account ID/email are not sent. Google may use free-tier inputs to improve products, and human reviewers may process them. Google advises against sending sensitive, confidential, or personal information to the unpaid service. Your post’s anonymous setting does not make identifying details in its text or media anonymous to Google. Continue only if you accept this. <a href="/privacy" target="_blank" rel="noopener">Privacy details</a>.</span></label></div>
           <div class="review-footer"><p>Check that your account is factual and doesn’t reveal private information you don’t want to share.</p><div class="review-actions"><button class="secondary-button" id="edit-experience" type="button">← Back to edit</button><button class="submit" id="confirm-review" type="button">Looks right — share <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m5 12 4.5 4.5L19 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div></div>
         </div>
         <div class="notice" id="review-notice" role="status" aria-live="polite"></div>
@@ -199,6 +206,8 @@
     const reviewPage=document.getElementById('review-page');
     const reviewFiles=document.getElementById('review-files');
     const reviewNotice=document.getElementById('review-notice');
+    const aiReviewConsent=document.getElementById('ai-review-consent');
+    const aiReviewConsentCheckbox=document.getElementById('ai-review-consent-checkbox');
     const feedPage=document.getElementById('feed-page');
     const feedList=document.getElementById('feed-list');
     const feedState=document.getElementById('feed-state');
@@ -300,6 +309,7 @@
       experienceStep.classList.remove('active');experienceStep.classList.add('done');
       reviewStep.classList.add('active');
       reviewNotice.classList.remove('show','error');reviewNotice.replaceChildren();
+      aiReviewConsentCheckbox.checked=false;void loadReviewModerationStatus();
       document.getElementById('edit-experience').disabled=false;
       document.getElementById('confirm-review').disabled=false;
       document.getElementById('confirm-review').innerHTML='Looks right — share <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m5 12 4.5 4.5L19 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -600,6 +610,9 @@
     const activityAudit=document.getElementById('activity-audit');
     const activityAuditFeedback=document.getElementById('activity-audit-feedback');
     const activityAuditList=document.getElementById('activity-audit-list');
+    const moderationSettings=document.getElementById('moderation-settings');
+    const moderationFeedback=document.getElementById('moderation-feedback');
+    const moderationToggle=document.getElementById('moderation-toggle');
     function setAdminFeedback(message,isError=false){adminFeedback.textContent=message;adminFeedback.classList.toggle('error',isError)}
     function renderAdminUsers(data){
       adminUserList.replaceChildren();
@@ -657,8 +670,24 @@
       activityAudit.hidden=false;activityAuditFeedback.textContent='Loading account activity…';activityAuditFeedback.classList.remove('error');
       try{const response=await fetch('/api/admin/activity',{headers:{accept:'application/json'},cache:'no-store'});const result=await response.json().catch(()=>({}));if(!response.ok)throw new Error(result.error||'Account activity could not be loaded.');const items=result.activities||[];activityAuditList.replaceChildren();activityAuditFeedback.textContent=`Showing ${items.length}${items.length===500?'+':''} recent account activities.`;if(!items.length){activityAuditFeedback.textContent='No account activity has been recorded yet.';return}items.forEach(activity=>{const item=document.createElement('li');item.className='admin-user-item audit-activity';const label=document.createElement('div');label.className='admin-user-email';label.textContent=activity.displayName||activity.email||'NFD member';const when=addText(label,'time','audit-time',prettyDate(activity.createdAt));when.dateTime=activity.createdAt;addText(label,'span','member-email',activity.email||'');const meta=addText(item,'div','audit-details',activity.action.replaceAll('_',' '));const detail=[];if(activity.details?.provider)detail.push(activity.details.provider);if(activity.details?.reaction)detail.push(activity.details.reaction);if(activity.details?.visibility)detail.push(`${activity.details.visibility} audience`);if(Number.isFinite(activity.details?.attachmentCount))detail.push(`${activity.details.attachmentCount} attachment${activity.details.attachmentCount===1?'':'s'}`);if(activity.targetType!=='account'&&activity.targetType&&activity.targetId)detail.push(`${activity.targetType} · ${activity.targetId}`);if(detail.length)addText(meta,'span','audit-time',detail.join(' · '));item.append(label,meta);activityAuditList.append(item)})}catch(error){activityAuditFeedback.textContent=error.message;activityAuditFeedback.classList.add('error')}
     }
+    async function loadModerationSettings(){
+      moderationSettings.hidden=false;moderationFeedback.textContent='Loading automatic-review settings…';moderationFeedback.classList.remove('error');moderationToggle.disabled=true;
+      try{
+        const response=await fetch('/api/moderation/settings',{headers:{accept:'application/json'},cache:'no-store'});const result=await response.json().catch(()=>({}));
+        if(!response.ok)throw new Error(result.error||'Review settings could not be loaded.');
+        moderationToggle.setAttribute('aria-pressed',String(result.enabled));moderationToggle.textContent=result.enabled?'Turn automatic review off':'Turn automatic review on';
+        moderationToggle.disabled=!result.ready&&!result.enabled;
+        moderationFeedback.textContent=result.ready?(result.enabled?'Gemini is connected. New posts must pass its review before sharing.':'Gemini is connected. Automatic review is off.'):'Gemini key is not connected. Add GEMINI_API_KEY to NFD’s private runtime settings to turn this on.';
+        moderationToggle.dataset.enabled=String(result.enabled);
+      }catch(error){moderationFeedback.textContent=error.message;moderationFeedback.classList.add('error')}
+    }
+    async function loadReviewModerationStatus(){
+      aiReviewConsent.hidden=true;aiReviewConsentCheckbox.checked=false;
+      try{const response=await fetch('/api/moderation/settings',{headers:{accept:'application/json'},cache:'no-store'});const result=await response.json().catch(()=>({}));if(response.ok&&result.enabled)aiReviewConsent.hidden=false}catch{}
+    }
     async function loadAdminUsers(){
       setAdminFeedback('Checking administrator permissions…');
+      await loadModerationSettings();
       try{
         const response=await fetch('/api/admins',{headers:{accept:'application/json'},cache:'no-store'});
         const result=await response.json().catch(()=>({}));
@@ -677,6 +706,12 @@
       }catch{mainNav.hidden=true}
     }
     updateNavigation();
+    moderationToggle.addEventListener('click',async()=>{
+      const enabled=moderationToggle.dataset.enabled==='true';moderationToggle.disabled=true;moderationFeedback.textContent='Saving review setting…';
+      try{const response=await fetch('/api/moderation/settings',{method:'PUT',headers:{'content-type':'application/json',accept:'application/json'},body:JSON.stringify({enabled:!enabled})});const result=await response.json().catch(()=>({}));if(!response.ok)throw new Error(result.error||'Review setting could not be saved.');moderationToggle.dataset.enabled=String(result.enabled);moderationToggle.setAttribute('aria-pressed',String(result.enabled));moderationToggle.textContent=result.enabled?'Turn automatic review off':'Turn automatic review on';moderationFeedback.textContent=result.enabled?'Gemini is connected. New posts must pass its review before sharing.':'Gemini is connected. Automatic review is off.'}
+      catch(error){moderationFeedback.textContent=error.message;moderationFeedback.classList.add('error')}
+      finally{moderationToggle.disabled=false}
+    });
     document.getElementById('admin-add-form').addEventListener('submit',async event=>{
       event.preventDefault();const input=document.getElementById('admin-email');const email=input.value.trim();
       if(!email)return;
@@ -724,10 +759,17 @@
       payload.append('shortDescription',shortDescription.value.trim());
       payload.append('fullDescription',fullDescription.value.trim());
       payload.append('visibility',document.querySelector('input[name="visibility"]:checked')?.value||'public');
+      if(!aiReviewConsent.hidden&&aiReviewConsentCheckbox.checked)payload.append('aiReviewConsent','yes');
       selectedFiles.forEach(file=>payload.append('evidence',file,file.name));
       try{
         const response=await fetch('/api/experiences',{method:'POST',body:payload});
         const result=await response.json().catch(()=>({}));
+        if(response.status===422&&result.moderation){
+          reviewNotice.replaceChildren();const title=document.createElement('strong');title.textContent='A quick edit needed before this goes live.';const note=document.createElement('p');note.textContent=result.error||'This draft needs an edit to meet the community guidelines.';reviewNotice.append(title,note);
+          if(result.moderation.flaggedFiles?.length){const files=document.createElement('p');files.textContent=`Remove or replace: ${result.moderation.flaggedFiles.join(', ')}.`;reviewNotice.append(files)}
+          if(result.moderation.suggestedShortDescription||result.moderation.suggestedFullDescription){const apply=document.createElement('button');apply.type='button';apply.className='secondary-button';apply.textContent='Use the suggested wording';apply.addEventListener('click',()=>{if(result.moderation.suggestedShortDescription)shortDescription.value=result.moderation.suggestedShortDescription;if(result.moderation.suggestedFullDescription)fullDescription.value=result.moderation.suggestedFullDescription;backToEdit()});reviewNotice.append(apply)}
+          reviewNotice.classList.add('show','error');button.disabled=false;button.innerHTML='Try sharing again';reviewNotice.scrollIntoView({behavior:'smooth',block:'nearest'});return;
+        }
         if(!response.ok)throw new Error(result.error||'NFD couldn’t post your story just now. Please try again.');
         window.location.assign(`/feed?shared=${encodeURIComponent(result.id)}`);
       }catch(error){
