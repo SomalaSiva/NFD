@@ -35,6 +35,12 @@ export default {
     if (request.method === "GET" && url.pathname === "/auth/signout") {
       return signOut(request, env);
     }
+    if (request.method === "GET" && url.pathname === "/profile") {
+      if (!(await getCurrentUser(request, env))) {
+        return Response.redirect(new URL("/login?return_to=%2Fprofile", url), 302);
+      }
+      return html(PAGE_HTML);
+    }
     if (request.method === "GET" && url.pathname === "/privacy") {
       return html(PRIVACY_HTML);
     }
@@ -80,6 +86,13 @@ export default {
 
     if (request.method === "GET" && url.pathname === "/api/experiences") {
       return listExperiences(request, env);
+    }
+    if (request.method === "GET" && url.pathname === "/api/profile") {
+      return getProfile(request, env);
+    }
+    const ownExperienceMatch = url.pathname.match(/^\/api\/experiences\/([0-9a-f-]{36})$/i);
+    if (request.method === "DELETE" && ownExperienceMatch) {
+      return deleteOwnExperience(request, env, ownExperienceMatch[1]);
     }
 
     const evidenceMatch = url.pathname.match(/^\/api\/evidence\/([0-9a-f-]{36})$/i);
@@ -564,6 +577,106 @@ async function listExperiences(request, env) {
   } catch (error) {
     console.error("Experience feed query failed", error);
     return json({ error: "NFD couldn’t load the experience feed right now." }, 503);
+  }
+}
+
+async function getProfile(request, env) {
+  const user = await getCurrentUser(request, env);
+  if (!user) return json({ error: "Sign in to view your profile." }, 401);
+  if (!env.DB) return json({ error: "Your NFD profile is not available right now." }, 503);
+  try {
+    const result = await env.DB.prepare(`
+      SELECT id, experience_category, incident_category, place, place_category,
+        location_details, incident_time, incident_time_zone, short_description,
+        full_description, created_at
+      FROM experiences
+      WHERE author_id = ? AND status = ?
+      ORDER BY created_at DESC
+      LIMIT 100
+    `).bind(user.id, "shared").all();
+    const experiences = result.results || [];
+    const evidenceByExperience = new Map();
+    if (experiences.length) {
+      const ids = experiences.map((experience) => experience.id);
+      const placeholders = ids.map(() => "?").join(", ");
+      const evidenceResult = await env.DB.prepare(`
+        SELECT id, experience_id, original_filename, content_type, size_bytes
+        FROM experience_evidence
+        WHERE experience_id IN (${placeholders})
+        ORDER BY created_at ASC
+      `).bind(...ids).all();
+      for (const file of evidenceResult.results || []) {
+        const files = evidenceByExperience.get(file.experience_id) || [];
+        files.push({
+          id: file.id,
+          originalFilename: file.original_filename,
+          contentType: file.content_type,
+          sizeBytes: file.size_bytes,
+        });
+        evidenceByExperience.set(file.experience_id, files);
+      }
+    }
+    return json({
+      user: { name: user.name || "", email: user.email || "", provider: user.provider },
+      total: experiences.length,
+      experiences: experiences.map((experience) => ({
+        id: experience.id,
+        experienceCategory: experience.experience_category,
+        incidentCategory: experience.incident_category,
+        place: experience.place,
+        placeCategory: experience.place_category,
+        locationDetails: experience.location_details || "",
+        incidentTime: experience.incident_time,
+        incidentTimeZone: experience.incident_time_zone,
+        shortDescription: experience.short_description,
+        fullDescription: experience.full_description,
+        createdAt: experience.created_at,
+        evidence: evidenceByExperience.get(experience.id) || [],
+      })),
+    });
+  } catch (error) {
+    console.error("Profile query failed", error);
+    return json({ error: "Your NFD profile could not be loaded right now." }, 503);
+  }
+}
+
+async function deleteOwnExperience(request, env, experienceId) {
+  const user = await getCurrentUser(request, env);
+  if (!user) return json({ error: "Sign in to delete your post." }, 401);
+  if (!env.DB || !env.BUCKET) return json({ error: "Post storage is not available right now." }, 503);
+  try {
+    const ownedPost = await env.DB.prepare(
+      "SELECT id FROM experiences WHERE id = ? AND author_id = ? AND status = ? LIMIT 1",
+    ).bind(experienceId, user.id, "shared").first();
+    if (!ownedPost) return json({ error: "That post was not found in your profile." }, 404);
+
+    const evidence = await env.DB.prepare(
+      "SELECT object_key FROM experience_evidence WHERE experience_id = ?",
+    ).bind(experienceId).all();
+    const results = await env.DB.batch([
+      env.DB.prepare(`
+        DELETE FROM experience_evidence
+        WHERE experience_id = ? AND EXISTS (
+          SELECT 1 FROM experiences WHERE id = ? AND author_id = ? AND status = ?
+        )
+      `).bind(experienceId, experienceId, user.id, "shared"),
+      env.DB.prepare(
+        "DELETE FROM experiences WHERE id = ? AND author_id = ? AND status = ?",
+      ).bind(experienceId, user.id, "shared"),
+    ]);
+    if (!(Number(results[1]?.meta?.changes) > 0)) {
+      return json({ error: "That post was not found in your profile." }, 404);
+    }
+
+    const cleanup = await Promise.allSettled(
+      (evidence.results || []).map((file) => env.BUCKET.delete(file.object_key)),
+    );
+    const cleanupPending = cleanup.some((result) => result.status === "rejected");
+    if (cleanupPending) console.error("Some evidence could not be removed after post deletion", experienceId);
+    return json({ ok: true, cleanupPending });
+  } catch (error) {
+    console.error("Post deletion failed", error);
+    return json({ error: "Your post could not be deleted right now. Please try again." }, 503);
   }
 }
 
