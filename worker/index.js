@@ -37,10 +37,23 @@ export default {
       if (!request.headers.get("oai-authenticated-user-id")?.trim()) {
         return Response.redirect(new URL("/login?return_to=%2Fadmin", url), 302);
       }
-      if (!isAdmin(request, env)) {
+      if (!(await isAdmin(request, env))) {
         return Response.redirect(new URL("/login?access=denied", url), 302);
       }
       return html(PAGE_HTML);
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/auth-status") {
+      if (!request.headers.get("oai-authenticated-user-id")?.trim()) {
+        return json({ error: "Sign in to use NFD." }, 401);
+      }
+      return json({ isAdmin: await isAdmin(request, env) });
+    }
+    if (url.pathname === "/api/admins" && ["GET", "POST"].includes(request.method)) {
+      return manageAdmins(request, env);
+    }
+    if (url.pathname === "/api/admins" && request.method === "DELETE") {
+      return removeAdmin(request, env);
     }
 
     if (request.method === "GET" && url.pathname === "/api/experiences") {
@@ -72,10 +85,91 @@ function html(body, status = 200) {
   });
 }
 
-function isAdmin(request, env) {
+function ownerEmail(env) {
+  return (env.NFD_OWNER_EMAIL || (env.NFD_ADMIN_EMAILS || "").split(",")[0] || "").trim().toLowerCase();
+}
+
+function isOwner(request, env) {
   const email = request.headers.get("oai-authenticated-user-email")?.trim().toLowerCase();
-  const allowed = (env.NFD_ADMIN_EMAILS || "").split(",").map((value) => value.trim().toLowerCase()).filter(Boolean);
-  return Boolean(email && allowed.includes(email));
+  return Boolean(email && ownerEmail(env) && email === ownerEmail(env));
+}
+
+async function ensureAdminTable(env) {
+  if (!env.DB) throw new Error("The NFD database is unavailable.");
+  await env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS nfd_admin_users (
+      email TEXT PRIMARY KEY NOT NULL,
+      added_by TEXT NOT NULL,
+      added_at TEXT NOT NULL
+    )
+  `).run();
+}
+
+async function isAdmin(request, env) {
+  const email = request.headers.get("oai-authenticated-user-email")?.trim().toLowerCase();
+  if (!email) return false;
+  if (isOwner(request, env)) return true;
+  try {
+    await ensureAdminTable(env);
+    return Boolean(await env.DB.prepare("SELECT email FROM nfd_admin_users WHERE email = ? LIMIT 1").bind(email).first());
+  } catch (error) {
+    console.error("Admin access lookup failed", error);
+    return false;
+  }
+}
+
+async function manageAdmins(request, env) {
+  if (!request.headers.get("oai-authenticated-user-id")?.trim()) {
+    return json({ error: "Sign in to manage NFD administrator access." }, 401);
+  }
+  if (!isOwner(request, env)) {
+    return json({ error: "Only the NFD owner can add or remove administrators." }, 403);
+  }
+  try {
+    await ensureAdminTable(env);
+    if (request.method === "GET") {
+      const result = await env.DB.prepare("SELECT email, added_at FROM nfd_admin_users ORDER BY added_at ASC").all();
+      return json({ ownerEmail: ownerEmail(env), admins: result.results || [] });
+    }
+    if (!request.headers.get("content-type")?.toLowerCase().includes("application/json")) {
+      return json({ error: "Send the administrator email as JSON." }, 415);
+    }
+    const body = await request.json().catch(() => null);
+    const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email) || email.length > 254) {
+      return json({ error: "Enter a valid email address." }, 400);
+    }
+    if (email === ownerEmail(env)) {
+      return json({ error: "The owner already has permanent administrator access." }, 400);
+    }
+    await env.DB.prepare("INSERT OR IGNORE INTO nfd_admin_users (email, added_by, added_at) VALUES (?, ?, ?)")
+      .bind(email, ownerEmail(env), new Date().toISOString()).run();
+    const result = await env.DB.prepare("SELECT email, added_at FROM nfd_admin_users ORDER BY added_at ASC").all();
+    return json({ ownerEmail: ownerEmail(env), admins: result.results || [] }, 201);
+  } catch (error) {
+    console.error("Admin access update failed", error);
+    return json({ error: "Administrator access could not be updated right now." }, 503);
+  }
+}
+
+async function removeAdmin(request, env) {
+  if (!request.headers.get("oai-authenticated-user-id")?.trim()) {
+    return json({ error: "Sign in to manage NFD administrator access." }, 401);
+  }
+  if (!isOwner(request, env)) {
+    return json({ error: "Only the NFD owner can add or remove administrators." }, 403);
+  }
+  const email = cleanSearchTerm(new URL(request.url).searchParams.get("email")).toLowerCase();
+  if (!email || email === ownerEmail(env)) return json({ error: "That administrator cannot be removed." }, 400);
+  try {
+    await ensureAdminTable(env);
+    await env.DB.prepare("DELETE FROM nfd_admin_users WHERE email = ?").bind(email).run();
+    const result = await env.DB.prepare("SELECT email, added_at FROM nfd_admin_users ORDER BY added_at ASC").all();
+    return json({ ownerEmail: ownerEmail(env), admins: result.results || [] });
+  } catch (error) {
+    console.error("Admin access removal failed", error);
+    return json({ error: "Administrator access could not be updated right now." }, 503);
+  }
 }
 
 async function listExperiences(request, env) {
