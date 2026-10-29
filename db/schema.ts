@@ -25,11 +25,13 @@ export const experiences = sqliteTable("experiences", {
   place: text("place").notNull(),
   placeCategory: text("place_category").notNull(),
   incidentTime: text("incident_time").notNull(),
+  incidentTimeEnd: text("incident_time_end"),
   incidentTimeZone: text("incident_time_zone").notNull(),
   locationDetails: text("location_details"),
   shortDescription: text("short_description").notNull(),
   fullDescription: text("full_description").notNull(),
   visibility: text("visibility").notNull().default("public"),
+  commentsEnabled: integer("comments_enabled").notNull().default(1),
   status: text("status").notNull().default("shared"),
   createdAt: text("created_at").notNull(),
 }, (table) => [

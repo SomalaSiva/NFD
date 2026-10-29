@@ -36,6 +36,7 @@ let googleJwksExpiresAt = 0;
 let identityTablesPromise;
 let engagementTablesPromise;
 let moderationTablesPromise;
+let experienceOptionColumnsPromise;
 
 export default {
   async fetch(request, env) {
@@ -140,8 +141,12 @@ export default {
     if (reactionMatch && ["POST", "DELETE"].includes(request.method)) {
       return updateExperienceReaction(request, env, reactionMatch[1]);
     }
+    const commentDeleteMatch = url.pathname.match(/^\/api\/experiences\/([0-9a-f-]{36})\/comments\/([0-9a-f-]{36})$/i);
+    if (commentDeleteMatch && request.method === "DELETE") {
+      return deleteExperienceComment(request, env, commentDeleteMatch[1], commentDeleteMatch[2]);
+    }
     const commentsMatch = url.pathname.match(/^\/api\/experiences\/([0-9a-f-]{36})\/comments$/i);
-    if (commentsMatch && ["GET", "POST"].includes(request.method)) {
+    if (commentsMatch && ["GET", "POST", "PATCH"].includes(request.method)) {
       return handleExperienceComments(request, env, commentsMatch[1]);
     }
     if (request.method === "GET" && url.pathname === "/api/profile") {
@@ -430,6 +435,27 @@ async function ensureEngagementTables(env) {
     await env.DB.prepare("CREATE INDEX IF NOT EXISTS experience_comments_experience_created_idx ON experience_comments (experience_id, created_at)").run();
   })().catch((error) => { engagementTablesPromise = undefined; throw error; });
   await engagementTablesPromise;
+}
+
+async function ensureExperienceOptionColumns(env) {
+  if (!env.DB) throw new Error("The NFD database is unavailable.");
+  experienceOptionColumnsPromise ||= (async () => {
+    const definitions = [
+      ["incident_time_end", "TEXT"],
+      ["comments_enabled", "INTEGER NOT NULL DEFAULT 1"],
+    ];
+    for (const [column, definition] of definitions) {
+      let columns = await env.DB.prepare("PRAGMA table_info(experiences)").all();
+      if ((columns.results || []).some((item) => item.name === column)) continue;
+      try {
+        await env.DB.prepare(`ALTER TABLE experiences ADD COLUMN ${column} ${definition}`).run();
+      } catch (error) {
+        columns = await env.DB.prepare("PRAGMA table_info(experiences)").all();
+        if (!(columns.results || []).some((item) => item.name === column)) throw error;
+      }
+    }
+  })().catch((error) => { experienceOptionColumnsPromise = undefined; throw error; });
+  await experienceOptionColumnsPromise;
 }
 
 async function listActivityAudit(request, env) {
@@ -977,6 +1003,7 @@ async function listExperiences(request, env) {
   }
   if (!env.DB) return json({ error: "The NFD experience database is not available right now." }, 503);
   try {
+    await ensureExperienceOptionColumns(env);
     await ensureEngagementTables(env);
     const url = new URL(request.url);
     const placeSearch = cleanSearchTerm(url.searchParams.get("place"));
@@ -1018,9 +1045,9 @@ async function listExperiences(request, env) {
     const where = conditions.join(" AND ");
     const [result, totalResult, placeResult, locationResult, experienceCategoryResult, incidentCategoryResult, placeCategoryResult] = await Promise.all([
       env.DB.prepare(`
-        SELECT e.id, e.experience_category, e.incident_category, e.place, e.place_category,
-          e.location_details, e.incident_time, e.incident_time_zone, e.short_description,
-          e.full_description, e.visibility, e.created_at,
+        SELECT e.id, e.author_id, e.experience_category, e.incident_category, e.place, e.place_category,
+          e.location_details, e.incident_time, e.incident_time_end, e.incident_time_zone, e.short_description,
+          e.full_description, e.visibility, e.comments_enabled, e.created_at,
           CASE WHEN e.visibility = 'anonymous' THEN NULL ELSE u.display_name END AS author_name
         FROM experiences e LEFT JOIN nfd_users u ON u.id = e.author_id
         WHERE ${where}
@@ -1082,10 +1109,13 @@ async function listExperiences(request, env) {
         placeCategory: experience.place_category,
         locationDetails: experience.location_details || "",
         incidentTime: experience.incident_time,
+        incidentTimeEnd: experience.incident_time_end,
         incidentTimeZone: experience.incident_time_zone,
         shortDescription: experience.short_description,
         fullDescription: experience.full_description,
         visibility: experience.visibility,
+        commentsEnabled: experience.comments_enabled !== 0,
+        isMine: experience.author_id === user.id,
         authorName: experience.visibility === "anonymous" ? "" : (experience.author_name || "NFD member"),
         createdAt: experience.created_at,
         evidence: evidenceByExperience.get(experience.id) || [],
@@ -1103,10 +1133,11 @@ async function getProfile(request, env) {
   if (!user) return json({ error: "Sign in to view your profile." }, 401);
   if (!env.DB) return json({ error: "Your NFD profile is not available right now." }, 503);
   try {
+    await ensureExperienceOptionColumns(env);
     const result = await env.DB.prepare(`
       SELECT id, experience_category, incident_category, place, place_category,
-        location_details, incident_time, incident_time_zone, short_description,
-        full_description, visibility, created_at
+        location_details, incident_time, incident_time_end, incident_time_zone, short_description,
+        full_description, visibility, comments_enabled, created_at
       FROM experiences
       WHERE author_id = ? AND status = ?
       ORDER BY created_at DESC
@@ -1145,10 +1176,12 @@ async function getProfile(request, env) {
         placeCategory: experience.place_category,
         locationDetails: experience.location_details || "",
         incidentTime: experience.incident_time,
+        incidentTimeEnd: experience.incident_time_end,
         incidentTimeZone: experience.incident_time_zone,
         shortDescription: experience.short_description,
         fullDescription: experience.full_description,
         visibility: experience.visibility,
+        commentsEnabled: experience.comments_enabled !== 0,
         createdAt: experience.created_at,
         evidence: evidenceByExperience.get(experience.id) || [],
       })),
@@ -1271,7 +1304,8 @@ async function getVisibleExperience(request, env, experienceId) {
   const user = await getCurrentUser(request, env);
   if (!user) return { error: json({ error: "Sign in to interact with NFD stories." }, 401) };
   if (!env.DB) return { error: json({ error: "NFD stories are unavailable right now." }, 503) };
-  const experience = await env.DB.prepare("SELECT id, author_id, visibility FROM experiences WHERE id = ? AND status = ? LIMIT 1").bind(experienceId, "shared").first();
+  await ensureExperienceOptionColumns(env);
+  const experience = await env.DB.prepare("SELECT id, author_id, visibility, comments_enabled FROM experiences WHERE id = ? AND status = ? LIMIT 1").bind(experienceId, "shared").first();
   if (!experience || !(await canViewExperience(env, user, experience))) return { error: json({ error: "That story is not available to you." }, 404) };
   return { user, experience };
 }
@@ -1312,7 +1346,7 @@ async function handleExperienceComments(request, env, experienceId) {
     await ensureEngagementTables(env);
     if (request.method === "GET") {
       const result = await env.DB.prepare(`
-        SELECT c.id, c.body, c.created_at, u.display_name, u.email,
+        SELECT c.id, c.user_id, c.body, c.created_at, u.display_name, u.email,
           CASE WHEN c.user_id = e.author_id AND e.visibility = 'anonymous' THEN 1 ELSE 0 END AS anonymous_author
         FROM experience_comments c
         INNER JOIN nfd_users u ON u.id = c.user_id
@@ -1321,14 +1355,24 @@ async function handleExperienceComments(request, env, experienceId) {
         ORDER BY c.created_at ASC
         LIMIT 200
       `).bind(experienceId).all();
-      return json({ comments: (result.results || []).map((row) => ({
+      return json({ commentsEnabled: access.experience.comments_enabled !== 0, canManageComments: access.experience.author_id === user.id, comments: (result.results || []).map((row) => ({
         id: row.id,
         body: row.body,
         createdAt: row.created_at,
         authorName: row.anonymous_author ? "Anonymous author" : (row.display_name || row.email?.split("@")[0] || "NFD member"),
+        canDelete: row.user_id === user.id || access.experience.author_id === user.id,
       })) });
     }
     const body = await request.json().catch(() => null);
+    if (request.method === "PATCH") {
+      if (access.experience.author_id !== user.id) return json({ error: "Only the person who shared this story can change its comment settings." }, 403);
+      if (typeof body?.enabled !== "boolean") return json({ error: "Choose whether comments should be on or off." }, 400);
+      await env.DB.prepare("UPDATE experiences SET comments_enabled = ? WHERE id = ? AND author_id = ?")
+        .bind(body.enabled ? 1 : 0, experienceId, user.id).run();
+      await recordActivity(env, user.id, body.enabled ? "comments_enabled" : "comments_disabled", "experience", experienceId);
+      return json({ ok: true, commentsEnabled: body.enabled });
+    }
+    if (access.experience.comments_enabled === 0) return json({ error: "Comments are turned off for this story." }, 409);
     const text = typeof body?.body === "string" ? body.body.trim().replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, "").slice(0, 1000) : "";
     if (!text) return json({ error: "Write a comment before posting." }, 400);
     const id = crypto.randomUUID();
@@ -1340,6 +1384,27 @@ async function handleExperienceComments(request, env, experienceId) {
   } catch (error) {
     console.error("NFD comment operation failed", error);
     return json({ error: "Comments could not be loaded or saved right now." }, 503);
+  }
+}
+
+async function deleteExperienceComment(request, env, experienceId, commentId) {
+  const access = await getVisibleExperience(request, env, experienceId);
+  if (access.error) return access.error;
+  try {
+    await ensureEngagementTables(env);
+    const comment = await env.DB.prepare("SELECT id, user_id FROM experience_comments WHERE id = ? AND experience_id = ? LIMIT 1")
+      .bind(commentId, experienceId).first();
+    if (!comment) return json({ error: "That comment was already removed or could not be found." }, 404);
+    if (comment.user_id !== access.user.id && access.experience.author_id !== access.user.id) {
+      return json({ error: "You can delete only your own comments." }, 403);
+    }
+    await env.DB.prepare("DELETE FROM experience_comments WHERE id = ? AND experience_id = ?").bind(commentId, experienceId).run();
+    await recordActivity(env, access.user.id, "comment_deleted", "experience", experienceId, { commentId });
+    const count = await env.DB.prepare("SELECT COUNT(*) AS count FROM experience_comments WHERE experience_id = ?").bind(experienceId).first();
+    return json({ ok: true, commentCount: Number(count?.count) || 0 });
+  } catch (error) {
+    console.error("NFD comment deletion failed", error);
+    return json({ error: "That comment could not be deleted right now." }, 503);
   }
 }
 
@@ -1370,6 +1435,7 @@ async function submitExperience(request, env) {
     place: textField(form, "place", 240),
     placeCategory: textField(form, "placeCategory", 100),
     incidentTime: textField(form, "incidentTimeUtc", 40),
+    incidentTimeEnd: textField(form, "incidentTimeEndUtc", 40),
     incidentTimeZone: textField(form, "incidentTimeZone", 80),
     locationDetails: textField(form, "locationDetail", 300),
     shortDescription: textField(form, "shortDescription", 240),
@@ -1386,6 +1452,9 @@ async function submitExperience(request, env) {
   }
   if (!Number.isFinite(Date.parse(fields.incidentTime))) {
     return json({ error: "Choose a valid date and time for the experience." }, 400);
+  }
+  if (fields.incidentTimeEnd && (!Number.isFinite(Date.parse(fields.incidentTimeEnd)) || Date.parse(fields.incidentTimeEnd) <= Date.parse(fields.incidentTime))) {
+    return json({ error: "The end of the time range must be later than its start." }, 400);
   }
 
   const submittedFiles = form.getAll("evidence");
@@ -1441,6 +1510,7 @@ async function submitExperience(request, env) {
   const createdAt = new Date().toISOString();
   const storedFiles = [];
   try {
+    await ensureExperienceOptionColumns(env);
     for (const file of files) {
       const evidenceId = crypto.randomUUID();
       const objectKey = `evidence/${experienceId}/${evidenceId}`;
@@ -1462,9 +1532,9 @@ async function submitExperience(request, env) {
       env.DB.prepare(`
         INSERT INTO experiences (
           id, author_id, experience_category, incident_category, place,
-          place_category, incident_time, incident_time_zone, location_details,
+          place_category, incident_time, incident_time_end, incident_time_zone, location_details,
           short_description, full_description, visibility, status, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).bind(
         experienceId,
         user.id.slice(0, 200),
@@ -1473,6 +1543,7 @@ async function submitExperience(request, env) {
         fields.place,
         fields.placeCategory,
         new Date(fields.incidentTime).toISOString(),
+        fields.incidentTimeEnd ? new Date(fields.incidentTimeEnd).toISOString() : null,
         fields.incidentTimeZone,
         fields.locationDetails || null,
         fields.shortDescription,
