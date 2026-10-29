@@ -33,6 +33,7 @@
     @media(max-width:420px){.feed-heading h1{font-size:28px}.brand-subtitle{display:none}.brand{gap:8px}.top-actions{gap:7px}.top-actions a.nav-share-link{gap:5px;padding:6px 8px;font-size:11px}.nav-share-link img{width:21px;height:21px}.account-menu-button{width:36px;height:36px}}
     .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}.audience-options{display:grid;grid-template-columns:1fr;gap:9px;padding:0;margin:0;border:0}.audience-option{display:flex;align-items:flex-start;gap:11px;padding:13px 14px;margin:0;border:1px solid #e0e8e2;border-radius:11px;background:#fff;cursor:pointer}.audience-option:has(input:checked){border-color:#74a98b;background:#f4faf5;box-shadow:0 0 0 2px rgba(13,105,79,.06)}.audience-option input{flex:none;margin:3px 0 0;accent-color:var(--green)}.audience-option span{display:grid;gap:4px}.audience-option strong{font-size:12px;color:#30443a}.audience-option small{font-size:10px;line-height:1.5;color:#77867e;font-weight:450}.audience-note{margin:10px 0 0;color:#839087;font-size:10px;line-height:1.5}.friends-panel{margin-top:24px;padding:21px;background:#fff;border:1px solid #e5ebe6;border-radius:15px;box-shadow:var(--shadow)}.friends-panel-heading h2{margin:0;font-size:18px}.friends-panel-heading p{margin:5px 0 0;color:#75827a;font-size:11px;line-height:1.55}.friend-request-form{display:flex;gap:9px;margin-top:15px}.friend-request-form .control{flex:1}.friend-request-form .submit{flex:none}.friends-feedback{margin:9px 0 0;color:#52745e;font-size:11px;line-height:1.5}.friends-feedback:empty{display:none}.friends-feedback.error{color:#a34e3e}.friends-lists{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px;margin-top:17px}.friends-lists section{min-width:0;padding:13px;border:1px solid #e8eee9;border-radius:11px;background:#fcfdfc}.friends-lists h3{margin:0 0 9px;font-size:11px}.friend-list{display:grid;gap:7px;margin:0;padding:0;list-style:none}.friend-item{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 9px;background:#fff;border:1px solid #e9eeea;border-radius:8px}.friend-person{min-width:0;display:grid;gap:3px}.friend-person strong,.friend-person span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.friend-person strong{font-size:10px;color:#32473b}.friend-person span{font-size:9px;color:#829087}.friend-actions{display:flex;flex:none;gap:5px}.friend-action{padding:6px 8px;border:1px solid #dce8df;border-radius:7px;background:#fff;color:var(--green);font-size:9px;font-weight:700;cursor:pointer}.friend-action:hover{background:#edf5ef}.friend-action.remove{border-color:#eeded8;color:#985347}.friend-empty{margin:0;color:#8a968f;font-size:10px}.friend-empty[hidden]{display:none}.feed-author{display:inline-flex;align-items:center;gap:6px;margin-top:9px;color:#6d7d74;font-size:10px}.feed-author-icon{width:19px;height:19px;display:grid;place-items:center;border-radius:50%;background:#eef4ef;color:var(--green);font-size:9px;font-weight:750}.feed-author.anonymous .feed-author-icon{background:#f4f0e8;color:#8b7251}.profile-post-audience{display:inline-flex;align-items:center;margin-top:7px;padding:4px 8px;border-radius:999px;background:#f1f5f2;color:#607167;font-size:9px;font-weight:680}
     @media(max-width:720px){.friends-panel{padding:16px}.friends-lists{grid-template-columns:1fr}.friends-lists section{padding:11px}.friend-request-form{align-items:stretch;flex-direction:column}.friend-request-form .submit{width:100%}}
+    .friend-search{margin-top:15px}.friend-search>label{display:block;margin-bottom:7px}.friend-search .helper{margin-top:6px}.friend-search .friends-feedback:empty{display:none}.friend-suggestions{margin-top:8px}.friend-suggestions[hidden]{display:none}.friend-suggestion-item{padding:10px 12px}.friend-suggestion-connect{flex:none}.friend-email-option{margin-top:12px;border-top:1px solid #edf1ed;padding-top:11px}.friend-email-option summary{color:var(--green);font-size:10px;font-weight:700;cursor:pointer}.friend-email-option .friend-request-form{margin-top:10px}
   </style>
 </head>
 <body>
@@ -164,8 +165,9 @@
         <div class="profile-heading"><div><div class="eyebrow">Your NFD account</div><h1 id="profile-heading">Your profile</h1><p class="intro">Your account details and the experiences you’ve shared. Your profile details are visible only to you.</p></div></div>
         <div class="profile-summary" id="profile-summary"><div class="profile-loading">Loading your profile…</div></div>
         <section class="friends-panel" aria-labelledby="friends-heading">
-          <div class="friends-panel-heading"><div><h2 id="friends-heading">Your NFD friends</h2><p>Connect by email. Friends can see stories you share with friends only.</p></div></div>
-          <form class="friend-request-form" id="friend-request-form"><label class="sr-only" for="friend-request-email">Friend’s NFD email</label><input class="control" type="email" id="friend-request-email" name="email" placeholder="Their email address" required><button class="submit" type="submit">Send request</button></form>
+          <div class="friends-panel-heading"><div><h2 id="friends-heading">Your NFD friends</h2><p>Search by the name on their NFD account or the start of their email username. Friends can see stories you share with friends only.</p></div></div>
+          <div class="friend-search"><label for="friend-search-query">Find a friend</label><input class="control" type="search" id="friend-search-query" placeholder="Type at least 2 letters" autocomplete="off" aria-controls="friend-suggestions"><p class="helper">We’ll suggest matching NFD accounts. Only their name is shown here.</p><p class="friends-feedback" id="friend-search-feedback" role="status" aria-live="polite"></p><ul id="friend-suggestions" class="friend-list friend-suggestions" hidden></ul></div>
+          <details class="friend-email-option"><summary>Prefer to send a request by email?</summary><form class="friend-request-form" id="friend-request-form"><label class="sr-only" for="friend-request-email">Friend’s NFD email</label><input class="control" type="email" id="friend-request-email" name="email" placeholder="Their email address" required><button class="submit" type="submit">Send request</button></form></details>
           <p class="friends-feedback" id="friends-feedback" role="status" aria-live="polite"></p>
           <div class="friends-lists">
             <section><h3>Friend requests</h3><ul id="friend-incoming-list" class="friend-list"></ul><p id="friend-incoming-empty" class="friend-empty">No requests waiting.</p></section>
@@ -224,6 +226,9 @@
     const profileMessage=document.getElementById('profile-message');
     const friendRequestForm=document.getElementById('friend-request-form');
     const friendsFeedback=document.getElementById('friends-feedback');
+    const friendSearchInput=document.getElementById('friend-search-query');
+    const friendSuggestions=document.getElementById('friend-suggestions');
+    const friendSearchFeedback=document.getElementById('friend-search-feedback');
     const audienceNote=document.getElementById('audience-note');
     const experienceStep=document.getElementById('step-experience');
     const reviewStep=document.getElementById('step-review');
@@ -459,6 +464,30 @@
         renderFriendList('friend-list','friend-empty',result.friends||[],'friends');renderFriendList('friend-incoming-list','friend-incoming-empty',result.incoming||[],'incoming');renderFriendList('friend-outgoing-list','friend-outgoing-empty',result.outgoing||[],'outgoing');
       }catch(error){setFriendsFeedback(error.message,true)}
     }
+    let friendSearchTimer;let friendSearchRequest=0;
+    async function loadFriendSuggestions(){
+      const query=friendSearchInput.value.trim();const requestNumber=++friendSearchRequest;friendSuggestions.replaceChildren();
+      if(query.length<2){friendSuggestions.hidden=true;friendSearchFeedback.textContent='Type at least 2 letters to see NFD member suggestions.';friendSearchFeedback.classList.remove('error');return}
+      friendSuggestions.hidden=false;friendSearchFeedback.textContent='Looking for matching NFD names…';friendSearchFeedback.classList.remove('error');
+      try{
+        const response=await fetch(`/api/friends/suggestions?q=${encodeURIComponent(query)}`,{headers:{accept:'application/json'},cache:'no-store'});const result=await response.json().catch(()=>({}));
+        if(requestNumber!==friendSearchRequest)return;
+        if(!response.ok)throw new Error(result.error||'Friend suggestions could not be loaded.');
+        const suggestions=result.suggestions||[];
+        if(!suggestions.length){friendSuggestions.hidden=true;friendSearchFeedback.textContent='No matching NFD members found. Try a different spelling or email username.';return}
+        friendSearchFeedback.textContent=`${suggestions.length} matching ${suggestions.length===1?'member':'members'} found.`;
+        suggestions.forEach(suggestion=>{
+          const item=document.createElement('li');item.className='friend-item friend-suggestion-item';
+          const person=document.createElement('div');person.className='friend-person';addText(person,'strong','',suggestion.name);addText(person,'span','','NFD member');item.append(person);
+          const connect=document.createElement('button');connect.type='button';connect.className='friend-action friend-suggestion-connect';connect.textContent='Connect';connect.setAttribute('aria-label',`Send a friend request to ${suggestion.name}`);connect.addEventListener('click',async()=>{
+            connect.disabled=true;connect.textContent='Sending…';friendSearchFeedback.textContent='Sending friend request…';
+            try{const send=await fetch('/api/friends',{method:'POST',headers:{'content-type':'application/json',accept:'application/json'},body:JSON.stringify({userId:suggestion.id})});const sent=await send.json().catch(()=>({}));if(!send.ok)throw new Error(sent.error||'The friend request could not be sent.');friendSearchInput.value='';friendSuggestions.replaceChildren();friendSuggestions.hidden=true;friendSearchFeedback.textContent=sent.message||'Friend request sent. They’ll see it in their NFD profile.';await loadFriends()}
+            catch(error){connect.disabled=false;connect.textContent='Connect';friendSearchFeedback.textContent=error.message;friendSearchFeedback.classList.add('error')}
+          });item.append(connect);friendSuggestions.append(item);
+        });
+      }catch(error){if(requestNumber!==friendSearchRequest)return;friendSuggestions.hidden=true;friendSearchFeedback.textContent=error.message;friendSearchFeedback.classList.add('error')}
+    }
+    friendSearchInput.addEventListener('input',()=>{clearTimeout(friendSearchTimer);friendSearchTimer=setTimeout(loadFriendSuggestions,220)});
     let acceptedFriendCount=0;
     function updateAudienceNote(){
       const visibility=document.querySelector('input[name="visibility"]:checked')?.value||'public';

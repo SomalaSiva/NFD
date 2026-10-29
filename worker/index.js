@@ -95,6 +95,9 @@ export default {
     if (request.method === "GET" && url.pathname === "/api/users") {
       return listNfdUsers(request, env);
     }
+    if (request.method === "GET" && url.pathname === "/api/friends/suggestions") {
+      return suggestNfdFriends(request, env);
+    }
     if (url.pathname === "/api/friends" && ["GET", "POST"].includes(request.method)) {
       return manageFriends(request, env);
     }
@@ -591,13 +594,19 @@ async function manageFriends(request, env) {
       return json({ error: "Send the friend’s email address as JSON." }, 415);
     }
     const body = await request.json().catch(() => null);
+    const targetUserId = typeof body?.userId === "string" ? body.userId.trim().slice(0, 200) : "";
     const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email) || email.length > 254) {
-      return json({ error: "Enter a valid email address for an NFD member." }, 400);
+    let target;
+    if (targetUserId) {
+      target = await env.DB.prepare("SELECT id FROM nfd_users WHERE id = ? LIMIT 1").bind(targetUserId).first();
+    } else {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email) || email.length > 254) {
+        return json({ error: "Choose a suggested NFD member or enter a valid email address." }, 400);
+      }
+      target = await env.DB.prepare("SELECT id FROM nfd_users WHERE lower(email) = ? LIMIT 1").bind(email).first();
     }
-    const target = await env.DB.prepare("SELECT id FROM nfd_users WHERE lower(email) = ? LIMIT 1").bind(email).first();
     if (!target || target.id === user.id) {
-      return json({ ok: true, message: "If that email belongs to another NFD member, your request will appear in their profile." }, 202);
+      return json({ ok: true, message: "If that member can be found on NFD, they’ll see your request in their profile." }, 202);
     }
     const existing = await env.DB.prepare(`
       SELECT id, status FROM nfd_friend_requests
@@ -609,10 +618,41 @@ async function manageFriends(request, env) {
       INSERT INTO nfd_friend_requests (id, from_user_id, to_user_id, status, created_at, updated_at)
       VALUES (?, ?, ?, 'pending', ?, ?)
     `).bind(crypto.randomUUID(), user.id, target.id, new Date().toISOString(), new Date().toISOString()).run();
-    return json({ ok: true, message: "If that email belongs to another NFD member, your request will appear in their profile." }, 202);
+    return json({ ok: true, message: "If that member can be found on NFD, they’ll see your request in their profile." }, 202);
   } catch (error) {
     console.error("NFD friends update failed", error);
     return json({ error: "NFD friends could not be updated right now. Please try again." }, 503);
+  }
+}
+
+async function suggestNfdFriends(request, env) {
+  const user = await getCurrentUser(request, env);
+  if (!user) return json({ error: "Sign in to find NFD friends." }, 401);
+  if (!env.DB) return json({ error: "NFD friend search is unavailable right now." }, 503);
+  const query = cleanSearchTerm(new URL(request.url).searchParams.get("q")).slice(0, 80);
+  if (query.length < 2) return json({ suggestions: [], minimumCharacters: 2 });
+  try {
+    const result = await env.DB.prepare(`
+      SELECT u.id, COALESCE(NULLIF(trim(u.display_name), ''), 'NFD member') AS display_name
+      FROM nfd_users u
+      WHERE u.id != ?
+        AND (instr(lower(COALESCE(u.display_name, '')), lower(?)) > 0
+          OR instr(lower(substr(u.email, 1, instr(u.email, '@') - 1)), lower(?)) = 1)
+        AND NOT EXISTS (
+          SELECT 1 FROM nfd_friend_requests f
+          WHERE f.status IN ('pending', 'accepted')
+            AND ((f.from_user_id = ? AND f.to_user_id = u.id) OR (f.from_user_id = u.id AND f.to_user_id = ?))
+        )
+      ORDER BY CASE WHEN instr(lower(COALESCE(u.display_name, '')), lower(?)) = 1 THEN 0 ELSE 1 END,
+        lower(COALESCE(NULLIF(trim(u.display_name), ''), 'NFD member'))
+      LIMIT 8
+    `).bind(user.id, query, query, user.id, user.id, query).all();
+    return json({
+      suggestions: (result.results || []).map((row) => ({ id: row.id, name: row.display_name })),
+    });
+  } catch (error) {
+    console.error("NFD friend search failed", error);
+    return json({ error: "NFD friend suggestions could not be loaded right now." }, 503);
   }
 }
 
