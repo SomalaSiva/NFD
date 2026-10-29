@@ -22,8 +22,14 @@ export default {
     }
     if (request.method === "GET" && ["/", "/feed", "/feed/"].includes(url.pathname)) {
       if (!request.headers.get("oai-authenticated-user-id")?.trim()) {
-        const returnTo = `${url.pathname}${url.search}`;
-        return Response.redirect(new URL(`/login?return_to=${encodeURIComponent(returnTo)}`, url), 302);
+        return Response.redirect(new URL("/login?return_to=%2Ffeed", url), 302);
+      }
+      if (url.pathname === "/") return Response.redirect(new URL("/feed", url), 302);
+      return html(PAGE_HTML);
+    }
+    if (request.method === "GET" && url.pathname === "/share") {
+      if (!request.headers.get("oai-authenticated-user-id")?.trim()) {
+        return Response.redirect(new URL("/login?return_to=%2Ffeed", url), 302);
       }
       return html(PAGE_HTML);
     }
