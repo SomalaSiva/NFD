@@ -60,3 +60,35 @@ export const experienceEvidence = sqliteTable("experience_evidence", {
   sizeBytes: integer("size_bytes").notNull(),
   createdAt: text("created_at").notNull(),
 }, (table) => [index("experience_evidence_experience_id_idx").on(table.experienceId)]);
+
+export const experienceReactions = sqliteTable("experience_reactions", {
+  experienceId: text("experience_id").notNull().references(() => experiences.id, { onDelete: "cascade" }),
+  userId: text("user_id").notNull().references(() => nfdUsers.id, { onDelete: "cascade" }),
+  reaction: text("reaction").notNull(),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+}, (table) => [
+  uniqueIndex("experience_reactions_experience_user_unique").on(table.experienceId, table.userId),
+  index("experience_reactions_experience_idx").on(table.experienceId, table.reaction),
+]);
+
+export const experienceComments = sqliteTable("experience_comments", {
+  id: text("id").primaryKey(),
+  experienceId: text("experience_id").notNull().references(() => experiences.id, { onDelete: "cascade" }),
+  userId: text("user_id").notNull().references(() => nfdUsers.id, { onDelete: "cascade" }),
+  body: text("body").notNull(),
+  createdAt: text("created_at").notNull(),
+}, (table) => [index("experience_comments_experience_created_idx").on(table.experienceId, table.createdAt)]);
+
+export const nfdActivityAudit = sqliteTable("nfd_activity_audit", {
+  id: text("id").primaryKey(),
+  actorUserId: text("actor_user_id").notNull().references(() => nfdUsers.id, { onDelete: "cascade" }),
+  action: text("action").notNull(),
+  targetType: text("target_type").notNull(),
+  targetId: text("target_id"),
+  detailsJson: text("details_json").notNull().default("{}"),
+  createdAt: text("created_at").notNull(),
+}, (table) => [
+  index("nfd_activity_audit_created_idx").on(table.createdAt),
+  index("nfd_activity_audit_actor_created_idx").on(table.actorUserId, table.createdAt),
+]);

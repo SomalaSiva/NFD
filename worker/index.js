@@ -1,6 +1,6 @@
 const MAX_FILES = 5;
-const MAX_FILE_BYTES = 10 * 1024 * 1024;
-const MAX_TOTAL_BYTES = 25 * 1024 * 1024;
+const MAX_FILE_BYTES = 25 * 1024 * 1024;
+const MAX_TOTAL_BYTES = 50 * 1024 * 1024;
 const ALLOWED_TYPES = new Set([
   "image/jpeg",
   "image/png",
@@ -9,6 +9,9 @@ const ALLOWED_TYPES = new Set([
   "image/heic",
   "image/heif",
   "image/avif",
+  "video/mp4",
+  "video/webm",
+  "video/quicktime",
   "application/pdf",
   "application/msword",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -22,6 +25,7 @@ const GOOGLE_SESSION_SECONDS = 60 * 60 * 24 * 30;
 let googleJwksCache;
 let googleJwksExpiresAt = 0;
 let identityTablesPromise;
+let engagementTablesPromise;
 
 export default {
   async fetch(request, env) {
@@ -84,6 +88,7 @@ export default {
       if (!user) {
         return json({ error: "Sign in to use NFD." }, 401);
       }
+      await recordAppSession(env, user);
       return json({ isAdmin: await isAdmin(request, env), provider: user.provider });
     }
     if (url.pathname === "/api/admins" && ["GET", "POST"].includes(request.method)) {
@@ -91,6 +96,9 @@ export default {
     }
     if (url.pathname === "/api/admins" && request.method === "DELETE") {
       return removeAdmin(request, env);
+    }
+    if (request.method === "GET" && url.pathname === "/api/admin/activity") {
+      return listActivityAudit(request, env);
     }
     if (request.method === "GET" && url.pathname === "/api/users") {
       return listNfdUsers(request, env);
@@ -111,6 +119,14 @@ export default {
 
     if (request.method === "GET" && url.pathname === "/api/experiences") {
       return listExperiences(request, env);
+    }
+    const reactionMatch = url.pathname.match(/^\/api\/experiences\/([0-9a-f-]{36})\/reaction$/i);
+    if (reactionMatch && ["POST", "DELETE"].includes(request.method)) {
+      return updateExperienceReaction(request, env, reactionMatch[1]);
+    }
+    const commentsMatch = url.pathname.match(/^\/api\/experiences\/([0-9a-f-]{36})\/comments$/i);
+    if (commentsMatch && ["GET", "POST"].includes(request.method)) {
+      return handleExperienceComments(request, env, commentsMatch[1]);
     }
     if (request.method === "GET" && url.pathname === "/api/profile") {
       return getProfile(request, env);
@@ -214,6 +230,7 @@ async function finishGoogleSignIn(request, env) {
     const expiresAt = new Date(Date.now() + GOOGLE_SESSION_SECONDS * 1000).toISOString();
     await env.DB.prepare("INSERT INTO nfd_sessions (session_hash, user_id, expires_at, created_at) VALUES (?, ?, ?, ?)")
       .bind(sessionHash, userId, expiresAt, now).run();
+    await recordActivity(env, userId, "sign_in", "account", userId, { provider: "google" });
     return redirect(safeReturnTo(oauthState.returnTo), 302, [
       clearOauthCookie,
       cookie(GOOGLE_SESSION_COOKIE, sessionToken, GOOGLE_SESSION_SECONDS),
@@ -229,6 +246,8 @@ async function signOut(request, env) {
   if (token && env.DB) {
     try {
       const hash = await sha256Base64Url(token);
+      const session = await env.DB.prepare("SELECT user_id FROM nfd_sessions WHERE session_hash = ? LIMIT 1").bind(hash).first();
+      if (session?.user_id) await recordActivity(env, session.user_id, "sign_out", "account", session.user_id, { provider: "google" });
       await env.DB.prepare("DELETE FROM nfd_sessions WHERE session_hash = ?").bind(hash).run();
     } catch (error) {
       console.error("Google session cleanup failed", error);
@@ -273,11 +292,13 @@ async function getCurrentUser(request, env) {
       try {
         await ensureIdentityTables(env);
         const now = new Date().toISOString();
+        const knownAccount = await env.DB.prepare("SELECT id FROM nfd_users WHERE id = ? LIMIT 1").bind(user.id).first();
         await env.DB.prepare(`
           INSERT INTO nfd_users (id, provider, provider_subject, email, display_name, created_at, updated_at)
           VALUES (?, 'chatgpt', ?, ?, NULL, ?, ?)
           ON CONFLICT(id) DO UPDATE SET email = COALESCE(NULLIF(excluded.email, ''), nfd_users.email), updated_at = excluded.updated_at
         `).bind(user.id, user.subject, user.email, now, now).run();
+        if (!knownAccount) await recordActivity(env, user.id, "account_created", "account", user.id, { provider: "chatgpt" });
       } catch (error) {
         console.error("ChatGPT profile save failed", error);
       }
@@ -313,11 +334,111 @@ async function ensureIdentityTables(env) {
       )
     `).run();
     await env.DB.prepare("CREATE INDEX IF NOT EXISTS nfd_sessions_user_id_idx ON nfd_sessions (user_id)").run();
+    await env.DB.prepare(`
+      CREATE TABLE IF NOT EXISTS nfd_activity_audit (
+        id TEXT PRIMARY KEY NOT NULL,
+        actor_user_id TEXT NOT NULL,
+        action TEXT NOT NULL,
+        target_type TEXT NOT NULL,
+        target_id TEXT,
+        details_json TEXT NOT NULL DEFAULT '{}',
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (actor_user_id) REFERENCES nfd_users(id) ON DELETE CASCADE
+      )
+    `).run();
+    await env.DB.prepare("CREATE INDEX IF NOT EXISTS nfd_activity_audit_created_idx ON nfd_activity_audit (created_at)").run();
+    await env.DB.prepare("CREATE INDEX IF NOT EXISTS nfd_activity_audit_actor_created_idx ON nfd_activity_audit (actor_user_id, created_at)").run();
   })().catch((error) => {
     identityTablesPromise = undefined;
     throw error;
   });
   await identityTablesPromise;
+}
+
+async function recordActivity(env, actorUserId, action, targetType, targetId = null, details = {}) {
+  if (!env.DB || !actorUserId) return;
+  try {
+    await ensureIdentityTables(env);
+    await env.DB.prepare(`
+      INSERT INTO nfd_activity_audit (id, actor_user_id, action, target_type, target_id, details_json, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).bind(crypto.randomUUID(), actorUserId, action, targetType, targetId, JSON.stringify(details), new Date().toISOString()).run();
+  } catch (error) {
+    console.error("NFD activity audit write failed", action, error);
+  }
+}
+
+async function recordAppSession(env, user) {
+  if (!env.DB || !user?.id) return;
+  try {
+    await ensureIdentityTables(env);
+    const recentSince = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+    const recent = await env.DB.prepare(`
+      SELECT id FROM nfd_activity_audit
+      WHERE actor_user_id = ? AND action = 'app_session' AND created_at >= ?
+      LIMIT 1
+    `).bind(user.id, recentSince).first();
+    if (!recent) await recordActivity(env, user.id, "app_session", "account", user.id, { provider: user.provider });
+  } catch (error) {
+    console.error("NFD session activity write failed", error);
+  }
+}
+
+async function ensureEngagementTables(env) {
+  if (!env.DB) throw new Error("The NFD database is unavailable.");
+  engagementTablesPromise ||= (async () => {
+    await env.DB.prepare(`
+      CREATE TABLE IF NOT EXISTS experience_reactions (
+        experience_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        reaction TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY (experience_id, user_id),
+        FOREIGN KEY (experience_id) REFERENCES experiences(id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id) REFERENCES nfd_users(id) ON DELETE CASCADE
+      )
+    `).run();
+    await env.DB.prepare("CREATE INDEX IF NOT EXISTS experience_reactions_experience_idx ON experience_reactions (experience_id, reaction)").run();
+    await env.DB.prepare(`
+      CREATE TABLE IF NOT EXISTS experience_comments (
+        id TEXT PRIMARY KEY NOT NULL,
+        experience_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        body TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (experience_id) REFERENCES experiences(id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id) REFERENCES nfd_users(id) ON DELETE CASCADE
+      )
+    `).run();
+    await env.DB.prepare("CREATE INDEX IF NOT EXISTS experience_comments_experience_created_idx ON experience_comments (experience_id, created_at)").run();
+  })().catch((error) => { engagementTablesPromise = undefined; throw error; });
+  await engagementTablesPromise;
+}
+
+async function listActivityAudit(request, env) {
+  if (!(await getCurrentUser(request, env))) return json({ error: "Sign in to view account activity." }, 401);
+  if (!(await isOwner(request, env))) return json({ error: "Only the NFD owner can view account activity." }, 403);
+  if (!env.DB) return json({ error: "Account activity is unavailable right now." }, 503);
+  try {
+    await ensureIdentityTables(env);
+    const result = await env.DB.prepare(`
+      SELECT a.id, a.action, a.target_type, a.target_id, a.details_json, a.created_at,
+        u.email, u.display_name
+      FROM nfd_activity_audit a
+      INNER JOIN nfd_users u ON u.id = a.actor_user_id
+      ORDER BY a.created_at DESC
+      LIMIT 500
+    `).all();
+    return json({ activities: (result.results || []).map((row) => ({
+      id: row.id, action: row.action, targetType: row.target_type, targetId: row.target_id,
+      details: safeJsonParse(row.details_json) || {}, createdAt: row.created_at,
+      email: row.email || "", displayName: row.display_name || "",
+    })) });
+  } catch (error) {
+    console.error("NFD activity audit query failed", error);
+    return json({ error: "Account activity could not be loaded right now." }, 503);
+  }
 }
 
 async function verifyGoogleIdToken(token, clientId, expectedNonce) {
@@ -466,7 +587,8 @@ async function isAdmin(request, env) {
 }
 
 async function manageAdmins(request, env) {
-  if (!(await getCurrentUser(request, env))) {
+  const actor = await getCurrentUser(request, env);
+  if (!actor) {
     return json({ error: "Sign in to manage NFD administrator access." }, 401);
   }
   if (!(await isOwner(request, env))) {
@@ -491,6 +613,7 @@ async function manageAdmins(request, env) {
     }
     await env.DB.prepare("INSERT OR IGNORE INTO nfd_admin_users (email, added_by, added_at) VALUES (?, ?, ?)")
       .bind(email, ownerEmail(env), new Date().toISOString()).run();
+    await recordActivity(env, actor.id, "admin_access_granted", "admin", email);
     const result = await env.DB.prepare("SELECT email, added_at FROM nfd_admin_users ORDER BY added_at ASC").all();
     return json({ ownerEmail: ownerEmail(env), admins: result.results || [] }, 201);
   } catch (error) {
@@ -500,7 +623,8 @@ async function manageAdmins(request, env) {
 }
 
 async function removeAdmin(request, env) {
-  if (!(await getCurrentUser(request, env))) {
+  const actor = await getCurrentUser(request, env);
+  if (!actor) {
     return json({ error: "Sign in to manage NFD administrator access." }, 401);
   }
   if (!(await isOwner(request, env))) {
@@ -511,6 +635,7 @@ async function removeAdmin(request, env) {
   try {
     await ensureAdminTable(env);
     await env.DB.prepare("DELETE FROM nfd_admin_users WHERE email = ?").bind(email).run();
+    await recordActivity(env, actor.id, "admin_access_removed", "admin", email);
     const result = await env.DB.prepare("SELECT email, added_at FROM nfd_admin_users ORDER BY added_at ASC").all();
     return json({ ownerEmail: ownerEmail(env), admins: result.results || [] });
   } catch (error) {
@@ -530,11 +655,12 @@ async function listNfdUsers(request, env) {
   try {
     await ensureIdentityTables(env);
     const result = await env.DB.prepare(`
-      SELECT u.id, u.email, u.display_name, u.provider, u.created_at,
+      SELECT u.id, u.provider_subject, u.email, u.display_name, u.provider, u.created_at, u.updated_at,
+        (SELECT MAX(a.created_at) FROM nfd_activity_audit a WHERE a.actor_user_id = u.id) AS last_activity_at,
         COUNT(e.id) AS shared_post_count
       FROM nfd_users u
       LEFT JOIN experiences e ON e.author_id = u.id AND e.status = 'shared'
-      GROUP BY u.id, u.email, u.display_name, u.provider, u.created_at
+      GROUP BY u.id, u.provider_subject, u.email, u.display_name, u.provider, u.created_at, u.updated_at
       ORDER BY u.created_at DESC
       LIMIT 500
     `).all();
@@ -545,7 +671,11 @@ async function listNfdUsers(request, env) {
         email: user.email || "",
         displayName: user.display_name || "",
         provider: user.provider,
+        accountId: user.id,
+        providerSubject: user.provider_subject,
         joinedAt: user.created_at,
+        updatedAt: user.updated_at,
+        lastActivityAt: user.last_activity_at || "",
         sharedPostCount: Number(user.shared_post_count) || 0,
       })),
     });
@@ -614,10 +744,13 @@ async function manageFriends(request, env) {
       LIMIT 1
     `).bind(user.id, target.id, target.id, user.id).first();
     if (existing) return json({ error: "A friend request is already pending, or you’re already connected." }, 409);
+    const requestId = crypto.randomUUID();
+    const createdAt = new Date().toISOString();
     await env.DB.prepare(`
       INSERT INTO nfd_friend_requests (id, from_user_id, to_user_id, status, created_at, updated_at)
       VALUES (?, ?, ?, 'pending', ?, ?)
-    `).bind(crypto.randomUUID(), user.id, target.id, new Date().toISOString(), new Date().toISOString()).run();
+    `).bind(requestId, user.id, target.id, createdAt, createdAt).run();
+    await recordActivity(env, user.id, "friend_request_sent", "friend", target.id);
     return json({ ok: true, message: "If that member can be found on NFD, they’ll see your request in their profile." }, 202);
   } catch (error) {
     console.error("NFD friends update failed", error);
@@ -661,11 +794,13 @@ async function respondToFriendRequest(request, env, requestId, accept) {
   if (!user) return json({ error: "Sign in to respond to friend requests." }, 401);
   if (!env.DB) return json({ error: "NFD friends are unavailable right now." }, 503);
   try {
+    const incoming = await env.DB.prepare("SELECT from_user_id FROM nfd_friend_requests WHERE id = ? AND to_user_id = ? AND status = 'pending' LIMIT 1").bind(requestId, user.id).first();
     const result = await env.DB.prepare(`
       UPDATE nfd_friend_requests SET status = ?, updated_at = ?
       WHERE id = ? AND to_user_id = ? AND status = 'pending'
     `).bind(accept ? "accepted" : "rejected", new Date().toISOString(), requestId, user.id).run();
     if (!(Number(result.meta?.changes) > 0)) return json({ error: "That incoming request is no longer available." }, 404);
+    await recordActivity(env, user.id, accept ? "friend_request_accepted" : "friend_request_rejected", "friend", incoming?.from_user_id || requestId);
     return json({ ok: true, status: accept ? "accepted" : "rejected" });
   } catch (error) {
     console.error("Friend request response failed", error);
@@ -678,6 +813,12 @@ async function removeFriendOrRequest(request, env, requestId) {
   if (!user) return json({ error: "Sign in to update NFD friends." }, 401);
   if (!env.DB) return json({ error: "NFD friends are unavailable right now." }, 503);
   try {
+    const relationship = await env.DB.prepare(`
+      SELECT from_user_id, to_user_id, status FROM nfd_friend_requests WHERE id = ? AND (
+        (status = 'accepted' AND (from_user_id = ? OR to_user_id = ?)) OR
+        (status = 'pending' AND (from_user_id = ? OR to_user_id = ?))
+      ) LIMIT 1
+    `).bind(requestId, user.id, user.id, user.id, user.id).first();
     const result = await env.DB.prepare(`
       DELETE FROM nfd_friend_requests
       WHERE id = ? AND (
@@ -686,6 +827,8 @@ async function removeFriendOrRequest(request, env, requestId) {
       )
     `).bind(requestId, user.id, user.id, user.id, user.id).run();
     if (!(Number(result.meta?.changes) > 0)) return json({ error: "That friend or request was not found." }, 404);
+    const friendId = relationship?.from_user_id === user.id ? relationship?.to_user_id : relationship?.from_user_id;
+    await recordActivity(env, user.id, relationship?.status === "accepted" ? "friend_removed" : "friend_request_removed", "friend", friendId || requestId);
     return json({ ok: true });
   } catch (error) {
     console.error("NFD friend removal failed", error);
@@ -700,6 +843,7 @@ async function listExperiences(request, env) {
   }
   if (!env.DB) return json({ error: "The NFD experience database is not available right now." }, 503);
   try {
+    await ensureEngagementTables(env);
     const url = new URL(request.url);
     const placeSearch = cleanSearchTerm(url.searchParams.get("place"));
     const locationSearch = cleanSearchTerm(url.searchParams.get("location"));
@@ -758,6 +902,7 @@ async function listExperiences(request, env) {
     ]);
     const experiences = result.results || [];
     const evidenceByExperience = new Map();
+    const engagementByExperience = new Map();
     if (experiences.length) {
       const ids = experiences.map((experience) => experience.id);
       const placeholders = ids.map(() => "?").join(", ");
@@ -777,6 +922,15 @@ async function listExperiences(request, env) {
         });
         evidenceByExperience.set(file.experience_id, files);
       }
+      const [reactionRows, myReactions, commentRows] = await Promise.all([
+        env.DB.prepare(`SELECT experience_id, reaction, COUNT(*) AS count FROM experience_reactions WHERE experience_id IN (${placeholders}) GROUP BY experience_id, reaction`).bind(...ids).all(),
+        env.DB.prepare(`SELECT experience_id, reaction FROM experience_reactions WHERE user_id = ? AND experience_id IN (${placeholders})`).bind(user.id, ...ids).all(),
+        env.DB.prepare(`SELECT experience_id, COUNT(*) AS count FROM experience_comments WHERE experience_id IN (${placeholders}) GROUP BY experience_id`).bind(...ids).all(),
+      ]);
+      for (const experience of experiences) engagementByExperience.set(experience.id, { counts: { like: 0, dislike: 0, love: 0, hate: 0 }, myReaction: "", commentCount: 0 });
+      for (const row of reactionRows.results || []) engagementByExperience.get(row.experience_id).counts[row.reaction] = Number(row.count) || 0;
+      for (const row of myReactions.results || []) engagementByExperience.get(row.experience_id).myReaction = row.reaction;
+      for (const row of commentRows.results || []) engagementByExperience.get(row.experience_id).commentCount = Number(row.count) || 0;
     }
 
     return json({
@@ -801,6 +955,7 @@ async function listExperiences(request, env) {
         authorName: experience.visibility === "anonymous" ? "" : (experience.author_name || "NFD member"),
         createdAt: experience.created_at,
         evidence: evidenceByExperience.get(experience.id) || [],
+        engagement: engagementByExperience.get(experience.id) || { counts: { like: 0, dislike: 0, love: 0, hate: 0 }, myReaction: "", commentCount: 0 },
       })),
     });
   } catch (error) {
@@ -875,15 +1030,19 @@ async function deleteOwnExperience(request, env, experienceId) {
   if (!user) return json({ error: "Sign in to delete your post." }, 401);
   if (!env.DB || !env.BUCKET) return json({ error: "Post storage is not available right now." }, 503);
   try {
+    await ensureEngagementTables(env);
     const ownedPost = await env.DB.prepare(
       "SELECT id FROM experiences WHERE id = ? AND author_id = ? AND status = ? LIMIT 1",
     ).bind(experienceId, user.id, "shared").first();
     if (!ownedPost) return json({ error: "That post was not found in your profile." }, 404);
+    await recordActivity(env, user.id, "post_deleted", "experience", experienceId);
 
     const evidence = await env.DB.prepare(
       "SELECT object_key FROM experience_evidence WHERE experience_id = ?",
     ).bind(experienceId).all();
     const results = await env.DB.batch([
+      env.DB.prepare("DELETE FROM experience_reactions WHERE experience_id = ?").bind(experienceId),
+      env.DB.prepare("DELETE FROM experience_comments WHERE experience_id = ?").bind(experienceId),
       env.DB.prepare(`
         DELETE FROM experience_evidence
         WHERE experience_id = ? AND EXISTS (
@@ -894,7 +1053,7 @@ async function deleteOwnExperience(request, env, experienceId) {
         "DELETE FROM experiences WHERE id = ? AND author_id = ? AND status = ?",
       ).bind(experienceId, user.id, "shared"),
     ]);
-    if (!(Number(results[1]?.meta?.changes) > 0)) {
+    if (!(Number(results[3]?.meta?.changes) > 0)) {
       return json({ error: "That post was not found in your profile." }, 404);
     }
 
@@ -930,17 +1089,31 @@ async function serveEvidence(request, env, evidenceId) {
     `).bind(evidenceId, "shared").first();
     if (!record) return new Response("Evidence not found.", { status: 404 });
     if (!(await canViewExperience(env, user, record))) return new Response("Evidence not found.", { status: 404 });
-    const object = await env.BUCKET.get(record.object_key);
+    const isVideo = record.content_type.startsWith("video/");
+    let object;
+    try {
+      object = await env.BUCKET.get(record.object_key, request.headers.get("range") ? { range: request.headers } : undefined);
+    } catch (error) {
+      if (request.headers.get("range")) return new Response(null, { status: 416, headers: { "accept-ranges": "bytes" } });
+      throw error;
+    }
     if (!object) return new Response("Evidence not found.", { status: 404 });
     const filename = safeFilename(record.original_filename);
-    const disposition = record.content_type.startsWith("image/") ? "inline" : "attachment";
-    return new Response(object.body, {
-      headers: {
+    const ranged = Boolean(request.headers.get("range") && object.range);
+    const offset = Number(object.range?.offset) || 0;
+    const length = Number(object.range?.length) || object.size;
+    const headers = new Headers({
         "content-type": record.content_type,
-        "content-disposition": `${disposition}; filename="${filename}"`,
+        "content-disposition": `${record.content_type.startsWith("image/") || isVideo ? "inline" : "attachment"}; filename="${filename}"`,
         "cache-control": "private, no-store",
         "x-content-type-options": "nosniff",
-      },
+        "accept-ranges": isVideo ? "bytes" : "none",
+        "content-length": String(length),
+      });
+    if (ranged) headers.set("content-range", `bytes ${offset}-${offset + length - 1}/${object.size}`);
+    return new Response(object.body, {
+      status: ranged ? 206 : 200,
+      headers,
     });
   } catch (error) {
     console.error("Evidence fetch failed", error);
@@ -960,6 +1133,82 @@ async function canViewExperience(env, viewer, experience) {
   return Boolean(connection);
 }
 
+async function getVisibleExperience(request, env, experienceId) {
+  const user = await getCurrentUser(request, env);
+  if (!user) return { error: json({ error: "Sign in to interact with NFD stories." }, 401) };
+  if (!env.DB) return { error: json({ error: "NFD stories are unavailable right now." }, 503) };
+  const experience = await env.DB.prepare("SELECT id, author_id, visibility FROM experiences WHERE id = ? AND status = ? LIMIT 1").bind(experienceId, "shared").first();
+  if (!experience || !(await canViewExperience(env, user, experience))) return { error: json({ error: "That story is not available to you." }, 404) };
+  return { user, experience };
+}
+
+async function updateExperienceReaction(request, env, experienceId) {
+  const access = await getVisibleExperience(request, env, experienceId);
+  if (access.error) return access.error;
+  const { user } = access;
+  try {
+    await ensureEngagementTables(env);
+    if (request.method === "DELETE") {
+      await env.DB.prepare("DELETE FROM experience_reactions WHERE experience_id = ? AND user_id = ?").bind(experienceId, user.id).run();
+      await recordActivity(env, user.id, "reaction_removed", "experience", experienceId);
+      return json({ ok: true, reaction: "" });
+    }
+    const body = await request.json().catch(() => null);
+    const reaction = body?.reaction;
+    if (!["like", "dislike", "love", "hate"].includes(reaction)) return json({ error: "Choose like, dislike, love, or hate." }, 400);
+    const now = new Date().toISOString();
+    await env.DB.prepare(`
+      INSERT INTO experience_reactions (experience_id, user_id, reaction, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT(experience_id, user_id) DO UPDATE SET reaction = excluded.reaction, updated_at = excluded.updated_at
+    `).bind(experienceId, user.id, reaction, now, now).run();
+    await recordActivity(env, user.id, "reaction_set", "experience", experienceId, { reaction });
+    return json({ ok: true, reaction });
+  } catch (error) {
+    console.error("NFD reaction update failed", error);
+    return json({ error: "Your reaction could not be saved right now." }, 503);
+  }
+}
+
+async function handleExperienceComments(request, env, experienceId) {
+  const access = await getVisibleExperience(request, env, experienceId);
+  if (access.error) return access.error;
+  const { user } = access;
+  try {
+    await ensureEngagementTables(env);
+    if (request.method === "GET") {
+      const result = await env.DB.prepare(`
+        SELECT c.id, c.body, c.created_at, u.display_name, u.email,
+          CASE WHEN c.user_id = e.author_id AND e.visibility = 'anonymous' THEN 1 ELSE 0 END AS anonymous_author
+        FROM experience_comments c
+        INNER JOIN nfd_users u ON u.id = c.user_id
+        INNER JOIN experiences e ON e.id = c.experience_id
+        WHERE c.experience_id = ?
+        ORDER BY c.created_at ASC
+        LIMIT 200
+      `).bind(experienceId).all();
+      return json({ comments: (result.results || []).map((row) => ({
+        id: row.id,
+        body: row.body,
+        createdAt: row.created_at,
+        authorName: row.anonymous_author ? "Anonymous author" : (row.display_name || row.email?.split("@")[0] || "NFD member"),
+      })) });
+    }
+    const body = await request.json().catch(() => null);
+    const text = typeof body?.body === "string" ? body.body.trim().replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, "").slice(0, 1000) : "";
+    if (!text) return json({ error: "Write a comment before posting." }, 400);
+    const id = crypto.randomUUID();
+    const createdAt = new Date().toISOString();
+    await env.DB.prepare("INSERT INTO experience_comments (id, experience_id, user_id, body, created_at) VALUES (?, ?, ?, ?, ?)")
+      .bind(id, experienceId, user.id, text, createdAt).run();
+    await recordActivity(env, user.id, "comment_posted", "experience", experienceId, { commentId: id });
+    return json({ ok: true, comment: { id, body: text, createdAt, authorName: user.name || user.email?.split("@")[0] || "NFD member" } }, 201);
+  } catch (error) {
+    console.error("NFD comment operation failed", error);
+    return json({ error: "Comments could not be loaded or saved right now." }, 503);
+  }
+}
+
 async function submitExperience(request, env) {
   const user = await getCurrentUser(request, env);
   if (!user) return json({ error: "Sign in to share an experience." }, 401);
@@ -971,7 +1220,7 @@ async function submitExperience(request, env) {
   }
   const contentLength = Number(request.headers.get("content-length") || 0);
   if (contentLength > MAX_TOTAL_BYTES + 1024 * 1024) {
-    return json({ error: "Attachments exceed the 25 MB combined limit." }, 413);
+    return json({ error: "Attachments exceed the 50 MB combined limit." }, 413);
   }
 
   let form;
@@ -1009,14 +1258,14 @@ async function submitExperience(request, env) {
   const files = submittedFiles.filter((file) => file.size > 0);
   if (files.length > MAX_FILES) return json({ error: "Attach no more than five files." }, 400);
   if (files.some((file) => !ALLOWED_TYPES.has(file.type))) {
-    return json({ error: "Use a supported image, PDF, or Word document." }, 415);
+    return json({ error: "Use a supported photo, MP4/WebM/MOV video, PDF, or Word document." }, 415);
   }
   if (files.some((file) => file.size > MAX_FILE_BYTES)) {
-    return json({ error: "Each attachment must be 10 MB or smaller." }, 413);
+    return json({ error: "Each attachment must be 25 MB or smaller." }, 413);
   }
   const totalBytes = files.reduce((total, file) => total + file.size, 0);
   if (totalBytes > MAX_TOTAL_BYTES) {
-    return json({ error: "Attachments must total 25 MB or less." }, 413);
+    return json({ error: "Attachments must total 50 MB or less." }, 413);
   }
 
   const experienceId = crypto.randomUUID();
@@ -1084,6 +1333,13 @@ async function submitExperience(request, env) {
     return json({ error: "NFD couldn’t save your experience right now. Your details are still here; please try again." }, 503);
   }
 
+  await recordActivity(env, user.id, "experience_shared", "experience", experienceId, {
+    visibility: fields.visibility,
+    attachmentCount: storedFiles.length,
+    photoCount: storedFiles.filter((file) => file.contentType.startsWith("image/")).length,
+    videoCount: storedFiles.filter((file) => file.contentType.startsWith("video/")).length,
+    documentCount: storedFiles.filter((file) => !file.contentType.startsWith("image/") && !file.contentType.startsWith("video/")).length,
+  });
   return json({ id: experienceId, status: "shared", createdAt }, 201);
 }
 

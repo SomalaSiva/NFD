@@ -15,6 +15,13 @@
       "when": 1793305948053,
       "tag": "0001_dark_loa",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1793312400000,
+      "tag": "0003_daffy_scalphunter",
+      "breakpoints": true
     }
   ]
 }
