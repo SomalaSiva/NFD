@@ -26,6 +26,15 @@ let identityTablesPromise;
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    if (request.method === "GET" && url.pathname === "/nfd-icon.png") {
+      return new Response(APP_ICON, {
+        headers: {
+          "content-type": "image/png",
+          "cache-control": "public, max-age=31536000, immutable",
+          "x-content-type-options": "nosniff",
+        },
+      });
+    }
     if (request.method === "GET" && url.pathname === "/auth/google") {
       return startGoogleSignIn(request, env);
     }
