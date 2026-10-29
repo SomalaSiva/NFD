@@ -13,28 +13,46 @@ const ALLOWED_TYPES = new Set([
   "application/msword",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 ]);
+const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
+const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
+const GOOGLE_JWKS_URL = "https://www.googleapis.com/oauth2/v3/certs";
+const GOOGLE_SESSION_COOKIE = "__Host-nfd_session";
+const GOOGLE_OAUTH_COOKIE = "__Host-nfd_google_oauth";
+const GOOGLE_SESSION_SECONDS = 60 * 60 * 24 * 30;
+let googleJwksCache;
+let googleJwksExpiresAt = 0;
+let identityTablesPromise;
 
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    if (request.method === "GET" && url.pathname === "/auth/google") {
+      return startGoogleSignIn(request, env);
+    }
+    if (request.method === "GET" && url.pathname === "/auth/google/callback") {
+      return finishGoogleSignIn(request, env);
+    }
+    if (request.method === "GET" && url.pathname === "/auth/signout") {
+      return signOut(request, env);
+    }
     if (request.method === "GET" && url.pathname === "/login") {
       return html(PAGE_HTML);
     }
     if (request.method === "GET" && ["/", "/feed", "/feed/"].includes(url.pathname)) {
-      if (!request.headers.get("oai-authenticated-user-id")?.trim()) {
+      if (!(await getCurrentUser(request, env))) {
         return Response.redirect(new URL("/login?return_to=%2Ffeed", url), 302);
       }
       if (url.pathname === "/") return Response.redirect(new URL("/feed", url), 302);
       return html(PAGE_HTML);
     }
     if (request.method === "GET" && url.pathname === "/share") {
-      if (!request.headers.get("oai-authenticated-user-id")?.trim()) {
+      if (!(await getCurrentUser(request, env))) {
         return Response.redirect(new URL("/login?return_to=%2Ffeed", url), 302);
       }
       return html(PAGE_HTML);
     }
     if (request.method === "GET" && url.pathname === "/admin") {
-      if (!request.headers.get("oai-authenticated-user-id")?.trim()) {
+      if (!(await getCurrentUser(request, env))) {
         return Response.redirect(new URL("/login?return_to=%2Fadmin", url), 302);
       }
       if (!(await isAdmin(request, env))) {
@@ -44,10 +62,11 @@ export default {
     }
 
     if (request.method === "GET" && url.pathname === "/api/auth-status") {
-      if (!request.headers.get("oai-authenticated-user-id")?.trim()) {
+      const user = await getCurrentUser(request, env);
+      if (!user) {
         return json({ error: "Sign in to use NFD." }, 401);
       }
-      return json({ isAdmin: await isAdmin(request, env) });
+      return json({ isAdmin: await isAdmin(request, env), provider: user.provider });
     }
     if (url.pathname === "/api/admins" && ["GET", "POST"].includes(request.method)) {
       return manageAdmins(request, env);
@@ -85,12 +104,299 @@ function html(body, status = 200) {
   });
 }
 
+async function startGoogleSignIn(request, env) {
+  if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET) {
+    return Response.redirect(new URL("/login?google=setup", request.url), 302);
+  }
+  const state = randomToken(32);
+  const nonce = randomToken(32);
+  const verifier = randomToken(48);
+  const challenge = await sha256Base64Url(verifier);
+  const returnTo = safeReturnTo(new URL(request.url).searchParams.get("return_to"));
+  const redirectUri = "https://nfd.nofacedocs.com/auth/google/callback";
+  const authorization = new URL(GOOGLE_AUTH_URL);
+  authorization.search = new URLSearchParams({
+    client_id: env.GOOGLE_CLIENT_ID,
+    redirect_uri: redirectUri,
+    response_type: "code",
+    scope: "openid email profile",
+    state,
+    nonce,
+    code_challenge: challenge,
+    code_challenge_method: "S256",
+    prompt: "select_account",
+  }).toString();
+  const oauthState = base64UrlEncode(JSON.stringify({ state, nonce, verifier, returnTo }));
+  return redirect(authorization.toString(), 302, [cookie(GOOGLE_OAUTH_COOKIE, oauthState, 600)]);
+}
+
+async function finishGoogleSignIn(request, env) {
+  const url = new URL(request.url);
+  const clearOauthCookie = cookie(GOOGLE_OAUTH_COOKIE, "", 0);
+  if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET || !env.DB) {
+    return redirect("/login?google=setup", 302, [clearOauthCookie]);
+  }
+  const oauthCookie = getCookie(request, GOOGLE_OAUTH_COOKIE);
+  const oauthState = oauthCookie ? safeJsonParse(base64UrlDecode(oauthCookie)) : null;
+  if (url.searchParams.has("error")) return redirect("/login?google=cancelled", 302, [clearOauthCookie]);
+  const code = url.searchParams.get("code");
+  const state = url.searchParams.get("state");
+  if (!code || !oauthState?.state || !constantTimeEqual(state || "", oauthState.state)) {
+    return redirect("/login?google=failed", 302, [clearOauthCookie]);
+  }
+  try {
+    const tokenResponse = await fetch(GOOGLE_TOKEN_URL, {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        client_id: env.GOOGLE_CLIENT_ID,
+        client_secret: env.GOOGLE_CLIENT_SECRET,
+        code,
+        code_verifier: oauthState.verifier,
+        grant_type: "authorization_code",
+        redirect_uri: "https://nfd.nofacedocs.com/auth/google/callback",
+      }),
+    });
+    const tokens = await tokenResponse.json().catch(() => ({}));
+    if (!tokenResponse.ok || !tokens.id_token) throw new Error("Google did not return a sign-in token.");
+    const claims = await verifyGoogleIdToken(tokens.id_token, env.GOOGLE_CLIENT_ID, oauthState.nonce);
+    await ensureIdentityTables(env);
+    const userId = `google:${claims.sub}`;
+    const now = new Date().toISOString();
+    await env.DB.prepare(`
+      INSERT INTO nfd_users (id, provider, provider_subject, email, display_name, created_at, updated_at)
+      VALUES (?, 'google', ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET email = excluded.email, display_name = excluded.display_name, updated_at = excluded.updated_at
+    `).bind(userId, claims.sub, claims.email.toLowerCase(), claims.name || null, now, now).run();
+    const sessionToken = randomToken(32);
+    const sessionHash = await sha256Base64Url(sessionToken);
+    const expiresAt = new Date(Date.now() + GOOGLE_SESSION_SECONDS * 1000).toISOString();
+    await env.DB.prepare("INSERT INTO nfd_sessions (session_hash, user_id, expires_at, created_at) VALUES (?, ?, ?, ?)")
+      .bind(sessionHash, userId, expiresAt, now).run();
+    return redirect(safeReturnTo(oauthState.returnTo), 302, [
+      clearOauthCookie,
+      cookie(GOOGLE_SESSION_COOKIE, sessionToken, GOOGLE_SESSION_SECONDS),
+    ]);
+  } catch (error) {
+    console.error("Google sign-in failed", error);
+    return redirect("/login?google=failed", 302, [clearOauthCookie]);
+  }
+}
+
+async function signOut(request, env) {
+  const token = getCookie(request, GOOGLE_SESSION_COOKIE);
+  if (token && env.DB) {
+    try {
+      const hash = await sha256Base64Url(token);
+      await env.DB.prepare("DELETE FROM nfd_sessions WHERE session_hash = ?").bind(hash).run();
+    } catch (error) {
+      console.error("Google session cleanup failed", error);
+    }
+  }
+  const returnTo = safeReturnTo(new URL(request.url).searchParams.get("return_to"));
+  const hasChatGptSession = Boolean(request.headers.get("oai-authenticated-user-id")?.trim());
+  const destination = hasChatGptSession
+    ? `/signout-with-chatgpt?return_to=${encodeURIComponent(returnTo)}`
+    : returnTo;
+  return redirect(destination, 302, [cookie(GOOGLE_SESSION_COOKIE, "", 0)]);
+}
+
+async function getCurrentUser(request, env) {
+  const token = getCookie(request, GOOGLE_SESSION_COOKIE);
+  if (token && env.DB) {
+    try {
+      await ensureIdentityTables(env);
+      const sessionHash = await sha256Base64Url(token);
+      const session = await env.DB.prepare(`
+        SELECT u.id, u.provider, u.provider_subject AS subject, u.email, u.display_name AS name, s.expires_at
+        FROM nfd_sessions s INNER JOIN nfd_users u ON u.id = s.user_id
+        WHERE s.session_hash = ? LIMIT 1
+      `).bind(sessionHash).first();
+      if (session && Date.parse(session.expires_at) > Date.now()) return session;
+      if (session) await env.DB.prepare("DELETE FROM nfd_sessions WHERE session_hash = ?").bind(sessionHash).run();
+    } catch (error) {
+      console.error("Google session lookup failed", error);
+    }
+  }
+
+  const chatGptId = request.headers.get("oai-authenticated-user-id")?.trim();
+  if (chatGptId) {
+    const user = {
+      id: chatGptId.slice(0, 200),
+      provider: "chatgpt",
+      subject: chatGptId.slice(0, 200),
+      email: (request.headers.get("oai-authenticated-user-email") || "").trim().toLowerCase(),
+      name: "",
+    };
+    if (env.DB) {
+      try {
+        await ensureIdentityTables(env);
+        const now = new Date().toISOString();
+        await env.DB.prepare(`
+          INSERT INTO nfd_users (id, provider, provider_subject, email, display_name, created_at, updated_at)
+          VALUES (?, 'chatgpt', ?, ?, NULL, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET email = COALESCE(NULLIF(excluded.email, ''), nfd_users.email), updated_at = excluded.updated_at
+        `).bind(user.id, user.subject, user.email, now, now).run();
+      } catch (error) {
+        console.error("ChatGPT profile save failed", error);
+      }
+    }
+    return user;
+  }
+
+  return null;
+}
+
+async function ensureIdentityTables(env) {
+  if (!env.DB) throw new Error("The NFD database is unavailable.");
+  identityTablesPromise ||= (async () => {
+    await env.DB.prepare(`
+      CREATE TABLE IF NOT EXISTS nfd_users (
+        id TEXT PRIMARY KEY NOT NULL,
+        provider TEXT NOT NULL,
+        provider_subject TEXT NOT NULL,
+        email TEXT NOT NULL,
+        display_name TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        UNIQUE (provider, provider_subject)
+      )
+    `).run();
+    await env.DB.prepare(`
+      CREATE TABLE IF NOT EXISTS nfd_sessions (
+        session_hash TEXT PRIMARY KEY NOT NULL,
+        user_id TEXT NOT NULL,
+        expires_at TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES nfd_users(id) ON DELETE CASCADE
+      )
+    `).run();
+    await env.DB.prepare("CREATE INDEX IF NOT EXISTS nfd_sessions_user_id_idx ON nfd_sessions (user_id)").run();
+  })().catch((error) => {
+    identityTablesPromise = undefined;
+    throw error;
+  });
+  await identityTablesPromise;
+}
+
+async function verifyGoogleIdToken(token, clientId, expectedNonce) {
+  const parts = token.split(".");
+  if (parts.length !== 3) throw new Error("Google returned an invalid identity token.");
+  const header = safeJsonParse(base64UrlDecode(parts[0]));
+  const claims = safeJsonParse(base64UrlDecode(parts[1]));
+  if (!header || !claims || header.alg !== "RS256" || !header.kid) throw new Error("Google returned an unsupported identity token.");
+  const key = (await getGoogleJwks()).find((candidate) => candidate.kid === header.kid && candidate.kty === "RSA");
+  if (!key) {
+    googleJwksExpiresAt = 0;
+    throw new Error("Google signing key was not found.");
+  }
+  const cryptoKey = await crypto.subtle.importKey("jwk", key, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["verify"]);
+  const validSignature = await crypto.subtle.verify(
+    "RSASSA-PKCS1-v1_5",
+    cryptoKey,
+    base64UrlDecodeBytes(parts[2]),
+    new TextEncoder().encode(`${parts[0]}.${parts[1]}`),
+  );
+  const now = Math.floor(Date.now() / 1000);
+  const audience = Array.isArray(claims.aud) ? claims.aud : [claims.aud];
+  if (!validSignature || !["accounts.google.com", "https://accounts.google.com"].includes(claims.iss)
+    || !audience.includes(clientId) || (claims.azp && claims.azp !== clientId)
+    || !Number.isFinite(claims.exp) || claims.exp <= now
+    || !Number.isFinite(claims.iat) || claims.iat > now + 300
+    || !constantTimeEqual(claims.nonce || "", expectedNonce)
+    || typeof claims.sub !== "string" || !claims.sub
+    || typeof claims.email !== "string" || !claims.email_verified) {
+    throw new Error("Google identity could not be verified.");
+  }
+  return { sub: claims.sub, email: claims.email, name: typeof claims.name === "string" ? claims.name.slice(0, 200) : "" };
+}
+
+async function getGoogleJwks() {
+  if (googleJwksCache && googleJwksExpiresAt > Date.now()) return googleJwksCache;
+  const response = await fetch(GOOGLE_JWKS_URL, { cf: { cacheTtl: 3600, cacheEverything: true } });
+  if (!response.ok) throw new Error("Google signing keys are temporarily unavailable.");
+  const body = await response.json();
+  if (!Array.isArray(body.keys)) throw new Error("Google signing keys could not be read.");
+  googleJwksCache = body.keys;
+  const maxAge = Number(response.headers.get("cache-control")?.match(/max-age=(\d+)/i)?.[1] || 3600);
+  googleJwksExpiresAt = Date.now() + Math.max(60, Math.min(maxAge, 86400)) * 1000;
+  return googleJwksCache;
+}
+
+function randomToken(byteLength) {
+  const bytes = crypto.getRandomValues(new Uint8Array(byteLength));
+  return base64UrlEncode(bytes);
+}
+
+async function sha256Base64Url(value) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return base64UrlEncode(new Uint8Array(digest));
+}
+
+function base64UrlEncode(value) {
+  const bytes = typeof value === "string" ? new TextEncoder().encode(value) : value;
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function base64UrlDecode(value) {
+  try {
+    return new TextDecoder().decode(base64UrlDecodeBytes(value));
+  } catch {
+    return "";
+  }
+}
+
+function base64UrlDecodeBytes(value) {
+  const base64 = value.replace(/-/g, "+").replace(/_/g, "/");
+  return Uint8Array.from(atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, "=")), (character) => character.charCodeAt(0));
+}
+
+function safeJsonParse(value) {
+  try { return JSON.parse(value); } catch { return null; }
+}
+
+function constantTimeEqual(left, right) {
+  if (typeof left !== "string" || typeof right !== "string" || left.length !== right.length) return false;
+  let difference = 0;
+  for (let index = 0; index < left.length; index++) difference |= left.charCodeAt(index) ^ right.charCodeAt(index);
+  return difference === 0;
+}
+
+function getCookie(request, name) {
+  const cookies = request.headers.get("cookie") || "";
+  for (const part of cookies.split(";")) {
+    const [key, ...value] = part.trim().split("=");
+    if (key === name) return value.join("=");
+  }
+  return "";
+}
+
+function cookie(name, value, maxAge) {
+  return `${name}=${value}; Max-Age=${maxAge}; Path=/; Secure; HttpOnly; SameSite=Lax`;
+}
+
+function redirect(location, status = 302, setCookies = []) {
+  const headers = new Headers({ location, "cache-control": "no-store" });
+  for (const value of setCookies) headers.append("set-cookie", value);
+  return new Response(null, { status, headers });
+}
+
+function safeReturnTo(value) {
+  if (typeof value !== "string" || !value.startsWith("/") || value.startsWith("//") || value.includes("\\")) return "/feed";
+  const parsed = new URL(value, "https://nfd.nofacedocs.com");
+  return ["/feed", "/share", "/admin", "/login"].includes(parsed.pathname)
+    ? `${parsed.pathname}${parsed.search}`
+    : "/feed";
+}
+
 function ownerEmail(env) {
   return (env.NFD_OWNER_EMAIL || (env.NFD_ADMIN_EMAILS || "").split(",")[0] || "").trim().toLowerCase();
 }
 
-function isOwner(request, env) {
-  const email = request.headers.get("oai-authenticated-user-email")?.trim().toLowerCase();
+async function isOwner(request, env) {
+  const email = (await getCurrentUser(request, env))?.email?.trim().toLowerCase();
   return Boolean(email && ownerEmail(env) && email === ownerEmail(env));
 }
 
@@ -106,9 +412,9 @@ async function ensureAdminTable(env) {
 }
 
 async function isAdmin(request, env) {
-  const email = request.headers.get("oai-authenticated-user-email")?.trim().toLowerCase();
+  const email = (await getCurrentUser(request, env))?.email?.trim().toLowerCase();
   if (!email) return false;
-  if (isOwner(request, env)) return true;
+  if (await isOwner(request, env)) return true;
   try {
     await ensureAdminTable(env);
     return Boolean(await env.DB.prepare("SELECT email FROM nfd_admin_users WHERE email = ? LIMIT 1").bind(email).first());
@@ -119,10 +425,10 @@ async function isAdmin(request, env) {
 }
 
 async function manageAdmins(request, env) {
-  if (!request.headers.get("oai-authenticated-user-id")?.trim()) {
+  if (!(await getCurrentUser(request, env))) {
     return json({ error: "Sign in to manage NFD administrator access." }, 401);
   }
-  if (!isOwner(request, env)) {
+  if (!(await isOwner(request, env))) {
     return json({ error: "Only the NFD owner can add or remove administrators." }, 403);
   }
   try {
@@ -153,10 +459,10 @@ async function manageAdmins(request, env) {
 }
 
 async function removeAdmin(request, env) {
-  if (!request.headers.get("oai-authenticated-user-id")?.trim()) {
+  if (!(await getCurrentUser(request, env))) {
     return json({ error: "Sign in to manage NFD administrator access." }, 401);
   }
-  if (!isOwner(request, env)) {
+  if (!(await isOwner(request, env))) {
     return json({ error: "Only the NFD owner can add or remove administrators." }, 403);
   }
   const email = cleanSearchTerm(new URL(request.url).searchParams.get("email")).toLowerCase();
@@ -173,7 +479,7 @@ async function removeAdmin(request, env) {
 }
 
 async function listExperiences(request, env) {
-  if (!request.headers.get("oai-authenticated-user-id")?.trim()) {
+  if (!(await getCurrentUser(request, env))) {
     return json({ error: "Sign in to view the NFD experience feed." }, 401);
   }
   if (!env.DB) return json({ error: "The NFD experience database is not available right now." }, 503);
@@ -263,7 +569,7 @@ function cleanSearchTerm(value) {
 }
 
 async function serveEvidence(request, env, evidenceId) {
-  if (!request.headers.get("oai-authenticated-user-id")?.trim()) {
+  if (!(await getCurrentUser(request, env))) {
     return new Response("Sign in to view this evidence.", { status: 401 });
   }
   if (!env.DB || !env.BUCKET) return new Response("Evidence storage is unavailable.", { status: 503 });
@@ -294,8 +600,8 @@ async function serveEvidence(request, env, evidenceId) {
 }
 
 async function submitExperience(request, env) {
-  const authorId = request.headers.get("oai-authenticated-user-id")?.trim();
-  if (!authorId) return json({ error: "Sign in to share an experience." }, 401);
+  const user = await getCurrentUser(request, env);
+  if (!user) return json({ error: "Sign in to share an experience." }, 401);
   if (!env.DB || !env.BUCKET) {
     return json({ error: "Experience storage is not available right now. Please try again later." }, 503);
   }
@@ -378,7 +684,7 @@ async function submitExperience(request, env) {
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).bind(
         experienceId,
-        authorId.slice(0, 200),
+        user.id.slice(0, 200),
         fields.experienceCategory,
         fields.incidentCategory,
         fields.place,

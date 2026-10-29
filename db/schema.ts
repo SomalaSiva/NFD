@@ -1,4 +1,21 @@
-import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+
+export const nfdUsers = sqliteTable("nfd_users", {
+  id: text("id").primaryKey(),
+  provider: text("provider").notNull(),
+  providerSubject: text("provider_subject").notNull(),
+  email: text("email").notNull(),
+  displayName: text("display_name"),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+}, (table) => [uniqueIndex("nfd_users_provider_subject_unique").on(table.provider, table.providerSubject)]);
+
+export const nfdSessions = sqliteTable("nfd_sessions", {
+  sessionHash: text("session_hash").primaryKey(),
+  userId: text("user_id").notNull().references(() => nfdUsers.id, { onDelete: "cascade" }),
+  expiresAt: text("expires_at").notNull(),
+  createdAt: text("created_at").notNull(),
+}, (table) => [index("nfd_sessions_user_id_idx").on(table.userId)]);
 
 export const experiences = sqliteTable("experiences", {
   id: text("id").primaryKey(),
