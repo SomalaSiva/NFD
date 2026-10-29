@@ -84,44 +84,72 @@ async function listExperiences(request, env) {
   }
   if (!env.DB) return json({ error: "The NFD experience database is not available right now." }, 503);
   try {
-    const result = await env.DB.prepare(`
-      SELECT id, experience_category, incident_category, place, place_category,
-        incident_time, incident_time_zone, short_description, full_description, created_at
-      FROM experiences
-      WHERE status = ?
-      ORDER BY created_at DESC
-      LIMIT 50
-    `).bind("shared").all();
+    const url = new URL(request.url);
+    const placeSearch = cleanSearchTerm(url.searchParams.get("place"));
+    const locationSearch = cleanSearchTerm(url.searchParams.get("location"));
+    const conditions = ["status = ?"];
+    const bindings = ["shared"];
+    if (placeSearch) {
+      conditions.push("instr(lower(place), lower(?)) > 0");
+      bindings.push(placeSearch);
+    }
+    if (locationSearch) {
+      conditions.push(`(
+        instr(lower(COALESCE(location_details, '')), lower(?)) > 0
+        OR instr(lower(place_category), lower(?)) > 0
+        OR instr(lower(place), lower(?)) > 0
+      )`);
+      bindings.push(locationSearch, locationSearch, locationSearch);
+    }
+    const where = conditions.join(" AND ");
+    const [result, totalResult, placeResult, locationResult] = await Promise.all([
+      env.DB.prepare(`
+        SELECT id, experience_category, incident_category, place, place_category,
+          location_details, incident_time, incident_time_zone, short_description,
+          full_description, created_at
+        FROM experiences
+        WHERE ${where}
+        ORDER BY created_at DESC
+        LIMIT 50
+      `).bind(...bindings).all(),
+      env.DB.prepare(`SELECT COUNT(*) AS total FROM experiences WHERE ${where}`).bind(...bindings).first(),
+      env.DB.prepare(`SELECT DISTINCT place FROM experiences WHERE ${where} ORDER BY place COLLATE NOCASE LIMIT 100`).bind(...bindings).all(),
+      env.DB.prepare(`SELECT DISTINCT location_details FROM experiences WHERE ${where} AND location_details IS NOT NULL AND trim(location_details) != '' ORDER BY location_details COLLATE NOCASE LIMIT 100`).bind(...bindings).all(),
+    ]);
     const experiences = result.results || [];
-    if (!experiences.length) return json({ experiences: [] });
-
-    const ids = experiences.map((experience) => experience.id);
-    const placeholders = ids.map(() => "?").join(", ");
-    const evidenceResult = await env.DB.prepare(`
-      SELECT id, experience_id, original_filename, content_type, size_bytes
-      FROM experience_evidence
-      WHERE experience_id IN (${placeholders})
-      ORDER BY created_at ASC
-    `).bind(...ids).all();
     const evidenceByExperience = new Map();
-    for (const file of evidenceResult.results || []) {
-      const files = evidenceByExperience.get(file.experience_id) || [];
-      files.push({
-        id: file.id,
-        originalFilename: file.original_filename,
-        contentType: file.content_type,
-        sizeBytes: file.size_bytes,
-      });
-      evidenceByExperience.set(file.experience_id, files);
+    if (experiences.length) {
+      const ids = experiences.map((experience) => experience.id);
+      const placeholders = ids.map(() => "?").join(", ");
+      const evidenceResult = await env.DB.prepare(`
+        SELECT id, experience_id, original_filename, content_type, size_bytes
+        FROM experience_evidence
+        WHERE experience_id IN (${placeholders})
+        ORDER BY created_at ASC
+      `).bind(...ids).all();
+      for (const file of evidenceResult.results || []) {
+        const files = evidenceByExperience.get(file.experience_id) || [];
+        files.push({
+          id: file.id,
+          originalFilename: file.original_filename,
+          contentType: file.content_type,
+          sizeBytes: file.size_bytes,
+        });
+        evidenceByExperience.set(file.experience_id, files);
+      }
     }
 
     return json({
+      total: totalResult?.total || 0,
+      placeSuggestions: (placeResult.results || []).map((row) => row.place),
+      locationSuggestions: (locationResult.results || []).map((row) => row.location_details),
       experiences: experiences.map((experience) => ({
         id: experience.id,
         experienceCategory: experience.experience_category,
         incidentCategory: experience.incident_category,
         place: experience.place,
         placeCategory: experience.place_category,
+        locationDetails: experience.location_details || "",
         incidentTime: experience.incident_time,
         incidentTimeZone: experience.incident_time_zone,
         shortDescription: experience.short_description,
@@ -134,6 +162,10 @@ async function listExperiences(request, env) {
     console.error("Experience feed query failed", error);
     return json({ error: "NFD couldn’t load the experience feed right now." }, 503);
   }
+}
+
+function cleanSearchTerm(value) {
+  return typeof value === "string" ? value.trim().replace(/[\u0000-\u001f\u007f]/g, "").slice(0, 100) : "";
 }
 
 async function serveEvidence(request, env, evidenceId) {
