@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f6f7f5">
-  <meta name="description" content="Share an experience with NFD (No Face Docs), with the context and evidence you choose to include.">
-  <title>Share your experience — NFD</title>
+  <meta name="description" content="Real stories, good and bad. Share what happened or see what people are saying with NFD (No Face Docs).">
+  <title>What happened? — NFD</title>
   <style>
     :root{--ink:#172c28;--muted:#687873;--line:#e0e7e2;--paper:#fff;--canvas:#f6f7f5;--green:#0d694f;--green-dark:#07543f;--mint:#edf5ef;--lime:#d7f27b;--amber:#f0b257;--radius:18px;--shadow:0 12px 34px rgba(26,52,43,.055)}
     *{box-sizing:border-box}body{margin:0;background:var(--canvas);color:var(--ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}button,input,textarea,select{font:inherit}button{cursor:pointer}a{color:inherit;text-decoration:none}.shell{max-width:1220px;margin:0 auto;padding:0 38px}.topbar{height:78px;border-bottom:1px solid #e7ebe7;background:rgba(255,255,255,.78)}.topbar-inner{height:100%;display:flex;align-items:center;justify-content:space-between}.brand{display:flex;align-items:center;gap:10px;font-size:20px;font-weight:760;letter-spacing:-.7px}.brand-mark{width:30px;height:30px;border-radius:10px;background:var(--green);display:grid;place-items:center;color:white}.brand-mark svg{width:17px}.brand-copy{display:flex;flex-direction:column;gap:3px}.brand-name{font-size:18px;line-height:1;font-weight:790;letter-spacing:-.45px}.brand-subtitle{font-size:9px;line-height:1;color:#74827b;font-weight:650;letter-spacing:.1px}.top-actions{display:flex;gap:24px;align-items:center;color:var(--muted);font-size:13px;font-weight:600}.top-actions a:hover{color:var(--green)}.avatar{height:34px;width:34px;display:grid;place-items:center;border-radius:50%;background:#e6eee9;color:var(--green);font-weight:750;font-size:12px}
@@ -26,17 +26,17 @@
   <header class="topbar">
     <div class="shell topbar-inner">
       <a class="brand" href="/feed" aria-label="NFD — No Face Docs home"><span class="brand-mark"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 2.8 20 6v5.3c0 5-3.4 8.5-8 10-4.6-1.5-8-5-8-10V6l8-3.2Z" stroke="currentColor" stroke-width="1.7"/><path d="m8.5 11.8 2.3 2.3 4.8-5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="brand-copy"><span class="brand-name">NFD</span><span class="brand-subtitle">No Face Docs</span></span></a>
-      <nav class="top-actions" id="main-nav" aria-label="Main navigation" hidden><a href="/feed">Experience feed</a><a href="/share">Share an experience</a><a href="/admin" id="admin-nav-link" hidden>Admin</a><a href="/signout-with-chatgpt?return_to=%2Flogin" target="_top">Sign out</a><span class="avatar" aria-label="Signed-in NFD member">N</span></nav>
+      <nav class="top-actions" id="main-nav" aria-label="Main navigation" hidden><a href="/feed">Do you know?</a><a href="/share">What happened?</a><a href="/admin" id="admin-nav-link" hidden>Admin</a><a href="/signout-with-chatgpt?return_to=%2Flogin" target="_top">Sign out</a><span class="avatar" aria-label="Signed-in NFD member">N</span></nav>
     </div>
   </header>
   <main id="login-page" class="shell auth-page" hidden>
     <section class="auth-panel" aria-labelledby="login-heading">
       <div class="auth-kicker">No Face Docs · Secure access</div>
       <h1 id="login-heading">Sign in to NFD</h1>
-      <p>Use your ChatGPT account to access shared experiences. Choose the account type you need; administrator access is checked securely by NFD.</p>
+      <p>Use your ChatGPT account to read or share stories. Pick the access you need; NFD checks admin access behind the scenes—no secret handshake required.</p>
       <div class="auth-denied" id="auth-denied" role="alert">This account does not have administrator access. Sign in with an authorized NFD administrator account.</div>
       <div class="auth-options">
-        <article class="auth-option"><h2>User access</h2><p>Browse the experience feed and share your own experience.</p><a class="submit" id="user-signin" href="/signin-with-chatgpt?return_to=%2Ffeed" target="_top">Continue as a user</a></article>
+        <article class="auth-option"><h2>User access</h2><p>Read the stories and add one of your own.</p><a class="submit" id="user-signin" href="/signin-with-chatgpt?return_to=%2Ffeed" target="_top">Continue as a user</a></article>
         <article class="auth-option admin"><h2>Administrator access</h2><p>Sign in with an NFD administrator account to open the admin area.</p><a class="submit" href="/signin-with-chatgpt?return_to=%2Fadmin" target="_top">Continue as admin</a></article>
       </div>
       <p class="auth-footnote"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 2.8 20 6v5.3c0 5-3.4 8.5-8 10-4.6-1.5-8-5-8-10V6l8-3.2Z" stroke="currentColor" stroke-width="1.7"/><path d="m8.5 11.8 2.3 2.3 4.8-5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>Sign-in is handled by ChatGPT. NFD does not store your password.</p>
@@ -58,23 +58,23 @@
         <h3>People with admin access</h3>
         <ul class="admin-user-list" id="admin-user-list"></ul>
       </section>
-      <div class="admin-links"><a class="submit" href="/feed">Open experience feed</a><a class="secondary-button" href="/signout-with-chatgpt?return_to=%2Flogin" target="_top">Sign out</a></div>
+      <div class="admin-links"><a class="submit" href="/feed">Open Do you know?</a><a class="secondary-button" href="/signout-with-chatgpt?return_to=%2Flogin" target="_top">Sign out</a></div>
     </section>
   </main>
   <main class="shell layout" id="app-layout">
     <aside class="side" aria-label="Submission progress">
-      <a class="back" href="/feed"><span aria-hidden="true">←</span> Back to experience feed</a>
+      <a class="back" href="/feed"><span aria-hidden="true">←</span> Back to Do you know?</a>
       <div class="steps">
         <div class="step active" id="step-experience"><span class="step-num">1</span><div class="step-copy"><div class="step-title">Your experience</div><div class="step-sub">What happened?</div></div></div>
-        <div class="step" id="step-review"><span class="step-num">2</span><div class="step-copy"><div class="step-title">Review & share</div><div class="step-sub">Check, then post</div></div></div>
+        <div class="step" id="step-review"><span class="step-num">2</span><div class="step-copy"><div class="step-title">One last look</div><div class="step-sub">Check, then post</div></div></div>
       </div>
-      <div class="help-card"><span class="help-icon"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/><path d="M9.6 9a2.5 2.5 0 1 1 4.3 1.8c-1.1 1.1-1.9 1.3-1.9 2.7M12 17h.01" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span><strong>Share with confidence</strong><p>Stick to what you experienced. Your evidence stays private until you choose to share it.</p></div>
+      <div class="help-card"><span class="help-icon"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/><path d="M9.6 9a2.5 2.5 0 1 1 4.3 1.8c-1.1 1.1-1.9 1.3-1.9 2.7M12 17h.01" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span><strong>Tell it like it happened</strong><p>Stick to what you experienced. Your evidence stays private until you choose to share it.</p></div>
     </aside>
     <section class="main">
-      <div class="heading-row" id="form-heading"><div><div class="eyebrow">Your voice matters</div><h1>Share your experience</h1><p class="intro">A clear, honest account helps people make better decisions — and gives businesses a chance to make things right.</p></div><span class="save-status"><i></i> Step 1 of 2</span></div>
+      <div class="heading-row" id="form-heading"><div><div class="eyebrow">Your voice matters</div><h1>What happened?</h1><p class="intro">Good, bad, or complicated—share it in your own words. No need to make it sound like a press release.</p></div><span class="save-status"><i></i> Step 1 of 2</span></div>
       <form class="form-card" id="experience-form">
         <section class="section" aria-labelledby="experience-details-heading">
-          <div class="section-head"><span class="section-icon"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 4.5h12a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-11a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-width="1.6"/><path d="M8 9h8M8 12.5h8M8 16h5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span><span class="section-title" id="experience-details-heading">Experience details</span><span class="section-hint">Tell us the basics</span></div>
+          <div class="section-head"><span class="section-icon"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 4.5h12a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-11a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-width="1.6"/><path d="M8 9h8M8 12.5h8M8 16h5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span><span class="section-title" id="experience-details-heading">The who, where, and when</span><span class="section-hint">The useful bits, first</span></div>
           <div class="grid">
             <div class="field"><label for="experience-category">Experience category <span class="required">*</span></label><div class="select-wrap"><select class="control" id="experience-category" name="experienceCategory" required><option value="" selected disabled>Choose a category</option><optgroup label="Personal relationships"><option>Romantic relationship</option><option>Friendship</option><option>Family relationship</option><option>Other personal relationship</option></optgroup><optgroup label="Workplace relationships"><option>Coworker relationship</option><option>Manager or supervisor relationship</option><option>Other workplace relationship</option></optgroup><optgroup label="Community and social"><option>Community or social group</option><option>Neighbor or local community</option><option>Social event or gathering</option></optgroup><optgroup label="Positive experiences"><option>Positive personal experience</option><option>Positive friendship or social experience</option><option>Positive community experience</option><option>Positive workplace experience</option><option>Positive product or service experience</option><option>Positive experience in another setting</option></optgroup><optgroup label="Scams and safety"><option>Scam or fraud</option><option>Aggression, harassment, or safety</option></optgroup><optgroup label="Consumer and services"><option>Product or service</option><option>Customer service</option><option>Delivery or fulfilment</option><option>Billing or payment</option><option>Returns, refunds, or warranty</option></optgroup><option>Other or not sure</option></select></div></div>
             <div class="field"><label for="incident-category">Incident category <span class="required">*</span></label><div class="select-wrap"><select class="control" id="incident-category" name="incidentCategory" required><option value="" selected disabled>What best describes it?</option><optgroup label="Trust and relationships"><option>Breach of trust or broken promise</option><option>Betrayal or deception</option><option>Relationship breakdown or heartbreak</option><option>Manipulation or coercive behavior</option><option>Boundary violation or unwanted contact</option></optgroup><optgroup label="Workplace conduct"><option>Bullying, harassment, or intimidation</option><option>Unwanted aggression or threats</option><option>Misuse of authority or retaliation</option><option>Unfair or discriminatory treatment</option></optgroup><optgroup label="Scams, privacy, and safety"><option>Scam, fraud, or financial exploitation</option><option>Privacy breach or identity misuse</option><option>Safety concern</option></optgroup><optgroup label="Products and services"><option>Product quality or safety issue</option><option>Service problem or unresolved complaint</option><option>Unexpected charge or payment dispute</option><option>Late or missing delivery</option><option>Refund, return, or cancellation difficulty</option><option>Misleading business information</option></optgroup><optgroup label="Good experiences"><option>Joyful or uplifting moment</option><option>Kindness, support, or generosity</option><option>Trust strengthened or promise kept</option><option>Love, care, or healthy connection</option><option>Friendship or community belonging</option><option>Workplace appreciation or collaboration</option><option>Delightful product or customer service</option><option>Positive experience in any setting</option></optgroup><option>Other or not sure</option></select></div></div>
@@ -85,48 +85,48 @@
           </div>
         </section>
         <section class="section" aria-labelledby="description-heading">
-          <div class="section-head"><span class="section-icon"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 5h14v11H9l-4 3V5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M8 9h8M8 12h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span><span class="section-title" id="description-heading">Describe your experience</span><span class="section-hint">Short summary + full account</span></div>
+          <div class="section-head"><span class="section-icon"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 5h14v11H9l-4 3V5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M8 9h8M8 12h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span><span class="section-title" id="description-heading">Put it in your words</span><span class="section-hint">Quick version, then the full story</span></div>
           <div class="grid">
-            <div class="field full"><label for="short-description">Short description <span class="required">*</span></label><textarea class="control short-area" id="short-description" name="shortDescription" maxlength="240" placeholder="Sum up the experience in a few clear sentences." required></textarea><div class="char-row"><span>A quick summary people can scan.</span><span class="count"><b id="short-char-count">0</b> / 240</span></div></div>
-            <div class="field full"><label for="full-description">Full description <span class="required">*</span></label><textarea class="control" style="height:170px;resize:vertical;padding:11px 12px;line-height:1.55" id="full-description" name="fullDescription" maxlength="4000" placeholder="Walk through what happened, when it happened, who was involved (roles or aliases are fine), what you expected, and what happened next. Include the impact or outcome if you’re comfortable. Share only what you know firsthand." required></textarea><div class="char-row"><span>Include the details that help someone understand the full story. Leave out private details you don’t want to share.</span><span class="count"><b id="full-char-count">0</b> / 4,000</span></div></div>
+            <div class="field full"><label for="short-description">The quick version <span class="required">*</span></label><textarea class="control short-area" id="short-description" name="shortDescription" maxlength="240" placeholder="Give us the headline. Save the plot for below." required></textarea><div class="char-row"><span>The bit people can scan before committing to the full story.</span><span class="count"><b id="short-char-count">0</b> / 240</span></div></div>
+            <div class="field full"><label for="full-description">The full story <span class="required">*</span></label><textarea class="control" style="height:170px;resize:vertical;padding:11px 12px;line-height:1.55" id="full-description" name="fullDescription" maxlength="4000" placeholder="Walk through what happened, when it happened, who was involved (roles or aliases are fine), what you expected, and what happened next. Include the impact or outcome if you’re comfortable. Share only what you know firsthand." required></textarea><div class="char-row"><span>Include the details that help someone understand the full story. Leave out private details you don’t want to share.</span><span class="count"><b id="full-char-count">0</b> / 4,000</span></div></div>
           </div>
         </section>
         <section class="section" aria-labelledby="evidence-heading">
-          <div class="section-head"><span class="section-title" id="evidence-heading">Add supporting evidence</span><span class="section-hint">Optional</span></div>
+          <div class="section-head"><span class="section-title" id="evidence-heading">Add photos or documents</span><span class="section-hint">Optional</span></div>
           <input class="file-input" id="evidence-files" name="evidence" type="file" accept=".jpg,.jpeg,.png,.webp,.gif,.heic,.heif,.avif,.pdf,.doc,.docx" multiple>
-          <label class="upload" for="evidence-files" id="upload-zone"><span class="upload-inner"><span class="upload-symbol"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M5 14.5v4a1.5 1.5 0 0 0 1.5 1.5h11a1.5 1.5 0 0 0 1.5-1.5v-4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="upload-copy"><strong>Drop files here or <span>browse</span></strong><small>Photos, PDFs, or documents · Up to 5 files · 10 MB each, 25 MB total</small><span class="upload-button">Choose files</span></span></span></label>
+          <label class="upload" for="evidence-files" id="upload-zone"><span class="upload-inner"><span class="upload-symbol"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M5 14.5v4a1.5 1.5 0 0 0 1.5 1.5h11a1.5 1.5 0 0 0 1.5-1.5v-4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="upload-copy"><strong>Drop files here or <span>browse</span></strong><small>Photos or documents that add context · Up to 5 files · 10 MB each, 25 MB total</small><span class="upload-button">Choose files</span></span></span></label>
           <div class="file-list" id="file-list" aria-live="polite"></div>
           <p class="privacy-note"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M8 10V7a4 4 0 0 1 8 0v3m-4 4v3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>Redact private details such as addresses, account numbers, or personal messages. Only upload material you have the right to share.</p>
         </section>
         <footer class="form-footer"><div class="terms">By continuing, you agree to our <a href="#">Community Guidelines</a> and <a href="#">Terms</a>.</div><button class="submit" type="submit">Continue to review <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h13m-5-5 5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button></footer>
       </form>
       <section id="review-page" class="review-page" aria-labelledby="review-heading" hidden>
-        <div class="heading-row"><div><div class="eyebrow">Step 2 · Check before sharing</div><h1 id="review-heading">Review your experience</h1><p class="intro">Make sure the details are accurate. You can go back to edit anything before continuing.</p></div><span class="save-status"><i></i> Not shared yet</span></div>
+        <div class="heading-row"><div><div class="eyebrow">The Zenx check · Before it goes live</div><h1 id="review-heading">One last look</h1><p class="intro">Give the details a once-over. Confirming sends it to the feed—no extra sharing lap.</p></div><span class="save-status"><i></i> Not shared yet</span></div>
         <div class="review-card">
           <div class="review-section"><div class="review-section-head"><div><div class="review-label">Experience type</div><div class="review-value" id="review-experience-category"></div></div><span class="review-tag" id="review-incident-category"></span></div></div>
           <div class="review-section"><div class="review-grid"><div><div class="review-label">Person, business, or place</div><div class="review-value" id="review-place"></div></div><div><div class="review-label">Where it happened</div><div class="review-value" id="review-place-category"></div></div><div><div class="review-label">When it happened</div><div class="review-value" id="review-time"></div></div><div><div class="review-label">Location details</div><div class="review-value" id="review-location-detail"></div></div></div></div>
-          <div class="review-section"><div class="review-label">Short description</div><p class="review-summary" id="review-short-description"></p></div>
-          <div class="review-section"><div class="review-label">Full description</div><p class="review-full-description" id="review-full-description"></p></div>
+          <div class="review-section"><div class="review-label">The quick version</div><p class="review-summary" id="review-short-description"></p></div>
+          <div class="review-section"><div class="review-label">The full story</div><p class="review-full-description" id="review-full-description"></p></div>
           <div class="review-section"><div class="review-section-head"><div><div class="review-label">Supporting evidence</div><div class="review-value" id="review-file-count"></div></div><span class="review-label">Shared with this submission</span></div><div class="review-files" id="review-files"></div></div>
-          <div class="review-footer"><p>Check that your account is factual and doesn’t reveal private information you don’t want to share.</p><div class="review-actions"><button class="secondary-button" id="edit-experience" type="button">← Back to edit</button><button class="submit" id="confirm-review" type="button">Share experience <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m5 12 4.5 4.5L19 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div></div>
+          <div class="review-footer"><p>Check that your account is factual and doesn’t reveal private information you don’t want to share.</p><div class="review-actions"><button class="secondary-button" id="edit-experience" type="button">← Back to edit</button><button class="submit" id="confirm-review" type="button">Looks right — share <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m5 12 4.5 4.5L19 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div></div>
         </div>
         <div class="notice" id="review-notice" role="status" aria-live="polite"></div>
       </section>
       <section id="feed-page" class="feed-page" aria-labelledby="feed-heading" hidden>
-        <div class="feed-heading"><div><div class="eyebrow">Shared with NFD</div><h1 id="feed-heading">Experience feed</h1><p class="intro">Real experiences, shared to help people make more informed decisions.</p></div><a class="submit feed-cta" href="/share">Share your experience</a></div>
-        <div id="feed-shared-banner" class="notice" role="status" hidden><strong>Your experience is now in the feed.</strong> It was shared with NFD.</div>
+        <div class="feed-heading"><div><div class="eyebrow">The Zenx feed</div><h1 id="feed-heading">Do you know?</h1><p class="intro">Real stories from real people. Because guessing how things went is a terrible research method.</p></div><a class="submit feed-cta" href="/share">What happened?</a></div>
+        <div id="feed-shared-banner" class="notice" role="status" hidden><strong>Your story made it to the feed.</strong> It was shared with NFD.</div>
         <section class="feed-filters" aria-label="Find experiences">
           <div class="feed-filter-grid">
-            <div class="field"><label for="feed-place-search">Person, business, or place</label><input class="control" type="search" id="feed-place-search" list="feed-place-suggestions" placeholder="Start typing a name or place" autocomplete="off"><datalist id="feed-place-suggestions"></datalist></div>
-            <div class="field"><label for="feed-location-search">Area or location</label><input class="control" type="search" id="feed-location-search" list="feed-location-suggestions" placeholder="City, neighborhood, branch, or online area" autocomplete="off"><datalist id="feed-location-suggestions"></datalist></div>
+            <div class="field"><label for="feed-place-search">Find a person, business, or place</label><input class="control" type="search" id="feed-place-search" list="feed-place-suggestions" placeholder="A name, a business, or a place name" autocomplete="off"><datalist id="feed-place-suggestions"></datalist></div>
+            <div class="field"><label for="feed-location-search">Narrow it by area</label><input class="control" type="search" id="feed-location-search" list="feed-location-suggestions" placeholder="City, neighborhood, branch, or online area" autocomplete="off"><datalist id="feed-location-suggestions"></datalist></div>
           </div>
-          <div class="feed-filter-footer"><p class="feed-filter-note">Search by part of a name or location. Suggestions come from shared experiences and can be narrowed by area.</p><button class="secondary-button" type="button" id="clear-feed-filters">Clear filters</button></div>
+          <div class="feed-filter-footer"><p class="feed-filter-note">A few letters are enough. Suggestions come from stories people shared; narrow by area if the list gets chatty.</p><button class="secondary-button" type="button" id="clear-feed-filters">Clear search</button></div>
           <p class="feed-result-count" id="feed-result-count" role="status" aria-live="polite"></p>
         </section>
-        <div id="feed-state" class="feed-state" role="status" aria-live="polite">Loading recent experiences…</div>
+        <div id="feed-state" class="feed-state" role="status" aria-live="polite">Looking for stories…</div>
         <div id="feed-list" class="feed-list"></div>
       </section>
-      <div class="trust-note"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 2.8 20 6v5.3c0 5-3.4 8.5-8 10-4.6-1.5-8-5-8-10V6l8-3.2Z" stroke="currentColor" stroke-width="1.6"/><path d="m8.5 11.8 2.3 2.3 4.8-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Built for honest experiences and better decisions</div>
+      <div class="trust-note"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 2.8 20 6v5.3c0 5-3.4 8.5-8 10-4.6-1.5-8-5-8-10V6l8-3.2Z" stroke="currentColor" stroke-width="1.6"/><path d="m8.5 11.8 2.3 2.3 4.8-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>For real stories—and fewer “well, that was unexpected” moments.</div>
     </section>
   </main>
   <script>
@@ -216,7 +216,7 @@
       reviewNotice.classList.remove('show','error');reviewNotice.replaceChildren();
       document.getElementById('edit-experience').disabled=false;
       document.getElementById('confirm-review').disabled=false;
-      document.getElementById('confirm-review').innerHTML='Share experience <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m5 12 4.5 4.5L19 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      document.getElementById('confirm-review').innerHTML='Looks right — share <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m5 12 4.5 4.5L19 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
       window.scrollTo({top:0,behavior:'smooth'});
     }
     function backToEdit(){
@@ -240,14 +240,14 @@
       feedList.replaceChildren();feedState.hidden=true;
       const placeQuery=feedPlaceSearch.value.trim();const locationQuery=feedLocationSearch.value.trim();
       const filterActive=Boolean(placeQuery||locationQuery);
-      const countLabel=filterActive?`${total} matching experience${total===1?'':'s'}`:`${total} shared experience${total===1?'':'s'}`;
+      const countLabel=filterActive?`${total} matching stor${total===1?'y':'ies'}`:`${total} stor${total===1?'y':'ies'} in the feed`;
       feedResultCount.textContent=`${countLabel}${total>experiences.length?` · Showing the newest ${experiences.length}`:''}`;
       if(!experiences.length){
         const empty=document.createElement('div');empty.className='feed-empty';
-        addText(empty,'strong','', filterActive?'No matching experiences found':'No shared experiences yet');
-        addText(empty,'p','', filterActive?'Try a shorter part of the name or adjust the area.':'When you share an experience, it will appear here.');
-        if(filterActive){const clear=document.createElement('button');clear.className='secondary-button';clear.type='button';clear.textContent='Clear filters';clear.addEventListener('click',clearFeedFilters);empty.append(clear)}
-        else{const link=document.createElement('a');link.className='submit';link.href='/share';link.textContent='Share your experience';empty.append(link)}
+        addText(empty,'strong','', filterActive?'No stories found here':'No stories here yet');
+        addText(empty,'p','', filterActive?'Try a shorter name or a wider area. Our search is clever, not psychic.':'Be the first to add a story. We promise not to make you write a novel.');
+        if(filterActive){const clear=document.createElement('button');clear.className='secondary-button';clear.type='button';clear.textContent='Clear search';clear.addEventListener('click',clearFeedFilters);empty.append(clear)}
+        else{const link=document.createElement('a');link.className='submit';link.href='/share';link.textContent='What happened?';empty.append(link)}
         feedList.append(empty);return;
       }
       experiences.forEach(experience=>{
@@ -278,7 +278,7 @@
           card.append(gallery);
         }
         const full=document.createElement('details');full.className='feed-full';
-        addText(full,'summary','', 'Read the full experience');
+        addText(full,'summary','', 'Read the full story');
         addText(full,'p','',experience.fullDescription);card.append(full);
         if(documents.length){
           const evidence=document.createElement('div');evidence.className='feed-evidence';
@@ -305,12 +305,12 @@
       const params=new URLSearchParams();
       if(feedPlaceSearch.value.trim())params.set('place',feedPlaceSearch.value.trim());
       if(feedLocationSearch.value.trim())params.set('location',feedLocationSearch.value.trim());
-      feedState.textContent=params.size?'Searching shared experiences…':'Loading recent experiences…';feedState.hidden=false;
+      feedState.textContent=params.size?'Looking for matching stories…':'Looking for stories…';feedState.hidden=false;
       try{
         const response=await fetch(`/api/experiences${params.size?`?${params}`:''}`,{headers:{accept:'application/json'},cache:'no-store'});
         const result=await response.json().catch(()=>({}));
         if(requestNumber!==feedRequestNumber)return;
-        if(!response.ok)throw new Error(result.error||'NFD couldn’t load the experience feed.');
+        if(!response.ok)throw new Error(result.error||'NFD couldn’t load the stories just now.');
         updateSuggestions(feedPlaceSuggestions,result.placeSuggestions);
         updateSuggestions(feedLocationSuggestions,result.locationSuggestions);
         renderFeed(result.experiences||[],Number(result.total)||0);
@@ -386,7 +386,7 @@
       loadAdminUsers();
     }else if(location.pathname==='/feed'||location.pathname==='/feed/'){
       appLayout.classList.add('feed-mode');form.hidden=true;reviewPage.hidden=true;feedPage.hidden=false;
-      document.title='Experience feed — NFD';
+      document.title='Do you know? — NFD';
       if(new URLSearchParams(location.search).has('shared')){feedBanner.hidden=false;feedBanner.classList.add('show')}
       loadFeed();
     }
@@ -409,10 +409,10 @@
       try{
         const response=await fetch('/api/experiences',{method:'POST',body:payload});
         const result=await response.json().catch(()=>({}));
-        if(!response.ok)throw new Error(result.error||'NFD couldn’t share your experience right now. Please try again.');
+        if(!response.ok)throw new Error(result.error||'NFD couldn’t post your story just now. Please try again.');
         window.location.assign(`/feed?shared=${encodeURIComponent(result.id)}`);
       }catch(error){
-        const title=document.createElement('strong');title.textContent='Your experience wasn’t shared yet.';
+        const title=document.createElement('strong');title.textContent='Your story hasn’t made it to the feed yet.';
         const detail=document.createElement('span');detail.textContent=` ${error instanceof TypeError?'Connection failed. Your details are still here; try again.':error.message}`;
         reviewNotice.append(title,detail);reviewNotice.classList.add('show','error');
         button.innerHTML='Try sharing again';button.disabled=false;
