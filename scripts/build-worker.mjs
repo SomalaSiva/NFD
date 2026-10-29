@@ -11,10 +11,12 @@ if (manifest.project_id !== "appgprj_6ae30d1941a08191acf02eca2acb1c0d" || manife
 
 const page = readFileSync(path.join(root, "web/index.html"), "utf8");
 const pageBase64 = Buffer.from(page, "utf8").toString("base64");
+const privacyPage = readFileSync(path.join(root, "web/privacy.html"), "utf8");
+const privacyPageBase64 = Buffer.from(privacyPage, "utf8").toString("base64");
 const worker = readFileSync(path.join(root, "worker/index.js"), "utf8");
 rmSync(dist, { recursive: true, force: true });
 mkdirSync(path.join(dist, "server"), { recursive: true });
 mkdirSync(path.join(dist, ".openai"), { recursive: true });
-writeFileSync(path.join(dist, "server/index.js"), `const PAGE_HTML = new TextDecoder().decode(Uint8Array.from(atob("${pageBase64}"), (character) => character.charCodeAt(0)));\n${worker}`);
+writeFileSync(path.join(dist, "server/index.js"), `const PAGE_HTML = new TextDecoder().decode(Uint8Array.from(atob("${pageBase64}"), (character) => character.charCodeAt(0)));\nconst PRIVACY_HTML = new TextDecoder().decode(Uint8Array.from(atob("${privacyPageBase64}"), (character) => character.charCodeAt(0)));\n${worker}`);
 copyFileSync(path.join(root, ".openai/hosting.json"), path.join(dist, ".openai/hosting.json"));
 console.log("Built the NFD Site Worker.");

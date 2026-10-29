@@ -35,6 +35,9 @@ export default {
     if (request.method === "GET" && url.pathname === "/auth/signout") {
       return signOut(request, env);
     }
+    if (request.method === "GET" && url.pathname === "/privacy") {
+      return html(PRIVACY_HTML);
+    }
     if (request.method === "GET" && url.pathname === "/login") {
       return html(PAGE_HTML);
     }
