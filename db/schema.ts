@@ -29,11 +29,26 @@ export const experiences = sqliteTable("experiences", {
   locationDetails: text("location_details"),
   shortDescription: text("short_description").notNull(),
   fullDescription: text("full_description").notNull(),
+  visibility: text("visibility").notNull().default("public"),
   status: text("status").notNull().default("shared"),
   createdAt: text("created_at").notNull(),
 }, (table) => [
   index("experiences_author_created_idx").on(table.authorId, table.createdAt),
+  index("experiences_visibility_created_idx").on(table.visibility, table.createdAt),
   index("experiences_status_created_idx").on(table.status, table.createdAt),
+]);
+
+export const nfdFriendRequests = sqliteTable("nfd_friend_requests", {
+  id: text("id").primaryKey(),
+  fromUserId: text("from_user_id").notNull().references(() => nfdUsers.id, { onDelete: "cascade" }),
+  toUserId: text("to_user_id").notNull().references(() => nfdUsers.id, { onDelete: "cascade" }),
+  status: text("status").notNull(),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+}, (table) => [
+  uniqueIndex("nfd_friend_requests_pair_unique").on(table.fromUserId, table.toUserId),
+  index("nfd_friend_requests_from_status_idx").on(table.fromUserId, table.status, table.createdAt),
+  index("nfd_friend_requests_to_status_idx").on(table.toUserId, table.status, table.createdAt),
 ]);
 
 export const experienceEvidence = sqliteTable("experience_evidence", {

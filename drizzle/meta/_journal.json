@@ -8,6 +8,13 @@
       "when": 1793267025776,
       "tag": "0000_adorable_wind_dancer",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1793305948053,
+      "tag": "0001_dark_loa",
+      "breakpoints": true
     }
   ]
 }

@@ -31,6 +31,8 @@
     .feed-heading h1{font-size:40px;font-weight:800;letter-spacing:-1.7px}.feed-heading .eyebrow{padding:6px 10px;border-radius:999px;background:#e7f4c8;color:#315944;font-size:10px;letter-spacing:.7px}.feed-heading .eyebrow:before{display:none}.feed-cta img,.feed-empty .submit img{width:25px;height:25px;object-fit:cover;border-radius:7px;margin-right:8px}.feed-cta span,.feed-empty .submit span{font-size:13px}
     @media(max-width:680px){.feed-heading h1{font-size:32px}.feed-heading-actions{width:100%}.feed-heading-actions .feed-cta{width:auto;flex:1}.top-actions{gap:10px}.top-actions a:nth-child(2){display:inline-flex}.top-actions a.feed-nav-link{display:none}.top-actions #admin-nav-link{display:none}}
     @media(max-width:420px){.feed-heading h1{font-size:28px}.brand-subtitle{display:none}.brand{gap:8px}.top-actions{gap:7px}.top-actions a.nav-share-link{gap:5px;padding:6px 8px;font-size:11px}.nav-share-link img{width:21px;height:21px}.account-menu-button{width:36px;height:36px}}
+    .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}.audience-options{display:grid;grid-template-columns:1fr;gap:9px;padding:0;margin:0;border:0}.audience-option{display:flex;align-items:flex-start;gap:11px;padding:13px 14px;margin:0;border:1px solid #e0e8e2;border-radius:11px;background:#fff;cursor:pointer}.audience-option:has(input:checked){border-color:#74a98b;background:#f4faf5;box-shadow:0 0 0 2px rgba(13,105,79,.06)}.audience-option input{flex:none;margin:3px 0 0;accent-color:var(--green)}.audience-option span{display:grid;gap:4px}.audience-option strong{font-size:12px;color:#30443a}.audience-option small{font-size:10px;line-height:1.5;color:#77867e;font-weight:450}.audience-note{margin:10px 0 0;color:#839087;font-size:10px;line-height:1.5}.friends-panel{margin-top:24px;padding:21px;background:#fff;border:1px solid #e5ebe6;border-radius:15px;box-shadow:var(--shadow)}.friends-panel-heading h2{margin:0;font-size:18px}.friends-panel-heading p{margin:5px 0 0;color:#75827a;font-size:11px;line-height:1.55}.friend-request-form{display:flex;gap:9px;margin-top:15px}.friend-request-form .control{flex:1}.friend-request-form .submit{flex:none}.friends-feedback{margin:9px 0 0;color:#52745e;font-size:11px;line-height:1.5}.friends-feedback:empty{display:none}.friends-feedback.error{color:#a34e3e}.friends-lists{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px;margin-top:17px}.friends-lists section{min-width:0;padding:13px;border:1px solid #e8eee9;border-radius:11px;background:#fcfdfc}.friends-lists h3{margin:0 0 9px;font-size:11px}.friend-list{display:grid;gap:7px;margin:0;padding:0;list-style:none}.friend-item{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 9px;background:#fff;border:1px solid #e9eeea;border-radius:8px}.friend-person{min-width:0;display:grid;gap:3px}.friend-person strong,.friend-person span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.friend-person strong{font-size:10px;color:#32473b}.friend-person span{font-size:9px;color:#829087}.friend-actions{display:flex;flex:none;gap:5px}.friend-action{padding:6px 8px;border:1px solid #dce8df;border-radius:7px;background:#fff;color:var(--green);font-size:9px;font-weight:700;cursor:pointer}.friend-action:hover{background:#edf5ef}.friend-action.remove{border-color:#eeded8;color:#985347}.friend-empty{margin:0;color:#8a968f;font-size:10px}.friend-empty[hidden]{display:none}.feed-author{display:inline-flex;align-items:center;gap:6px;margin-top:9px;color:#6d7d74;font-size:10px}.feed-author-icon{width:19px;height:19px;display:grid;place-items:center;border-radius:50%;background:#eef4ef;color:var(--green);font-size:9px;font-weight:750}.feed-author.anonymous .feed-author-icon{background:#f4f0e8;color:#8b7251}.profile-post-audience{display:inline-flex;align-items:center;margin-top:7px;padding:4px 8px;border-radius:999px;background:#f1f5f2;color:#607167;font-size:9px;font-weight:680}
+    @media(max-width:720px){.friends-panel{padding:16px}.friends-lists{grid-template-columns:1fr}.friends-lists section{padding:11px}.friend-request-form{align-items:stretch;flex-direction:column}.friend-request-form .submit{width:100%}}
   </style>
 </head>
 <body>
@@ -109,6 +111,16 @@
             <div class="field full"><label for="full-description">The full story <span class="required">*</span></label><textarea class="control" style="height:170px;resize:vertical;padding:11px 12px;line-height:1.55" id="full-description" name="fullDescription" maxlength="4000" placeholder="Walk through what happened, when it happened, who was involved (roles or aliases are fine), what you expected, and what happened next. Include the impact or outcome if you’re comfortable. Share only what you know firsthand." required></textarea><div class="char-row"><span>Include the details that help someone understand the full story. Leave out private details you don’t want to share.</span><span class="count"><b id="full-char-count">0</b> / 4,000</span></div></div>
           </div>
         </section>
+        <section class="section" aria-labelledby="audience-heading">
+          <div class="section-head"><span class="section-title" id="audience-heading">Who can see this story?</span><span class="section-hint">Choose before sharing</span></div>
+          <fieldset class="audience-options">
+            <legend class="sr-only">Story audience</legend>
+            <label class="audience-option"><input type="radio" name="visibility" value="public" checked><span><strong>Public in NFD</strong><small>All signed-in members can see it. Your name is shown.</small></span></label>
+            <label class="audience-option"><input type="radio" name="visibility" value="friends"><span><strong>Friends only</strong><small>Only accepted NFD friends can see the story and attached files. Your name is shown.</small></span></label>
+            <label class="audience-option"><input type="radio" name="visibility" value="anonymous"><span><strong>Anonymous</strong><small>All signed-in members can see it, but your name and profile are hidden.</small></span></label>
+          </fieldset>
+          <p class="audience-note" id="audience-note">Public stories include your NFD display name. Avoid details in the story or files that identify you if you want to stay anonymous.</p>
+        </section>
         <section class="section" aria-labelledby="evidence-heading">
           <div class="section-head"><span class="section-title" id="evidence-heading">Add photos or documents</span><span class="section-hint">Optional</span></div>
           <input class="file-input" id="evidence-files" name="evidence" type="file" accept=".jpg,.jpeg,.png,.webp,.gif,.heic,.heif,.avif,.pdf,.doc,.docx" multiple>
@@ -125,6 +137,7 @@
           <div class="review-section"><div class="review-grid"><div><div class="review-label">Person, business, or place</div><div class="review-value" id="review-place"></div></div><div><div class="review-label">Where it happened</div><div class="review-value" id="review-place-category"></div></div><div><div class="review-label">When it happened</div><div class="review-value" id="review-time"></div></div><div><div class="review-label">Location details</div><div class="review-value" id="review-location-detail"></div></div></div></div>
           <div class="review-section"><div class="review-label">The quick version</div><p class="review-summary" id="review-short-description"></p></div>
           <div class="review-section"><div class="review-label">The full story</div><p class="review-full-description" id="review-full-description"></p></div>
+          <div class="review-section"><div class="review-label">Who can see it</div><div class="review-value" id="review-audience"></div></div>
           <div class="review-section"><div class="review-section-head"><div><div class="review-label">Supporting evidence</div><div class="review-value" id="review-file-count"></div></div><span class="review-label">Shared with this submission</span></div><div class="review-files" id="review-files"></div></div>
           <div class="review-footer"><p>Check that your account is factual and doesn’t reveal private information you don’t want to share.</p><div class="review-actions"><button class="secondary-button" id="edit-experience" type="button">← Back to edit</button><button class="submit" id="confirm-review" type="button">Looks right — share <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m5 12 4.5 4.5L19 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div></div>
         </div>
@@ -150,6 +163,16 @@
       <section id="profile-page" class="profile-page" aria-labelledby="profile-heading" hidden>
         <div class="profile-heading"><div><div class="eyebrow">Your NFD account</div><h1 id="profile-heading">Your profile</h1><p class="intro">Your account details and the experiences you’ve shared. Your profile details are visible only to you.</p></div></div>
         <div class="profile-summary" id="profile-summary"><div class="profile-loading">Loading your profile…</div></div>
+        <section class="friends-panel" aria-labelledby="friends-heading">
+          <div class="friends-panel-heading"><div><h2 id="friends-heading">Your NFD friends</h2><p>Connect by email. Friends can see stories you share with friends only.</p></div></div>
+          <form class="friend-request-form" id="friend-request-form"><label class="sr-only" for="friend-request-email">Friend’s NFD email</label><input class="control" type="email" id="friend-request-email" name="email" placeholder="Their email address" required><button class="submit" type="submit">Send request</button></form>
+          <p class="friends-feedback" id="friends-feedback" role="status" aria-live="polite"></p>
+          <div class="friends-lists">
+            <section><h3>Friend requests</h3><ul id="friend-incoming-list" class="friend-list"></ul><p id="friend-incoming-empty" class="friend-empty">No requests waiting.</p></section>
+            <section><h3>Your friends</h3><ul id="friend-list" class="friend-list"></ul><p id="friend-empty" class="friend-empty">No friends yet. Connect with someone you trust.</p></section>
+            <section><h3>Requests you sent</h3><ul id="friend-outgoing-list" class="friend-list"></ul><p id="friend-outgoing-empty" class="friend-empty">No outgoing requests.</p></section>
+          </div>
+        </section>
         <div class="profile-post-heading"><div><h2>Your posts</h2><p id="profile-post-count">Loading your posts…</p></div><a class="secondary-button" href="/share">Share an experience</a></div>
         <div class="profile-post-list" id="profile-post-list" aria-live="polite"></div>
         <div class="profile-message" id="profile-message" role="status" aria-live="polite" hidden></div>
@@ -199,6 +222,9 @@
     const profilePostCount=document.getElementById('profile-post-count');
     const profilePostList=document.getElementById('profile-post-list');
     const profileMessage=document.getElementById('profile-message');
+    const friendRequestForm=document.getElementById('friend-request-form');
+    const friendsFeedback=document.getElementById('friends-feedback');
+    const audienceNote=document.getElementById('audience-note');
     const experienceStep=document.getElementById('step-experience');
     const reviewStep=document.getElementById('step-review');
     let selectedFiles=[];
@@ -244,6 +270,8 @@
       document.getElementById('review-location-detail').textContent=value('location-detail')||'Not provided';
       document.getElementById('review-short-description').textContent=shortDescription.value.trim();
       document.getElementById('review-full-description').textContent=fullDescription.value.trim();
+      const audience=document.querySelector('input[name="visibility"]:checked')?.value||'public';
+      document.getElementById('review-audience').textContent=({public:'Public in NFD · your name is shown',friends:'Friends only · visible to accepted NFD friends',anonymous:'Anonymous · your name and profile are hidden'})[audience];
       document.getElementById('review-file-count').textContent=selectedFiles.length?`${selectedFiles.length} ${selectedFiles.length===1?'file':'files'} attached`:'No files attached';
       reviewFiles.innerHTML='';
       if(!selectedFiles.length){const empty=document.createElement('p');empty.className='review-empty';empty.textContent='You can add photos or documents by going back to edit.';reviewFiles.append(empty)}
@@ -306,6 +334,11 @@
         header.append(titleGroup);
         addText(header,'span','feed-incident',experience.incidentCategory);
         main.append(header);
+        const author=document.createElement('div');author.className=`feed-author${experience.visibility==='anonymous'?' anonymous':''}`;
+        const authorIcon=addText(author,'span','feed-author-icon',experience.visibility==='anonymous'?'?':(experience.authorName||'N').trim().slice(0,1).toUpperCase());
+        authorIcon.setAttribute('aria-hidden','true');
+        addText(author,'span','',experience.visibility==='anonymous'?'Shared anonymously':`Shared by ${experience.authorName||'NFD member'}`);
+        main.append(author);
         const meta=document.createElement('div');meta.className='feed-meta';
         const place=document.createElement('span');place.innerHTML='<strong>Where</strong> ';place.append(document.createTextNode(`${experience.place} · ${experience.placeCategory}`));meta.append(place);
         if(experience.locationDetails){const area=document.createElement('span');area.innerHTML='<strong>Area</strong> ';area.append(document.createTextNode(experience.locationDetails));meta.append(area)}
@@ -362,6 +395,7 @@
         const titleGroup=document.createElement('div');
         addText(titleGroup,'h3','profile-post-title',experience.shortDescription||experience.experienceCategory);
         addText(titleGroup,'span','profile-post-category',`${experience.experienceCategory} · ${experience.incidentCategory}`);
+        addText(titleGroup,'span','profile-post-audience',({public:'Public · name shown',friends:'Friends only',anonymous:'Anonymous · name hidden'})[experience.visibility]||'Public · name shown');
         top.append(titleGroup,addText(top,'time','profile-post-date',`Shared ${prettyDate(experience.createdAt)}`));card.append(top);
         const meta=document.createElement('div');meta.className='profile-post-meta';
         const where=document.createElement('span');where.innerHTML='<strong>Where</strong> ';where.append(document.createTextNode(`${experience.place} · ${experience.placeCategory}`));meta.append(where);
@@ -401,8 +435,46 @@
         const result=await response.json().catch(()=>({}));
         if(!response.ok)throw new Error(result.error||'Your profile could not be loaded.');
         renderProfile(result);
+        loadFriends();
       }catch(error){profileSummary.innerHTML='';profilePostList.replaceChildren();profilePostCount.textContent='';const message=addText(profilePostList,'div','profile-error',error instanceof TypeError?'Your profile could not connect. Try refreshing this page.':error.message);message.setAttribute('role','alert')}
     }
+    function setFriendsFeedback(message,error=false){friendsFeedback.textContent=message;friendsFeedback.classList.toggle('error',error)}
+    function renderFriendList(listId,emptyId,entries,kind){
+      const list=document.getElementById(listId);const empty=document.getElementById(emptyId);list.replaceChildren();empty.hidden=entries.length>0;
+      entries.forEach(friend=>{
+        const item=document.createElement('li');item.className='friend-item';
+        const person=document.createElement('div');person.className='friend-person';addText(person,'strong','',friend.name||'NFD member');addText(person,'span','',friend.email||'');item.append(person);
+        const actions=document.createElement('div');actions.className='friend-actions';
+        const addAction=(label,action,method,style='')=>{const button=document.createElement('button');button.type='button';button.className=`friend-action ${style}`.trim();button.textContent=label;button.addEventListener('click',async()=>{
+          button.disabled=true;setFriendsFeedback(action==='accept'?'Accepting request…':action==='remove'?'Updating friends…':'Removing request…');
+          try{const response=await fetch(`/api/friends/${encodeURIComponent(friend.id)}${action==='accept'?'/accept':''}`,{method,headers:{accept:'application/json'}});const result=await response.json().catch(()=>({}));if(!response.ok)throw new Error(result.error||'Your friend list could not be updated.');setFriendsFeedback(action==='accept'?'You’re connected on NFD.':action==='remove'?'Connection removed.':'Request removed.');await loadFriends()}catch(error){button.disabled=false;setFriendsFeedback(error.message,true)}
+        });actions.append(button)};
+        if(kind==='incoming')addAction('Accept','accept','POST');
+        addAction(kind==='friends'?'Remove':kind==='outgoing'?'Cancel':'Ignore',kind==='friends'?'remove':'ignore','DELETE','remove');
+        item.append(actions);list.append(item);
+      });
+    }
+    async function loadFriends(){
+      try{const response=await fetch('/api/friends',{headers:{accept:'application/json'},cache:'no-store'});const result=await response.json().catch(()=>({}));if(!response.ok)throw new Error(result.error||'Your NFD friends could not be loaded.');
+        renderFriendList('friend-list','friend-empty',result.friends||[],'friends');renderFriendList('friend-incoming-list','friend-incoming-empty',result.incoming||[],'incoming');renderFriendList('friend-outgoing-list','friend-outgoing-empty',result.outgoing||[],'outgoing');
+      }catch(error){setFriendsFeedback(error.message,true)}
+    }
+    let acceptedFriendCount=0;
+    function updateAudienceNote(){
+      const visibility=document.querySelector('input[name="visibility"]:checked')?.value||'public';
+      if(visibility==='friends')audienceNote.textContent=acceptedFriendCount?`Only your ${acceptedFriendCount} accepted NFD ${acceptedFriendCount===1?'friend':'friends'} can see this story and its files. You can manage connections on your profile.`:'You have no accepted NFD friends yet. This story and its files will be visible only to you until you connect with friends.';
+      else if(visibility==='anonymous')audienceNote.textContent='Your name and profile stay hidden in the feed. Details you write or include in files could still identify you, so review them carefully.';
+      else audienceNote.textContent='All signed-in NFD members can see this story and its files. Your NFD display name is shown.';
+    }
+    async function loadFriendCount(){
+      try{const response=await fetch('/api/friends',{headers:{accept:'application/json'},cache:'no-store'});const result=await response.json().catch(()=>({}));if(response.ok)acceptedFriendCount=(result.friends||[]).length}catch{}
+      updateAudienceNote();
+    }
+    document.querySelectorAll('input[name="visibility"]').forEach(input=>input.addEventListener('change',updateAudienceNote));
+    friendRequestForm.addEventListener('submit',async event=>{
+      event.preventDefault();const input=document.getElementById('friend-request-email');const button=friendRequestForm.querySelector('button[type="submit"]');button.disabled=true;setFriendsFeedback('Sending request…');
+      try{const response=await fetch('/api/friends',{method:'POST',headers:{'content-type':'application/json',accept:'application/json'},body:JSON.stringify({email:input.value.trim()})});const result=await response.json().catch(()=>({}));if(!response.ok)throw new Error(result.error||'The friend request could not be sent.');input.value='';setFriendsFeedback(result.message||'If that email belongs to another NFD member, your request will appear in their profile.');await loadFriends()}catch(error){setFriendsFeedback(error.message,true)}finally{button.disabled=false}
+    });
     let feedRequestNumber=0;let feedFilterTimer;
     function updateSuggestions(list,values){
       list.replaceChildren();
@@ -554,6 +626,7 @@
       if(new URLSearchParams(location.search).has('shared')){feedBanner.hidden=false;feedBanner.classList.add('show')}
       loadFeed();
     }
+    if(location.pathname==='/share')loadFriendCount();
     form.addEventListener('submit',event=>{event.preventDefault();if(!form.reportValidity())return;showReview()});
     document.getElementById('edit-experience').addEventListener('click',backToEdit);
     document.getElementById('confirm-review').addEventListener('click',async event=>{
@@ -569,6 +642,7 @@
       payload.append('locationDetail',document.getElementById('location-detail').value.trim());
       payload.append('shortDescription',shortDescription.value.trim());
       payload.append('fullDescription',fullDescription.value.trim());
+      payload.append('visibility',document.querySelector('input[name="visibility"]:checked')?.value||'public');
       selectedFiles.forEach(file=>payload.append('evidence',file,file.name));
       try{
         const response=await fetch('/api/experiences',{method:'POST',body:payload});

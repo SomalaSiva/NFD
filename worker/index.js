@@ -95,6 +95,16 @@ export default {
     if (request.method === "GET" && url.pathname === "/api/users") {
       return listNfdUsers(request, env);
     }
+    if (url.pathname === "/api/friends" && ["GET", "POST"].includes(request.method)) {
+      return manageFriends(request, env);
+    }
+    const friendActionMatch = url.pathname.match(/^\/api\/friends\/([0-9a-f-]{36})(?:\/(accept))?$/i);
+    if (friendActionMatch && request.method === "POST" && friendActionMatch[2] === "accept") {
+      return respondToFriendRequest(request, env, friendActionMatch[1], true);
+    }
+    if (friendActionMatch && request.method === "DELETE") {
+      return removeFriendOrRequest(request, env, friendActionMatch[1]);
+    }
 
     if (request.method === "GET" && url.pathname === "/api/experiences") {
       return listExperiences(request, env);
@@ -542,8 +552,110 @@ async function listNfdUsers(request, env) {
   }
 }
 
+async function manageFriends(request, env) {
+  const user = await getCurrentUser(request, env);
+  if (!user) return json({ error: "Sign in to manage your NFD friends." }, 401);
+  if (!env.DB) return json({ error: "NFD friends are unavailable right now." }, 503);
+  try {
+    if (request.method === "GET") {
+      const [friends, incoming, outgoing] = await Promise.all([
+        env.DB.prepare(`
+          SELECT f.id, u.id AS user_id, u.display_name, u.email, f.created_at
+          FROM nfd_friend_requests f
+          INNER JOIN nfd_users u ON u.id = CASE WHEN f.from_user_id = ? THEN f.to_user_id ELSE f.from_user_id END
+          WHERE f.status = 'accepted' AND (f.from_user_id = ? OR f.to_user_id = ?)
+          ORDER BY lower(COALESCE(u.display_name, u.email))
+        `).bind(user.id, user.id, user.id).all(),
+        env.DB.prepare(`
+          SELECT f.id, u.display_name, u.email, f.created_at
+          FROM nfd_friend_requests f INNER JOIN nfd_users u ON u.id = f.from_user_id
+          WHERE f.to_user_id = ? AND f.status = 'pending' ORDER BY f.created_at DESC
+        `).bind(user.id).all(),
+        env.DB.prepare(`
+          SELECT f.id, u.display_name, u.email, f.created_at
+          FROM nfd_friend_requests f INNER JOIN nfd_users u ON u.id = f.to_user_id
+          WHERE f.from_user_id = ? AND f.status = 'pending' ORDER BY f.created_at DESC
+        `).bind(user.id).all(),
+      ]);
+      const simplify = (result) => (result.results || []).map((row) => ({
+        id: row.id,
+        userId: row.user_id || "",
+        name: row.display_name || "NFD member",
+        email: row.email || "",
+        createdAt: row.created_at,
+      }));
+      return json({ friends: simplify(friends), incoming: simplify(incoming), outgoing: simplify(outgoing) });
+    }
+
+    if (!request.headers.get("content-type")?.toLowerCase().includes("application/json")) {
+      return json({ error: "Send the friend’s email address as JSON." }, 415);
+    }
+    const body = await request.json().catch(() => null);
+    const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email) || email.length > 254) {
+      return json({ error: "Enter a valid email address for an NFD member." }, 400);
+    }
+    const target = await env.DB.prepare("SELECT id FROM nfd_users WHERE lower(email) = ? LIMIT 1").bind(email).first();
+    if (!target || target.id === user.id) {
+      return json({ ok: true, message: "If that email belongs to another NFD member, your request will appear in their profile." }, 202);
+    }
+    const existing = await env.DB.prepare(`
+      SELECT id, status FROM nfd_friend_requests
+      WHERE (from_user_id = ? AND to_user_id = ?) OR (from_user_id = ? AND to_user_id = ?)
+      LIMIT 1
+    `).bind(user.id, target.id, target.id, user.id).first();
+    if (existing) return json({ error: "A friend request is already pending, or you’re already connected." }, 409);
+    await env.DB.prepare(`
+      INSERT INTO nfd_friend_requests (id, from_user_id, to_user_id, status, created_at, updated_at)
+      VALUES (?, ?, ?, 'pending', ?, ?)
+    `).bind(crypto.randomUUID(), user.id, target.id, new Date().toISOString(), new Date().toISOString()).run();
+    return json({ ok: true, message: "If that email belongs to another NFD member, your request will appear in their profile." }, 202);
+  } catch (error) {
+    console.error("NFD friends update failed", error);
+    return json({ error: "NFD friends could not be updated right now. Please try again." }, 503);
+  }
+}
+
+async function respondToFriendRequest(request, env, requestId, accept) {
+  const user = await getCurrentUser(request, env);
+  if (!user) return json({ error: "Sign in to respond to friend requests." }, 401);
+  if (!env.DB) return json({ error: "NFD friends are unavailable right now." }, 503);
+  try {
+    const result = await env.DB.prepare(`
+      UPDATE nfd_friend_requests SET status = ?, updated_at = ?
+      WHERE id = ? AND to_user_id = ? AND status = 'pending'
+    `).bind(accept ? "accepted" : "rejected", new Date().toISOString(), requestId, user.id).run();
+    if (!(Number(result.meta?.changes) > 0)) return json({ error: "That incoming request is no longer available." }, 404);
+    return json({ ok: true, status: accept ? "accepted" : "rejected" });
+  } catch (error) {
+    console.error("Friend request response failed", error);
+    return json({ error: "That friend request could not be updated right now." }, 503);
+  }
+}
+
+async function removeFriendOrRequest(request, env, requestId) {
+  const user = await getCurrentUser(request, env);
+  if (!user) return json({ error: "Sign in to update NFD friends." }, 401);
+  if (!env.DB) return json({ error: "NFD friends are unavailable right now." }, 503);
+  try {
+    const result = await env.DB.prepare(`
+      DELETE FROM nfd_friend_requests
+      WHERE id = ? AND (
+        (status = 'accepted' AND (from_user_id = ? OR to_user_id = ?))
+        OR (status = 'pending' AND (from_user_id = ? OR to_user_id = ?))
+      )
+    `).bind(requestId, user.id, user.id, user.id, user.id).run();
+    if (!(Number(result.meta?.changes) > 0)) return json({ error: "That friend or request was not found." }, 404);
+    return json({ ok: true });
+  } catch (error) {
+    console.error("NFD friend removal failed", error);
+    return json({ error: "That friend or request could not be removed right now." }, 503);
+  }
+}
+
 async function listExperiences(request, env) {
-  if (!(await getCurrentUser(request, env))) {
+  const user = await getCurrentUser(request, env);
+  if (!user) {
     return json({ error: "Sign in to view the NFD experience feed." }, 401);
   }
   if (!env.DB) return json({ error: "The NFD experience database is not available right now." }, 503);
@@ -554,49 +666,55 @@ async function listExperiences(request, env) {
     const experienceCategory = cleanSearchTerm(url.searchParams.get("experienceCategory"));
     const incidentCategory = cleanSearchTerm(url.searchParams.get("incidentCategory"));
     const placeCategory = cleanSearchTerm(url.searchParams.get("placeCategory"));
-    const conditions = ["status = ?"];
-    const bindings = ["shared"];
+    const visibilitySql = `(e.author_id = ? OR e.visibility IN ('public', 'anonymous') OR (e.visibility = 'friends' AND EXISTS (
+      SELECT 1 FROM nfd_friend_requests f WHERE f.status = 'accepted'
+      AND ((f.from_user_id = e.author_id AND f.to_user_id = ?) OR (f.from_user_id = ? AND f.to_user_id = e.author_id))
+    )))`;
+    const visibilityBindings = [user.id, user.id, user.id];
+    const conditions = ["e.status = ?", visibilitySql];
+    const bindings = ["shared", ...visibilityBindings];
     if (placeSearch) {
-      conditions.push("instr(lower(place), lower(?)) > 0");
+      conditions.push("instr(lower(e.place), lower(?)) > 0");
       bindings.push(placeSearch);
     }
     if (locationSearch) {
       conditions.push(`(
-        instr(lower(COALESCE(location_details, '')), lower(?)) > 0
-        OR instr(lower(place_category), lower(?)) > 0
-        OR instr(lower(place), lower(?)) > 0
+        instr(lower(COALESCE(e.location_details, '')), lower(?)) > 0
+        OR instr(lower(e.place_category), lower(?)) > 0
+        OR instr(lower(e.place), lower(?)) > 0
       )`);
       bindings.push(locationSearch, locationSearch, locationSearch);
     }
     if (experienceCategory) {
-      conditions.push("experience_category = ?");
+      conditions.push("e.experience_category = ?");
       bindings.push(experienceCategory);
     }
     if (incidentCategory) {
-      conditions.push("incident_category = ?");
+      conditions.push("e.incident_category = ?");
       bindings.push(incidentCategory);
     }
     if (placeCategory) {
-      conditions.push("place_category = ?");
+      conditions.push("e.place_category = ?");
       bindings.push(placeCategory);
     }
     const where = conditions.join(" AND ");
     const [result, totalResult, placeResult, locationResult, experienceCategoryResult, incidentCategoryResult, placeCategoryResult] = await Promise.all([
       env.DB.prepare(`
-        SELECT id, experience_category, incident_category, place, place_category,
-          location_details, incident_time, incident_time_zone, short_description,
-          full_description, created_at
-        FROM experiences
+        SELECT e.id, e.experience_category, e.incident_category, e.place, e.place_category,
+          e.location_details, e.incident_time, e.incident_time_zone, e.short_description,
+          e.full_description, e.visibility, e.created_at,
+          CASE WHEN e.visibility = 'anonymous' THEN NULL ELSE u.display_name END AS author_name
+        FROM experiences e LEFT JOIN nfd_users u ON u.id = e.author_id
         WHERE ${where}
-        ORDER BY created_at DESC
+        ORDER BY e.created_at DESC
         LIMIT 50
       `).bind(...bindings).all(),
-      env.DB.prepare(`SELECT COUNT(*) AS total FROM experiences WHERE ${where}`).bind(...bindings).first(),
-      env.DB.prepare(`SELECT DISTINCT place FROM experiences WHERE ${where} ORDER BY place COLLATE NOCASE LIMIT 100`).bind(...bindings).all(),
-      env.DB.prepare(`SELECT DISTINCT location_details FROM experiences WHERE ${where} AND location_details IS NOT NULL AND trim(location_details) != '' ORDER BY location_details COLLATE NOCASE LIMIT 100`).bind(...bindings).all(),
-      env.DB.prepare("SELECT DISTINCT experience_category FROM experiences WHERE status = ? ORDER BY experience_category COLLATE NOCASE").bind("shared").all(),
-      env.DB.prepare("SELECT DISTINCT incident_category FROM experiences WHERE status = ? ORDER BY incident_category COLLATE NOCASE").bind("shared").all(),
-      env.DB.prepare("SELECT DISTINCT place_category FROM experiences WHERE status = ? ORDER BY place_category COLLATE NOCASE").bind("shared").all(),
+      env.DB.prepare(`SELECT COUNT(*) AS total FROM experiences e WHERE ${where}`).bind(...bindings).first(),
+      env.DB.prepare(`SELECT DISTINCT e.place FROM experiences e WHERE ${where} ORDER BY e.place COLLATE NOCASE LIMIT 100`).bind(...bindings).all(),
+      env.DB.prepare(`SELECT DISTINCT e.location_details FROM experiences e WHERE ${where} AND e.location_details IS NOT NULL AND trim(e.location_details) != '' ORDER BY e.location_details COLLATE NOCASE LIMIT 100`).bind(...bindings).all(),
+      env.DB.prepare(`SELECT DISTINCT e.experience_category FROM experiences e WHERE e.status = ? AND ${visibilitySql} ORDER BY e.experience_category COLLATE NOCASE`).bind("shared", ...visibilityBindings).all(),
+      env.DB.prepare(`SELECT DISTINCT e.incident_category FROM experiences e WHERE e.status = ? AND ${visibilitySql} ORDER BY e.incident_category COLLATE NOCASE`).bind("shared", ...visibilityBindings).all(),
+      env.DB.prepare(`SELECT DISTINCT e.place_category FROM experiences e WHERE e.status = ? AND ${visibilitySql} ORDER BY e.place_category COLLATE NOCASE`).bind("shared", ...visibilityBindings).all(),
     ]);
     const experiences = result.results || [];
     const evidenceByExperience = new Map();
@@ -639,6 +757,8 @@ async function listExperiences(request, env) {
         incidentTimeZone: experience.incident_time_zone,
         shortDescription: experience.short_description,
         fullDescription: experience.full_description,
+        visibility: experience.visibility,
+        authorName: experience.visibility === "anonymous" ? "" : (experience.author_name || "NFD member"),
         createdAt: experience.created_at,
         evidence: evidenceByExperience.get(experience.id) || [],
       })),
@@ -657,7 +777,7 @@ async function getProfile(request, env) {
     const result = await env.DB.prepare(`
       SELECT id, experience_category, incident_category, place, place_category,
         location_details, incident_time, incident_time_zone, short_description,
-        full_description, created_at
+        full_description, visibility, created_at
       FROM experiences
       WHERE author_id = ? AND status = ?
       ORDER BY created_at DESC
@@ -699,6 +819,7 @@ async function getProfile(request, env) {
         incidentTimeZone: experience.incident_time_zone,
         shortDescription: experience.short_description,
         fullDescription: experience.full_description,
+        visibility: experience.visibility,
         createdAt: experience.created_at,
         evidence: evidenceByExperience.get(experience.id) || [],
       })),
@@ -754,18 +875,21 @@ function cleanSearchTerm(value) {
 }
 
 async function serveEvidence(request, env, evidenceId) {
-  if (!(await getCurrentUser(request, env))) {
+  const user = await getCurrentUser(request, env);
+  if (!user) {
     return new Response("Sign in to view this evidence.", { status: 401 });
   }
   if (!env.DB || !env.BUCKET) return new Response("Evidence storage is unavailable.", { status: 503 });
   try {
     const record = await env.DB.prepare(`
-      SELECT ee.object_key, ee.original_filename, ee.content_type
+      SELECT ee.object_key, ee.original_filename, ee.content_type,
+        e.author_id, e.visibility
       FROM experience_evidence ee
       INNER JOIN experiences e ON e.id = ee.experience_id
       WHERE ee.id = ? AND e.status = ?
     `).bind(evidenceId, "shared").first();
     if (!record) return new Response("Evidence not found.", { status: 404 });
+    if (!(await canViewExperience(env, user, record))) return new Response("Evidence not found.", { status: 404 });
     const object = await env.BUCKET.get(record.object_key);
     if (!object) return new Response("Evidence not found.", { status: 404 });
     const filename = safeFilename(record.original_filename);
@@ -782,6 +906,18 @@ async function serveEvidence(request, env, evidenceId) {
     console.error("Evidence fetch failed", error);
     return new Response("Evidence could not be loaded.", { status: 503 });
   }
+}
+
+async function canViewExperience(env, viewer, experience) {
+  if (viewer.id === experience.author_id || experience.visibility === "public" || experience.visibility === "anonymous") return true;
+  if (experience.visibility !== "friends") return false;
+  const connection = await env.DB.prepare(`
+    SELECT id FROM nfd_friend_requests
+    WHERE status = 'accepted'
+      AND ((from_user_id = ? AND to_user_id = ?) OR (from_user_id = ? AND to_user_id = ?))
+    LIMIT 1
+  `).bind(experience.author_id, viewer.id, viewer.id, experience.author_id).first();
+  return Boolean(connection);
 }
 
 async function submitExperience(request, env) {
@@ -815,9 +951,13 @@ async function submitExperience(request, env) {
     locationDetails: textField(form, "locationDetail", 300),
     shortDescription: textField(form, "shortDescription", 240),
     fullDescription: textField(form, "fullDescription", 4000),
+    visibility: textField(form, "visibility", 20),
   };
   const missing = Object.entries(fields).some(([key, value]) => key !== "locationDetails" && !value);
   if (missing) return json({ error: "Complete the required experience details before sharing." }, 400);
+  if (!["public", "friends", "anonymous"].includes(fields.visibility)) {
+    return json({ error: "Choose who can see this experience before sharing." }, 400);
+  }
   if (!Number.isFinite(Date.parse(fields.incidentTime))) {
     return json({ error: "Choose a valid date and time for the experience." }, 400);
   }
@@ -865,8 +1005,8 @@ async function submitExperience(request, env) {
         INSERT INTO experiences (
           id, author_id, experience_category, incident_category, place,
           place_category, incident_time, incident_time_zone, location_details,
-          short_description, full_description, status, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          short_description, full_description, visibility, status, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).bind(
         experienceId,
         user.id.slice(0, 200),
@@ -879,6 +1019,7 @@ async function submitExperience(request, env) {
         fields.locationDetails || null,
         fields.shortDescription,
         fields.fullDescription,
+        fields.visibility,
         "shared",
         createdAt,
       ),
