@@ -17,7 +17,7 @@ const ALLOWED_TYPES = new Set([
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-    if (request.method === "GET" && url.pathname === "/") {
+    if (request.method === "GET" && ["/", "/feed", "/feed/"].includes(url.pathname)) {
       return new Response(PAGE_HTML, {
         headers: {
           "content-type": "text/html; charset=utf-8",
@@ -28,6 +28,15 @@ export default {
       });
     }
 
+    if (request.method === "GET" && url.pathname === "/api/experiences") {
+      return listExperiences(request, env);
+    }
+
+    const evidenceMatch = url.pathname.match(/^\/api\/evidence\/([0-9a-f-]{36})$/i);
+    if (request.method === "GET" && evidenceMatch) {
+      return serveEvidence(request, env, evidenceMatch[1]);
+    }
+
     if (request.method === "POST" && url.pathname === "/api/experiences") {
       return submitExperience(request, env);
     }
@@ -35,6 +44,95 @@ export default {
     return new Response("Not found", { status: 404 });
   },
 };
+
+async function listExperiences(request, env) {
+  if (!request.headers.get("oai-authenticated-user-id")?.trim()) {
+    return json({ error: "Sign in to view the NFD experience feed." }, 401);
+  }
+  if (!env.DB) return json({ error: "The NFD experience database is not available right now." }, 503);
+  try {
+    const result = await env.DB.prepare(`
+      SELECT id, experience_category, incident_category, place, place_category,
+        incident_time, incident_time_zone, short_description, full_description, created_at
+      FROM experiences
+      WHERE status = ?
+      ORDER BY created_at DESC
+      LIMIT 50
+    `).bind("shared").all();
+    const experiences = result.results || [];
+    if (!experiences.length) return json({ experiences: [] });
+
+    const ids = experiences.map((experience) => experience.id);
+    const placeholders = ids.map(() => "?").join(", ");
+    const evidenceResult = await env.DB.prepare(`
+      SELECT id, experience_id, original_filename, content_type, size_bytes
+      FROM experience_evidence
+      WHERE experience_id IN (${placeholders})
+      ORDER BY created_at ASC
+    `).bind(...ids).all();
+    const evidenceByExperience = new Map();
+    for (const file of evidenceResult.results || []) {
+      const files = evidenceByExperience.get(file.experience_id) || [];
+      files.push({
+        id: file.id,
+        originalFilename: file.original_filename,
+        contentType: file.content_type,
+        sizeBytes: file.size_bytes,
+      });
+      evidenceByExperience.set(file.experience_id, files);
+    }
+
+    return json({
+      experiences: experiences.map((experience) => ({
+        id: experience.id,
+        experienceCategory: experience.experience_category,
+        incidentCategory: experience.incident_category,
+        place: experience.place,
+        placeCategory: experience.place_category,
+        incidentTime: experience.incident_time,
+        incidentTimeZone: experience.incident_time_zone,
+        shortDescription: experience.short_description,
+        fullDescription: experience.full_description,
+        createdAt: experience.created_at,
+        evidence: evidenceByExperience.get(experience.id) || [],
+      })),
+    });
+  } catch (error) {
+    console.error("Experience feed query failed", error);
+    return json({ error: "NFD couldn’t load the experience feed right now." }, 503);
+  }
+}
+
+async function serveEvidence(request, env, evidenceId) {
+  if (!request.headers.get("oai-authenticated-user-id")?.trim()) {
+    return new Response("Sign in to view this evidence.", { status: 401 });
+  }
+  if (!env.DB || !env.BUCKET) return new Response("Evidence storage is unavailable.", { status: 503 });
+  try {
+    const record = await env.DB.prepare(`
+      SELECT ee.object_key, ee.original_filename, ee.content_type
+      FROM experience_evidence ee
+      INNER JOIN experiences e ON e.id = ee.experience_id
+      WHERE ee.id = ? AND e.status = ?
+    `).bind(evidenceId, "shared").first();
+    if (!record) return new Response("Evidence not found.", { status: 404 });
+    const object = await env.BUCKET.get(record.object_key);
+    if (!object) return new Response("Evidence not found.", { status: 404 });
+    const filename = safeFilename(record.original_filename);
+    const disposition = record.content_type.startsWith("image/") ? "inline" : "attachment";
+    return new Response(object.body, {
+      headers: {
+        "content-type": record.content_type,
+        "content-disposition": `${disposition}; filename="${filename}"`,
+        "cache-control": "private, no-store",
+        "x-content-type-options": "nosniff",
+      },
+    });
+  } catch (error) {
+    console.error("Evidence fetch failed", error);
+    return new Response("Evidence could not be loaded.", { status: 503 });
+  }
+}
 
 async function submitExperience(request, env) {
   const authorId = request.headers.get("oai-authenticated-user-id")?.trim();
