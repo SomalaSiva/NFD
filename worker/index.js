@@ -1,6 +1,15 @@
 const MAX_FILES = 5;
 const MAX_FILE_BYTES = 25 * 1024 * 1024;
 const MAX_TOTAL_BYTES = 50 * 1024 * 1024;
+const INCIDENT_CATEGORIES_BY_EXPERIENCE = {
+  "Personal relationships": ["Trust broken or deception", "Heartbreak or relationship change", "Conflict or boundary issue", "Scam or financial harm", "Kindness or support", "Trust kept or connection strengthened", "Joyful or positive moment", "Other or not sure"],
+  "Work and school": ["Bullying, harassment, or aggression", "Unfair treatment or retaliation", "Trust broken or deception", "Conflict or boundary issue", "Support, appreciation, or teamwork", "Promise kept or trust strengthened", "Positive work or school experience", "Other or not sure"],
+  "Community and social life": ["Conflict, harassment, or safety concern", "Trust broken or deception", "Scam or financial harm", "Kindness or help", "Belonging or community support", "Positive event or gathering", "Other or not sure"],
+  "Business, products, and services": ["Scam or misleading conduct", "Billing or payment issue", "Product or service problem", "Delivery, refund, or cancellation issue", "Helpful service or fair resolution", "Great product or service", "Other or not sure"],
+  "Online and digital life": ["Scam, fraud, or impersonation", "Harassment or unwanted contact", "Privacy or account misuse", "Deception or broken trust", "Supportive or respectful interaction", "Positive online experience", "Other or not sure"],
+  "Public places and travel": ["Safety issue or unwanted aggression", "Scam or overcharge", "Service, travel, or access issue", "Helpful person or support", "Trustworthy or welcoming service", "Positive outing or experience", "Other or not sure"],
+  "Other or not sure": ["Trust broken or deception", "Scam or financial harm", "Harassment, aggression, or safety issue", "Conflict or boundary issue", "Kindness or support", "Trust kept or promise fulfilled", "Positive or joyful experience", "Other or not sure"],
+};
 const ALLOWED_TYPES = new Set([
   "image/jpeg",
   "image/png",
@@ -1369,6 +1378,9 @@ async function submitExperience(request, env) {
   };
   const missing = Object.entries(fields).some(([key, value]) => key !== "locationDetails" && !value);
   if (missing) return json({ error: "Complete the required experience details before sharing." }, 400);
+  if (!INCIDENT_CATEGORIES_BY_EXPERIENCE[fields.experienceCategory]?.includes(fields.incidentCategory)) {
+    return json({ error: "Choose an incident that matches the experience category." }, 400);
+  }
   if (!["public", "friends", "anonymous"].includes(fields.visibility)) {
     return json({ error: "Choose who can see this experience before sharing." }, 400);
   }
