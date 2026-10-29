@@ -52,12 +52,17 @@
     @media(max-width:720px){.messages-layout{grid-template-columns:1fr;min-height:0}.message-inbox{border-right:0;border-bottom:1px solid #e9eeea;padding:12px}.message-thread-list{display:flex;overflow-x:auto;gap:7px}.message-thread-item{flex:0 0 155px}.message-thread-button{height:100%;min-height:62px}.message-conversation{min-height:440px}.message-list{min-height:280px;max-height:55vh;padding:13px}.message-thread-header{align-items:flex-start;flex-direction:column}.message-expiry-note{align-self:flex-start}.message-compose{align-items:stretch;flex-direction:column}.message-compose .submit{width:100%}.message-bubble{max-width:90%}}
     :focus-visible{outline:3px solid rgba(25,132,95,.45);outline-offset:2px}
   </style>
+  <style>
+    .messages-nav-link{display:inline-flex;align-items:center;gap:6px}
+    .nav-unread-count{min-width:18px;height:18px;display:inline-grid;place-items:center;padding:0 5px;border-radius:999px;background:#0d7054;color:#fff;font-size:10px;line-height:1;font-weight:750}
+    .nav-unread-count[hidden],#admin-nav-link[hidden],#account-admin-link[hidden]{display:none!important}
+  </style>
 </head>
 <body>
   <header class="topbar">
     <div class="shell topbar-inner">
       <a class="brand" href="/feed" aria-label="NFD — No Face Docs home"><span class="brand-mark"><img src="/nfd-icon.png" alt=""></span><span class="brand-copy"><span class="brand-name">NFD</span><span class="brand-subtitle">No Face Docs</span></span></a>
-      <nav class="top-actions" id="main-nav" aria-label="Main navigation" hidden><a class="feed-nav-link" href="/feed">Lore Feed</a><a class="messages-nav-link" href="/messages">Messages</a><a class="nav-share-link" href="/share"><img src="/nfd-icon.png" alt="" aria-hidden="true"><span>Drop your story</span></a><a href="/admin" id="admin-nav-link" hidden>Admin</a><div class="account-menu-wrap"><button class="account-menu-button" type="button" id="account-menu-button" aria-label="Open your account menu" aria-expanded="false" aria-controls="account-menu"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="8" r="3.5" stroke="currentColor" stroke-width="1.7"/><path d="M5.2 20c.7-3.5 3.1-5.2 6.8-5.2s6.1 1.7 6.8 5.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button><div class="account-menu" id="account-menu" hidden><a href="/profile">My profile</a><a href="/admin" id="account-admin-link" hidden>Admin</a><a href="/auth/signout?return_to=%2Flogin" target="_top">Sign out</a></div></div></nav>
+      <nav class="top-actions" id="main-nav" aria-label="Main navigation" hidden><a class="feed-nav-link" href="/feed">Lore Feed</a><a class="messages-nav-link" id="messages-nav-link" href="/messages" aria-label="Messages">Messages<span class="nav-unread-count" id="nav-unread-count" aria-live="polite" hidden></span></a><a class="nav-share-link" href="/share"><img src="/nfd-icon.png" alt="" aria-hidden="true"><span>Drop your story</span></a><a href="/admin" id="admin-nav-link" hidden>Admin</a><div class="account-menu-wrap"><button class="account-menu-button" type="button" id="account-menu-button" aria-label="Open your account menu" aria-expanded="false" aria-controls="account-menu"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="8" r="3.5" stroke="currentColor" stroke-width="1.7"/><path d="M5.2 20c.7-3.5 3.1-5.2 6.8-5.2s6.1 1.7 6.8 5.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button><div class="account-menu" id="account-menu" hidden><a href="/profile">My profile</a><a href="/admin" id="account-admin-link" hidden>Admin</a><a href="/auth/signout?return_to=%2Flogin" target="_top">Sign out</a></div></div></nav>
     </div>
   </header>
   <main id="login-page" class="shell auth-page" hidden>
@@ -275,6 +280,9 @@
     const mainNav=document.getElementById('main-nav');
     const adminNavLink=document.getElementById('admin-nav-link');
     const accountAdminLink=document.getElementById('account-admin-link');
+    const messagesNavLink=document.getElementById('messages-nav-link');
+    const navUnreadCount=document.getElementById('nav-unread-count');
+    let messageNavRefreshTimer;
     const accountMenuButton=document.getElementById('account-menu-button');
     const accountMenu=document.getElementById('account-menu');
     function closeAccountMenu(){accountMenu.hidden=true;accountMenuButton.setAttribute('aria-expanded','false')}
@@ -646,6 +654,16 @@
     }
     friendSearchInput.addEventListener('input',()=>{clearTimeout(friendSearchTimer);friendSearchTimer=setTimeout(loadFriendSuggestions,220)});
     function setMessageFeedback(message,error=false){messageFeedback.textContent=message;messageFeedback.classList.toggle('error',error)}
+    async function refreshMessageNavBadge(){
+      try{
+        const response=await fetch('/api/messages',{headers:{accept:'application/json'},cache:'no-store'});
+        if(!response.ok)return;
+        const result=await response.json().catch(()=>({}));
+        const unread=(result.friends||[]).reduce((total,friend)=>total+(Number(friend.unreadCount)||0),0);
+        navUnreadCount.hidden=unread===0;navUnreadCount.textContent=unread>99?'99+':String(unread);
+        messagesNavLink.setAttribute('aria-label',unread?`Messages, ${unread} unread`:'Messages');
+      }catch{}
+    }
     function formatMessageTime(value){if(!value)return'';return new Date(value).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'})}
     function messageExpiryLabel(message){if(!message.seenAt)return'Sent · waiting to be seen';const remaining=Date.parse(message.expiresAt)-Date.now();if(remaining<=0)return'Disappearing…';const minutes=Math.ceil(remaining/60000);return`Seen · disappears in ${minutes<60?`${minutes}m`:`${Math.floor(minutes/60)}h ${minutes%60}m`}`}
     async function loadMessageFriends(){
@@ -884,6 +902,7 @@
         if(!response.ok){mainNav.hidden=true;return}
         const result=await response.json().catch(()=>({}));
         currentUserId=result.userId||currentUserId;adminNavLink.hidden=!result.isAdmin;accountAdminLink.hidden=!result.isAdmin;mainNav.hidden=false;
+        await refreshMessageNavBadge();clearInterval(messageNavRefreshTimer);messageNavRefreshTimer=setInterval(()=>{if(document.visibilityState==='visible')refreshMessageNavBadge()},15000);
       }catch{mainNav.hidden=true}
     }
     updateNavigation();
