@@ -48,8 +48,11 @@
           </div>
         </section>
         <section class="section" aria-labelledby="description-heading">
-          <div class="section-head"><span class="section-icon"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 5h14v11H9l-4 3V5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M8 9h8M8 12h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span><span class="section-title" id="description-heading">A short description</span><span class="section-hint">Be clear and factual</span></div>
-          <div class="field"><label for="description">What happened? <span class="required">*</span></label><textarea class="control short-area" id="description" name="description" maxlength="500" placeholder="Describe what happened, who was involved (using roles or aliases if you prefer), and how it affected you. Share what you know firsthand." required></textarea><div class="char-row"><span>A few sentences is enough. Leave out private details you don’t want to share.</span><span class="count"><b id="char-count">0</b> / 500</span></div></div>
+          <div class="section-head"><span class="section-icon"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 5h14v11H9l-4 3V5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M8 9h8M8 12h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span><span class="section-title" id="description-heading">Describe your experience</span><span class="section-hint">Short summary + full account</span></div>
+          <div class="grid">
+            <div class="field full"><label for="short-description">Short description <span class="required">*</span></label><textarea class="control short-area" id="short-description" name="shortDescription" maxlength="240" placeholder="Sum up the experience in a few clear sentences." required></textarea><div class="char-row"><span>A quick summary people can scan.</span><span class="count"><b id="short-char-count">0</b> / 240</span></div></div>
+            <div class="field full"><label for="full-description">Full description <span class="required">*</span></label><textarea class="control" style="height:170px;resize:vertical;padding:11px 12px;line-height:1.55" id="full-description" name="fullDescription" maxlength="4000" placeholder="Walk through what happened, when it happened, who was involved (roles or aliases are fine), what you expected, and what happened next. Include the impact or outcome if you’re comfortable. Share only what you know firsthand." required></textarea><div class="char-row"><span>Include the details that help someone understand the full story. Leave out private details you don’t want to share.</span><span class="count"><b id="full-char-count">0</b> / 4,000</span></div></div>
+          </div>
         </section>
         <section class="section" aria-labelledby="evidence-heading">
           <div class="section-head"><span class="section-icon"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M5 14.5v4a1.5 1.5 0 0 0 1.5 1.5h11a1.5 1.5 0 0 0 1.5-1.5v-4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="section-title" id="evidence-heading">Add supporting evidence</span><span class="section-hint">Optional</span></div>
@@ -68,8 +71,8 @@
     const picker=document.getElementById('evidence-files');
     const list=document.getElementById('file-list');
     const zone=document.getElementById('upload-zone');
-    const count=document.getElementById('char-count');
-    const description=document.getElementById('description');
+    const shortDescription=document.getElementById('short-description');
+    const fullDescription=document.getElementById('full-description');
     const form=document.getElementById('experience-form');
     const notice=document.getElementById('submit-notice');
     let selectedFiles=[];
@@ -98,7 +101,8 @@
     ['dragenter','dragover'].forEach(type=>zone.addEventListener(type,event=>{event.preventDefault();zone.classList.add('drag')}));
     ['dragleave','drop'].forEach(type=>zone.addEventListener(type,event=>{event.preventDefault();zone.classList.remove('drag')}));
     zone.addEventListener('drop',event=>addFiles(event.dataTransfer.files));
-    description.addEventListener('input',()=>count.textContent=description.value.length);
+    shortDescription.addEventListener('input',()=>document.getElementById('short-char-count').textContent=shortDescription.value.length);
+    fullDescription.addEventListener('input',()=>document.getElementById('full-char-count').textContent=fullDescription.value.length);
     form.addEventListener('submit',event=>{event.preventDefault();if(!form.reportValidity())return;notice.classList.add('show');notice.scrollIntoView({behavior:'smooth',block:'nearest'})});
   </script>
 </body>
