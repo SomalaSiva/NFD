@@ -7,7 +7,7 @@
   <meta name="description" content="Real stories, good and bad. Share what happened or see what people are saying with NFD (No Face Docs).">
   <link rel="icon" type="image/png" href="/nfd-icon.png">
   <link rel="apple-touch-icon" href="/nfd-icon.png">
-  <title>What happened? — NFD</title>
+  <title>NFD — No Face Docs</title>
   <style>
     :root{--ink:#172c28;--muted:#687873;--line:#e0e7e2;--paper:#fff;--canvas:#f6f7f5;--green:#0d694f;--green-dark:#07543f;--mint:#edf5ef;--lime:#d7f27b;--amber:#f0b257;--radius:18px;--shadow:0 12px 34px rgba(26,52,43,.055)}
     *{box-sizing:border-box}body{margin:0;background:var(--canvas);color:var(--ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}button,input,textarea,select{font:inherit}button{cursor:pointer}a{color:inherit;text-decoration:none}.shell{max-width:1220px;margin:0 auto;padding:0 38px}.topbar{height:78px;border-bottom:1px solid #e7ebe7;background:rgba(255,255,255,.78)}.topbar-inner{height:100%;display:flex;align-items:center;justify-content:space-between}.brand{display:flex;align-items:center;gap:10px;font-size:20px;font-weight:760;letter-spacing:-.7px}.brand-mark{width:40px;height:40px;flex:none;border-radius:12px;display:block;overflow:hidden}.brand-mark img{display:block;width:100%;height:100%;object-fit:cover;border-radius:inherit}.brand-copy{display:flex;flex-direction:column;gap:3px}.brand-name{font-size:18px;line-height:1;font-weight:790;letter-spacing:-.45px}.brand-subtitle{font-size:9px;line-height:1;color:#74827b;font-weight:650;letter-spacing:.1px}.top-actions{display:flex;gap:24px;align-items:center;color:var(--muted);font-size:13px;font-weight:600}.top-actions a:hover{color:var(--green)}.avatar{height:34px;width:34px;display:grid;place-items:center;border-radius:50%;background:#e6eee9;color:var(--green);font-weight:750;font-size:12px}
@@ -25,14 +25,19 @@
     .profile-page[hidden]{display:none}.layout.profile-mode{display:block;max-width:980px}.layout.profile-mode .main{max-width:850px;margin:0 auto}.layout.profile-mode .side{display:none}.profile-heading h1{font-size:36px;line-height:1.14;letter-spacing:-1.5px;margin:12px 0 9px}.profile-heading .intro{margin:0 0 22px}.profile-summary{display:flex;align-items:center;gap:17px;padding:20px 22px;background:#fff;border:1px solid #e5ebe6;border-radius:15px;box-shadow:var(--shadow)}.profile-avatar{width:58px;height:58px;flex:none;border-radius:50%;display:grid;place-items:center;background:#e8f1eb;color:var(--green);font-size:20px;font-weight:750}.profile-identity{min-width:0}.profile-identity h2{margin:0;color:#203a30;font-size:17px;overflow-wrap:anywhere}.profile-identity p{margin:5px 0 0;color:#718079;font-size:12px;overflow-wrap:anywhere}.profile-provider{margin-left:auto;flex:none;padding:7px 10px;border-radius:999px;background:#f1f5f2;color:#557061;font-size:10px;font-weight:650}.profile-post-heading{display:flex;justify-content:space-between;align-items:center;gap:16px;margin:29px 0 13px}.profile-post-heading h2{margin:0;font-size:21px;letter-spacing:-.4px}.profile-post-heading p{margin:5px 0 0;color:#829087;font-size:11px}.profile-post-heading .secondary-button{flex:none}.profile-post-list{display:grid;gap:13px}.profile-post-card{min-width:0;padding:18px 20px;background:#fff;border:1px solid #e5ebe6;border-radius:14px;box-shadow:var(--shadow)}.profile-post-top{display:flex;justify-content:space-between;align-items:flex-start;gap:14px}.profile-post-title{margin:0;color:#203a30;font-size:15px;line-height:1.45;overflow-wrap:anywhere}.profile-post-category{display:block;margin-top:6px;color:#738279;font-size:10px}.profile-post-date{flex:none;color:#87938c;font-size:10px}.profile-post-meta{display:flex;flex-wrap:wrap;gap:7px 15px;margin-top:13px;color:#718079;font-size:10px}.profile-post-meta strong{color:#52645a}.profile-post-full{margin-top:13px;border-top:1px solid #edf1ed;padding-top:11px}.profile-post-full summary{color:var(--green);font-size:11px;font-weight:700;cursor:pointer}.profile-post-full p{margin:8px 0 0;color:#52645a;font-size:11px;line-height:1.65;white-space:pre-wrap;overflow-wrap:anywhere}.profile-post-evidence{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.profile-post-evidence a{display:inline-flex;align-items:center;gap:7px;max-width:100%;padding:7px 9px;border:1px solid #e1e9e3;border-radius:8px;color:#426b53;background:#fbfcfb;text-decoration:none;font-size:10px;font-weight:650;overflow-wrap:anywhere}.profile-post-evidence a:hover{border-color:#9bbba4}.profile-post-actions{display:flex;justify-content:flex-end;margin-top:14px}.profile-delete{padding:8px 12px;border:1px solid #efd7d0;border-radius:9px;background:#fff;color:#9a493b;font:inherit;font-size:10px;font-weight:700;cursor:pointer}.profile-delete:hover{background:#fff5f2}.profile-delete:disabled{opacity:.55;cursor:wait}.profile-empty,.profile-loading,.profile-error,.profile-message{padding:18px;border-radius:12px;background:#fff;border:1px solid #e5ebe6;color:#75827a;font-size:12px;line-height:1.6}.profile-empty{text-align:center;padding:28px 20px}.profile-empty strong{display:block;color:#385343;font-size:14px}.profile-empty p{margin:7px 0 15px}.profile-message{margin-top:12px}.profile-message.error{color:#8c4a35;background:#fff5f1;border-color:#f0d7cd}.layout.profile-mode .trust-note{margin-top:25px}@media(max-width:680px){.profile-heading h1{font-size:30px}.profile-summary{padding:16px;gap:12px;align-items:flex-start}.profile-avatar{width:46px;height:46px;font-size:17px}.profile-provider{font-size:9px;padding:6px 8px}.profile-post-heading{align-items:flex-start;flex-direction:column}.profile-post-heading .secondary-button{width:100%;justify-content:center}.profile-post-card{padding:16px}.profile-post-top{flex-direction:column;gap:6px}.profile-post-actions .profile-delete{width:100%}}
     #app-layout.profile-mode #form-heading{display:none}
     .member-email{display:block;margin-top:4px;color:#748178;font-size:11px;font-weight:450;overflow-wrap:anywhere}
-    @media(max-width:680px){.feed-heading-actions{width:100%}.feed-heading-actions .feed-cta{width:auto;flex:1}}
+    .brand-name{font-size:19px;letter-spacing:-.65px}.brand-name:after{content:".";color:var(--green)}.brand-subtitle{font-size:8px;text-transform:uppercase;letter-spacing:.75px}
+    .top-actions a.feed-nav-link{color:var(--green);font-weight:720}.top-actions a.nav-share-link{display:inline-flex;align-items:center;gap:7px;padding:7px 11px;border:1px solid #0b664d;border-radius:999px;background:linear-gradient(135deg,#0d7658,#07543f);color:#fff;box-shadow:0 5px 15px rgba(13,105,79,.18);font-weight:700;transition:transform .15s,box-shadow .15s}.top-actions a.nav-share-link:hover{color:#fff;transform:translateY(-1px);box-shadow:0 8px 19px rgba(13,105,79,.24)}.nav-share-link img{width:25px;height:25px;object-fit:cover;border-radius:7px}
+    .account-menu-wrap{position:relative;flex:none}.account-menu-button{width:40px;height:40px;display:grid;place-items:center;border:1px solid #dce7de;border-radius:50%;background:#edf5ef;color:var(--green);cursor:pointer;transition:background .15s,box-shadow .15s}.account-menu-button:hover,.account-menu-button[aria-expanded="true"]{background:#dcece1;box-shadow:0 0 0 3px rgba(13,105,79,.09)}.account-menu-button svg{width:21px;height:21px}.account-menu{position:absolute;z-index:30;right:0;top:calc(100% + 9px);min-width:160px;padding:6px;display:grid;gap:2px;background:#fff;border:1px solid #e0e8e2;border-radius:12px;box-shadow:0 12px 30px rgba(26,52,43,.14)}.account-menu[hidden]{display:none}.account-menu a{display:block;padding:10px 12px;border-radius:8px;color:#405249;font-size:12px;font-weight:650}.account-menu a:hover{background:#edf5ef;color:var(--green)}
+    .feed-heading h1{font-size:40px;font-weight:800;letter-spacing:-1.7px}.feed-heading .eyebrow{padding:6px 10px;border-radius:999px;background:#e7f4c8;color:#315944;font-size:10px;letter-spacing:.7px}.feed-heading .eyebrow:before{display:none}.feed-cta img,.feed-empty .submit img{width:25px;height:25px;object-fit:cover;border-radius:7px;margin-right:8px}.feed-cta span,.feed-empty .submit span{font-size:13px}
+    @media(max-width:680px){.feed-heading h1{font-size:32px}.feed-heading-actions{width:100%}.feed-heading-actions .feed-cta{width:auto;flex:1}.top-actions{gap:10px}.top-actions a:nth-child(2){display:inline-flex}.top-actions a.feed-nav-link{display:none}.top-actions #admin-nav-link{display:none}}
+    @media(max-width:420px){.feed-heading h1{font-size:28px}.brand-subtitle{display:none}.brand{gap:8px}.top-actions{gap:7px}.top-actions a.nav-share-link{gap:5px;padding:6px 8px;font-size:11px}.nav-share-link img{width:21px;height:21px}.account-menu-button{width:36px;height:36px}}
   </style>
 </head>
 <body>
   <header class="topbar">
     <div class="shell topbar-inner">
       <a class="brand" href="/feed" aria-label="NFD — No Face Docs home"><span class="brand-mark"><img src="/nfd-icon.png" alt=""></span><span class="brand-copy"><span class="brand-name">NFD</span><span class="brand-subtitle">No Face Docs</span></span></a>
-      <nav class="top-actions" id="main-nav" aria-label="Main navigation" hidden><a href="/feed">Do you know?</a><a href="/share">What happened?</a><a href="/profile">My profile</a><a href="/admin" id="admin-nav-link" hidden>Admin</a><a href="/auth/signout?return_to=%2Flogin" target="_top">Sign out</a><span class="avatar" aria-label="Signed-in NFD member">N</span></nav>
+      <nav class="top-actions" id="main-nav" aria-label="Main navigation" hidden><a class="feed-nav-link" href="/feed">Lore Feed</a><a class="nav-share-link" href="/share"><img src="/nfd-icon.png" alt="" aria-hidden="true"><span>Drop your story</span></a><a href="/admin" id="admin-nav-link" hidden>Admin</a><div class="account-menu-wrap"><button class="account-menu-button" type="button" id="account-menu-button" aria-label="Open your account menu" aria-expanded="false" aria-controls="account-menu"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="8" r="3.5" stroke="currentColor" stroke-width="1.7"/><path d="M5.2 20c.7-3.5 3.1-5.2 6.8-5.2s6.1 1.7 6.8 5.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button><div class="account-menu" id="account-menu" hidden><a href="/profile">My profile</a><a href="/admin" id="account-admin-link" hidden>Admin</a><a href="/auth/signout?return_to=%2Flogin" target="_top">Sign out</a></div></div></nav>
     </div>
   </header>
   <main id="login-page" class="shell auth-page" hidden>
@@ -71,12 +76,12 @@
         <p class="admin-feedback" id="member-directory-feedback" role="status" aria-live="polite">Loading NFD members…</p>
         <ul class="admin-user-list" id="member-directory-list"></ul>
       </section>
-      <div class="admin-links"><a class="submit" href="/feed">Open Do you know?</a><a class="secondary-button" href="/signout-with-chatgpt?return_to=%2Flogin" target="_top">Sign out</a></div>
+      <div class="admin-links"><a class="submit" href="/feed">Open Lore Feed</a><a class="secondary-button" href="/signout-with-chatgpt?return_to=%2Flogin" target="_top">Sign out</a></div>
     </section>
   </main>
   <main class="shell layout" id="app-layout">
     <aside class="side" aria-label="Submission progress">
-      <a class="back" href="/feed"><span aria-hidden="true">←</span> Back to Do you know?</a>
+      <a class="back" href="/feed"><span aria-hidden="true">←</span> Back to Lore Feed</a>
       <div class="steps">
         <div class="step active" id="step-experience"><span class="step-num">1</span><div class="step-copy"><div class="step-title">Your experience</div><div class="step-sub">What happened?</div></div></div>
         <div class="step" id="step-review"><span class="step-num">2</span><div class="step-copy"><div class="step-title">One last look</div><div class="step-sub">Check, then post</div></div></div>
@@ -126,7 +131,7 @@
         <div class="notice" id="review-notice" role="status" aria-live="polite"></div>
       </section>
       <section id="feed-page" class="feed-page" aria-labelledby="feed-heading" hidden>
-        <div class="feed-heading"><div><div class="eyebrow">The Zenx feed</div><h1 id="feed-heading">Do you know?</h1><p class="intro">Real stories from real people. Because guessing how things went is a terrible research method.</p></div><div class="feed-heading-actions"><button class="feed-filter-toggle" type="button" id="toggle-feed-filters" aria-label="Show search filters" aria-expanded="false" aria-controls="feed-filters" title="Search filters"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 5h16l-6.3 7.1v5.1l-3.4 1.8v-6.9L4 5Z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="feed-filter-count" id="feed-filter-count" hidden></span></button><a class="submit feed-cta" href="/share">What happened?</a></div></div>
+        <div class="feed-heading"><div><div class="eyebrow">Good days. Bad calls. Plot twists.</div><h1 id="feed-heading">Lore Feed</h1><p class="intro">Good days, bad calls, plot twists—straight from the people who were there.</p></div><div class="feed-heading-actions"><button class="feed-filter-toggle" type="button" id="toggle-feed-filters" aria-label="Show search filters" aria-expanded="false" aria-controls="feed-filters" title="Search filters"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 5h16l-6.3 7.1v5.1l-3.4 1.8v-6.9L4 5Z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="feed-filter-count" id="feed-filter-count" hidden></span></button><a class="submit feed-cta" href="/share"><img src="/nfd-icon.png" alt="" aria-hidden="true"><span>Drop your story</span></a></div></div>
         <div id="feed-shared-banner" class="notice" role="status" hidden><strong>Your story made it to the feed.</strong> It was shared with NFD.</div>
         <section class="feed-filters" id="feed-filters" aria-label="Find experiences" hidden>
           <div class="feed-filter-grid">
@@ -182,6 +187,13 @@
     const adminPage=document.getElementById('admin-page');
     const mainNav=document.getElementById('main-nav');
     const adminNavLink=document.getElementById('admin-nav-link');
+    const accountAdminLink=document.getElementById('account-admin-link');
+    const accountMenuButton=document.getElementById('account-menu-button');
+    const accountMenu=document.getElementById('account-menu');
+    function closeAccountMenu(){accountMenu.hidden=true;accountMenuButton.setAttribute('aria-expanded','false')}
+    accountMenuButton.addEventListener('click',event=>{event.stopPropagation();const open=accountMenuButton.getAttribute('aria-expanded')!=='true';accountMenu.hidden=!open;accountMenuButton.setAttribute('aria-expanded',String(open))});
+    document.addEventListener('click',event=>{if(!accountMenu.contains(event.target)&&!accountMenuButton.contains(event.target))closeAccountMenu()});
+    document.addEventListener('keydown',event=>{if(event.key==='Escape'){closeAccountMenu();accountMenuButton.focus()}});
     const profilePage=document.getElementById('profile-page');
     const profileSummary=document.getElementById('profile-summary');
     const profilePostCount=document.getElementById('profile-post-count');
@@ -281,7 +293,7 @@
         addText(empty,'strong','', filterActive?'No stories found here':'No stories here yet');
         addText(empty,'p','', filterActive?'Try a shorter name or a wider area. Our search is clever, not psychic.':'Be the first to add a story. We promise not to make you write a novel.');
         if(filterActive){const clear=document.createElement('button');clear.className='secondary-button';clear.type='button';clear.textContent='Clear search';clear.addEventListener('click',clearFeedFilters);empty.append(clear)}
-        else{const link=document.createElement('a');link.className='submit';link.href='/share';link.textContent='What happened?';empty.append(link)}
+        else{const link=document.createElement('a');link.className='submit';link.href='/share';const icon=document.createElement('img');icon.src='/nfd-icon.png';icon.alt='';icon.setAttribute('aria-hidden','true');const label=document.createElement('span');label.textContent='Drop your story';link.append(icon,label);empty.append(link)}
         feedList.append(empty);return;
       }
       experiences.forEach(experience=>{
@@ -508,7 +520,7 @@
         const response=await fetch('/api/auth-status',{headers:{accept:'application/json'},cache:'no-store'});
         if(!response.ok){mainNav.hidden=true;return}
         const result=await response.json().catch(()=>({}));
-        adminNavLink.hidden=!result.isAdmin;mainNav.hidden=false;
+        adminNavLink.hidden=!result.isAdmin;accountAdminLink.hidden=!result.isAdmin;mainNav.hidden=false;
       }catch{mainNav.hidden=true}
     }
     updateNavigation();
@@ -538,7 +550,7 @@
       document.title='Your profile — NFD';loadProfile();
     }else if(location.pathname==='/feed'||location.pathname==='/feed/'){
       appLayout.classList.add('feed-mode');form.hidden=true;reviewPage.hidden=true;feedPage.hidden=false;
-      document.title='Do you know? — NFD';
+      document.title='Lore Feed — NFD';
       if(new URLSearchParams(location.search).has('shared')){feedBanner.hidden=false;feedBanner.classList.add('show')}
       loadFeed();
     }
