@@ -17,15 +17,24 @@ const ALLOWED_TYPES = new Set([
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    if (request.method === "GET" && url.pathname === "/login") {
+      return html(PAGE_HTML);
+    }
     if (request.method === "GET" && ["/", "/feed", "/feed/"].includes(url.pathname)) {
-      return new Response(PAGE_HTML, {
-        headers: {
-          "content-type": "text/html; charset=utf-8",
-          "cache-control": "private, no-store",
-          "x-content-type-options": "nosniff",
-          "referrer-policy": "strict-origin-when-cross-origin",
-        },
-      });
+      if (!request.headers.get("oai-authenticated-user-id")?.trim()) {
+        const returnTo = `${url.pathname}${url.search}`;
+        return Response.redirect(new URL(`/login?return_to=${encodeURIComponent(returnTo)}`, url), 302);
+      }
+      return html(PAGE_HTML);
+    }
+    if (request.method === "GET" && url.pathname === "/admin") {
+      if (!request.headers.get("oai-authenticated-user-id")?.trim()) {
+        return Response.redirect(new URL("/login?return_to=%2Fadmin", url), 302);
+      }
+      if (!isAdmin(request, env)) {
+        return Response.redirect(new URL("/login?access=denied", url), 302);
+      }
+      return html(PAGE_HTML);
     }
 
     if (request.method === "GET" && url.pathname === "/api/experiences") {
@@ -44,6 +53,24 @@ export default {
     return new Response("Not found", { status: 404 });
   },
 };
+
+function html(body, status = 200) {
+  return new Response(body, {
+    status,
+    headers: {
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "private, no-store",
+      "x-content-type-options": "nosniff",
+      "referrer-policy": "strict-origin-when-cross-origin",
+    },
+  });
+}
+
+function isAdmin(request, env) {
+  const email = request.headers.get("oai-authenticated-user-email")?.trim().toLowerCase();
+  const allowed = (env.NFD_ADMIN_EMAILS || "").split(",").map((value) => value.trim().toLowerCase()).filter(Boolean);
+  return Boolean(email && allowed.includes(email));
+}
 
 async function listExperiences(request, env) {
   if (!request.headers.get("oai-authenticated-user-id")?.trim()) {
