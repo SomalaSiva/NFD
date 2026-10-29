@@ -542,6 +542,9 @@ async function listExperiences(request, env) {
     const url = new URL(request.url);
     const placeSearch = cleanSearchTerm(url.searchParams.get("place"));
     const locationSearch = cleanSearchTerm(url.searchParams.get("location"));
+    const experienceCategory = cleanSearchTerm(url.searchParams.get("experienceCategory"));
+    const incidentCategory = cleanSearchTerm(url.searchParams.get("incidentCategory"));
+    const placeCategory = cleanSearchTerm(url.searchParams.get("placeCategory"));
     const conditions = ["status = ?"];
     const bindings = ["shared"];
     if (placeSearch) {
@@ -556,8 +559,20 @@ async function listExperiences(request, env) {
       )`);
       bindings.push(locationSearch, locationSearch, locationSearch);
     }
+    if (experienceCategory) {
+      conditions.push("experience_category = ?");
+      bindings.push(experienceCategory);
+    }
+    if (incidentCategory) {
+      conditions.push("incident_category = ?");
+      bindings.push(incidentCategory);
+    }
+    if (placeCategory) {
+      conditions.push("place_category = ?");
+      bindings.push(placeCategory);
+    }
     const where = conditions.join(" AND ");
-    const [result, totalResult, placeResult, locationResult] = await Promise.all([
+    const [result, totalResult, placeResult, locationResult, experienceCategoryResult, incidentCategoryResult, placeCategoryResult] = await Promise.all([
       env.DB.prepare(`
         SELECT id, experience_category, incident_category, place, place_category,
           location_details, incident_time, incident_time_zone, short_description,
@@ -570,6 +585,9 @@ async function listExperiences(request, env) {
       env.DB.prepare(`SELECT COUNT(*) AS total FROM experiences WHERE ${where}`).bind(...bindings).first(),
       env.DB.prepare(`SELECT DISTINCT place FROM experiences WHERE ${where} ORDER BY place COLLATE NOCASE LIMIT 100`).bind(...bindings).all(),
       env.DB.prepare(`SELECT DISTINCT location_details FROM experiences WHERE ${where} AND location_details IS NOT NULL AND trim(location_details) != '' ORDER BY location_details COLLATE NOCASE LIMIT 100`).bind(...bindings).all(),
+      env.DB.prepare("SELECT DISTINCT experience_category FROM experiences WHERE status = ? ORDER BY experience_category COLLATE NOCASE").bind("shared").all(),
+      env.DB.prepare("SELECT DISTINCT incident_category FROM experiences WHERE status = ? ORDER BY incident_category COLLATE NOCASE").bind("shared").all(),
+      env.DB.prepare("SELECT DISTINCT place_category FROM experiences WHERE status = ? ORDER BY place_category COLLATE NOCASE").bind("shared").all(),
     ]);
     const experiences = result.results || [];
     const evidenceByExperience = new Map();
@@ -598,6 +616,9 @@ async function listExperiences(request, env) {
       total: totalResult?.total || 0,
       placeSuggestions: (placeResult.results || []).map((row) => row.place),
       locationSuggestions: (locationResult.results || []).map((row) => row.location_details),
+      experienceCategoryOptions: (experienceCategoryResult.results || []).map((row) => row.experience_category),
+      incidentCategoryOptions: (incidentCategoryResult.results || []).map((row) => row.incident_category),
+      placeCategoryOptions: (placeCategoryResult.results || []).map((row) => row.place_category),
       experiences: experiences.map((experience) => ({
         id: experience.id,
         experienceCategory: experience.experience_category,
