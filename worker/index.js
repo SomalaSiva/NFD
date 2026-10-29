@@ -138,14 +138,14 @@ export default {
     if (request.method === "GET" && url.pathname === "/api/messages") {
       return listMessageThreads(request, env);
     }
-    const messagesMatch = url.pathname.match(/^\/api\/messages\/([0-9a-f-]{36})(?:\/(seen))?$/i);
+    const messagesMatch = url.pathname.match(/^\/api\/messages\/([^/]+?)(?:\/(seen))?$/i);
     if (messagesMatch && request.method === "GET" && !messagesMatch[2]) {
-      return getFriendMessages(request, env, messagesMatch[1]);
+      return getFriendMessages(request, env, decodeURIComponent(messagesMatch[1]));
     }
     if (messagesMatch && request.method === "POST") {
       return messagesMatch[2]
-        ? markFriendMessagesSeen(request, env, messagesMatch[1])
-        : sendFriendMessage(request, env, messagesMatch[1]);
+        ? markFriendMessagesSeen(request, env, decodeURIComponent(messagesMatch[1]))
+        : sendFriendMessage(request, env, decodeURIComponent(messagesMatch[1]));
     }
     const friendActionMatch = url.pathname.match(/^\/api\/friends\/([0-9a-f-]{36})(?:\/(accept))?$/i);
     if (friendActionMatch && request.method === "POST" && friendActionMatch[2] === "accept") {
@@ -1024,7 +1024,9 @@ async function ensureMessagingTables(env) {
 }
 
 async function getAcceptedFriend(env, userId, friendId) {
-  if (!/^[0-9a-f-]{36}$/i.test(friendId) || friendId === userId) return null;
+  // Auth provider subject IDs (for example, "google:123…") are opaque NFD IDs,
+  // so do not assume that an account ID is a UUID.
+  if (typeof friendId !== "string" || !/^[A-Za-z0-9:_-]{1,200}$/.test(friendId) || friendId === userId) return null;
   return env.DB.prepare(`
     SELECT u.id, COALESCE(NULLIF(trim(u.display_name), ''), 'NFD member') AS name
     FROM nfd_friend_requests f
