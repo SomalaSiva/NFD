@@ -1,6 +1,7 @@
 const MAX_FILES = 5;
 const MAX_FILE_BYTES = 25 * 1024 * 1024;
 const MAX_TOTAL_BYTES = 50 * 1024 * 1024;
+const EXPERIENCE_PAGE_SIZE = 20;
 const INCIDENT_CATEGORIES_BY_EXPERIENCE = {
   "Personal relationships": ["Trust broken or deception", "Heartbreak or relationship change", "Conflict or boundary issue", "Scam or financial harm", "Kindness or support", "Trust kept or connection strengthened", "Joyful or positive moment", "Other or not sure"],
   "Work and school": ["Bullying, harassment, or aggression", "Unfair treatment or retaliation", "Trust broken or deception", "Conflict or boundary issue", "Support, appreciation, or teamwork", "Promise kept or trust strengthened", "Positive work or school experience", "Other or not sure"],
@@ -37,6 +38,7 @@ let identityTablesPromise;
 let engagementTablesPromise;
 let moderationTablesPromise;
 let experienceOptionColumnsPromise;
+let evidenceCleanupTablePromise;
 
 export default {
   async fetch(request, env) {
@@ -355,6 +357,7 @@ async function ensureIdentityTables(env) {
       )
     `).run();
     await env.DB.prepare("CREATE INDEX IF NOT EXISTS nfd_sessions_user_id_idx ON nfd_sessions (user_id)").run();
+    await env.DB.prepare("CREATE INDEX IF NOT EXISTS nfd_sessions_expires_idx ON nfd_sessions (expires_at)").run();
     await env.DB.prepare(`
       CREATE TABLE IF NOT EXISTS nfd_activity_audit (
         id TEXT PRIMARY KEY NOT NULL,
@@ -393,7 +396,9 @@ async function recordAppSession(env, user) {
   if (!env.DB || !user?.id) return;
   try {
     await ensureIdentityTables(env);
-    const recentSince = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+    const now = new Date().toISOString();
+    await env.DB.prepare("DELETE FROM nfd_sessions WHERE expires_at <= ?").bind(now).run();
+    const recentSince = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     const recent = await env.DB.prepare(`
       SELECT id FROM nfd_activity_audit
       WHERE actor_user_id = ? AND action = 'app_session' AND created_at >= ?
@@ -454,8 +459,66 @@ async function ensureExperienceOptionColumns(env) {
         if (!(columns.results || []).some((item) => item.name === column)) throw error;
       }
     }
+    let evidenceColumns = await env.DB.prepare("PRAGMA table_info(experience_evidence)").all();
+    if (!(evidenceColumns.results || []).some((item) => item.name === "preview_object_key")) {
+      try {
+        await env.DB.prepare("ALTER TABLE experience_evidence ADD COLUMN preview_object_key TEXT").run();
+      } catch (error) {
+        evidenceColumns = await env.DB.prepare("PRAGMA table_info(experience_evidence)").all();
+        if (!(evidenceColumns.results || []).some((item) => item.name === "preview_object_key")) throw error;
+      }
+    }
   })().catch((error) => { experienceOptionColumnsPromise = undefined; throw error; });
   await experienceOptionColumnsPromise;
+}
+
+async function ensureEvidenceCleanupTable(env) {
+  if (!env.DB) throw new Error("The NFD database is unavailable.");
+  evidenceCleanupTablePromise ||= env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS nfd_evidence_cleanup (
+      object_key TEXT PRIMARY KEY NOT NULL,
+      queued_at TEXT NOT NULL,
+      attempts INTEGER NOT NULL DEFAULT 0
+    )
+  `).run().catch((error) => { evidenceCleanupTablePromise = undefined; throw error; });
+  await evidenceCleanupTablePromise;
+}
+
+async function deleteEvidenceObjects(env, objectKeys) {
+  const keys = [...new Set(objectKeys.filter(Boolean))];
+  const results = await Promise.allSettled(keys.map((key) => env.BUCKET.delete(key)));
+  const failed = keys.filter((_, index) => results[index].status === "rejected");
+  if (failed.length && env.DB) {
+    try {
+      await ensureEvidenceCleanupTable(env);
+      const queuedAt = new Date().toISOString();
+      await env.DB.batch(failed.map((key) => env.DB.prepare(`
+        INSERT INTO nfd_evidence_cleanup (object_key, queued_at, attempts) VALUES (?, ?, 0)
+        ON CONFLICT(object_key) DO UPDATE SET queued_at = excluded.queued_at
+      `).bind(key, queuedAt)));
+    } catch (error) {
+      console.error("NFD evidence cleanup could not be queued", error);
+    }
+  }
+  return failed.length > 0;
+}
+
+async function retryEvidenceCleanup(env) {
+  if (!env.DB || !env.BUCKET) return;
+  try {
+    await ensureEvidenceCleanupTable(env);
+    const pending = await env.DB.prepare("SELECT object_key FROM nfd_evidence_cleanup ORDER BY queued_at ASC LIMIT 20").all();
+    for (const row of pending.results || []) {
+      try {
+        await env.BUCKET.delete(row.object_key);
+        await env.DB.prepare("DELETE FROM nfd_evidence_cleanup WHERE object_key = ?").bind(row.object_key).run();
+      } catch {
+        await env.DB.prepare("UPDATE nfd_evidence_cleanup SET attempts = attempts + 1 WHERE object_key = ?").bind(row.object_key).run();
+      }
+    }
+  } catch (error) {
+    console.error("NFD evidence cleanup retry failed", error);
+  }
 }
 
 async function listActivityAudit(request, env) {
@@ -1011,6 +1074,8 @@ async function listExperiences(request, env) {
     const experienceCategory = cleanSearchTerm(url.searchParams.get("experienceCategory"));
     const incidentCategory = cleanSearchTerm(url.searchParams.get("incidentCategory"));
     const placeCategory = cleanSearchTerm(url.searchParams.get("placeCategory"));
+    const cursor = decodeExperienceCursor(url.searchParams.get("cursor"));
+    if (url.searchParams.has("cursor") && !cursor) return json({ error: "That feed page could not be loaded. Refresh the feed and try again." }, 400);
     const visibilitySql = `(e.author_id = ? OR e.visibility IN ('public', 'anonymous') OR (e.visibility = 'friends' AND EXISTS (
       SELECT 1 FROM nfd_friend_requests f WHERE f.status = 'accepted'
       AND ((f.from_user_id = e.author_id AND f.to_user_id = ?) OR (f.from_user_id = ? AND f.to_user_id = e.author_id))
@@ -1043,6 +1108,12 @@ async function listExperiences(request, env) {
       bindings.push(placeCategory);
     }
     const where = conditions.join(" AND ");
+    const pageConditions = [...conditions];
+    const pageBindings = [...bindings];
+    if (cursor) {
+      pageConditions.push("(e.created_at < ? OR (e.created_at = ? AND e.id < ?))");
+      pageBindings.push(cursor.createdAt, cursor.createdAt, cursor.id);
+    }
     const [result, totalResult, placeResult, locationResult, experienceCategoryResult, incidentCategoryResult, placeCategoryResult] = await Promise.all([
       env.DB.prepare(`
         SELECT e.id, e.author_id, e.experience_category, e.incident_category, e.place, e.place_category,
@@ -1050,10 +1121,10 @@ async function listExperiences(request, env) {
           e.full_description, e.visibility, e.comments_enabled, e.created_at,
           CASE WHEN e.visibility = 'anonymous' THEN NULL ELSE u.display_name END AS author_name
         FROM experiences e LEFT JOIN nfd_users u ON u.id = e.author_id
-        WHERE ${where}
+        WHERE ${pageConditions.join(" AND ")}
         ORDER BY e.created_at DESC
-        LIMIT 50
-      `).bind(...bindings).all(),
+        LIMIT ${EXPERIENCE_PAGE_SIZE + 1}
+      `).bind(...pageBindings).all(),
       env.DB.prepare(`SELECT COUNT(*) AS total FROM experiences e WHERE ${where}`).bind(...bindings).first(),
       env.DB.prepare(`SELECT DISTINCT e.place FROM experiences e WHERE ${where} ORDER BY e.place COLLATE NOCASE LIMIT 100`).bind(...bindings).all(),
       env.DB.prepare(`SELECT DISTINCT e.location_details FROM experiences e WHERE ${where} AND e.location_details IS NOT NULL AND trim(e.location_details) != '' ORDER BY e.location_details COLLATE NOCASE LIMIT 100`).bind(...bindings).all(),
@@ -1061,14 +1132,19 @@ async function listExperiences(request, env) {
       env.DB.prepare(`SELECT DISTINCT e.incident_category FROM experiences e WHERE e.status = ? AND ${visibilitySql} ORDER BY e.incident_category COLLATE NOCASE`).bind("shared", ...visibilityBindings).all(),
       env.DB.prepare(`SELECT DISTINCT e.place_category FROM experiences e WHERE e.status = ? AND ${visibilitySql} ORDER BY e.place_category COLLATE NOCASE`).bind("shared", ...visibilityBindings).all(),
     ]);
-    const experiences = result.results || [];
+    const pageRows = result.results || [];
+    const hasMore = pageRows.length > EXPERIENCE_PAGE_SIZE;
+    const experiences = pageRows.slice(0, EXPERIENCE_PAGE_SIZE);
+    const nextCursor = hasMore && experiences.length
+      ? encodeExperienceCursor(experiences[experiences.length - 1].created_at, experiences[experiences.length - 1].id)
+      : null;
     const evidenceByExperience = new Map();
     const engagementByExperience = new Map();
     if (experiences.length) {
       const ids = experiences.map((experience) => experience.id);
       const placeholders = ids.map(() => "?").join(", ");
       const evidenceResult = await env.DB.prepare(`
-        SELECT id, experience_id, original_filename, content_type, size_bytes
+        SELECT id, experience_id, original_filename, content_type, size_bytes, preview_object_key
         FROM experience_evidence
         WHERE experience_id IN (${placeholders})
         ORDER BY created_at ASC
@@ -1080,6 +1156,7 @@ async function listExperiences(request, env) {
           originalFilename: file.original_filename,
           contentType: file.content_type,
           sizeBytes: file.size_bytes,
+          hasPreview: Boolean(file.preview_object_key),
         });
         evidenceByExperience.set(file.experience_id, files);
       }
@@ -1101,6 +1178,7 @@ async function listExperiences(request, env) {
       experienceCategoryOptions: (experienceCategoryResult.results || []).map((row) => row.experience_category),
       incidentCategoryOptions: (incidentCategoryResult.results || []).map((row) => row.incident_category),
       placeCategoryOptions: (placeCategoryResult.results || []).map((row) => row.place_category),
+      nextCursor,
       experiences: experiences.map((experience) => ({
         id: experience.id,
         experienceCategory: experience.experience_category,
@@ -1198,6 +1276,8 @@ async function deleteOwnExperience(request, env, experienceId) {
   if (!env.DB || !env.BUCKET) return json({ error: "Post storage is not available right now." }, 503);
   try {
     await ensureEngagementTables(env);
+    await ensureExperienceOptionColumns(env);
+    await retryEvidenceCleanup(env);
     const ownedPost = await env.DB.prepare(
       "SELECT id FROM experiences WHERE id = ? AND author_id = ? AND status = ? LIMIT 1",
     ).bind(experienceId, user.id, "shared").first();
@@ -1205,7 +1285,7 @@ async function deleteOwnExperience(request, env, experienceId) {
     await recordActivity(env, user.id, "post_deleted", "experience", experienceId);
 
     const evidence = await env.DB.prepare(
-      "SELECT object_key FROM experience_evidence WHERE experience_id = ?",
+      "SELECT object_key, preview_object_key FROM experience_evidence WHERE experience_id = ?",
     ).bind(experienceId).all();
     const results = await env.DB.batch([
       env.DB.prepare("DELETE FROM experience_reactions WHERE experience_id = ?").bind(experienceId),
@@ -1224,10 +1304,7 @@ async function deleteOwnExperience(request, env, experienceId) {
       return json({ error: "That post was not found in your profile." }, 404);
     }
 
-    const cleanup = await Promise.allSettled(
-      (evidence.results || []).map((file) => env.BUCKET.delete(file.object_key)),
-    );
-    const cleanupPending = cleanup.some((result) => result.status === "rejected");
+    const cleanupPending = await deleteEvidenceObjects(env, (evidence.results || []).flatMap((file) => [file.object_key, file.preview_object_key]));
     if (cleanupPending) console.error("Some evidence could not be removed after post deletion", experienceId);
     return json({ ok: true, cleanupPending });
   } catch (error) {
@@ -1240,6 +1317,23 @@ function cleanSearchTerm(value) {
   return typeof value === "string" ? value.trim().replace(/[\u0000-\u001f\u007f]/g, "").slice(0, 100) : "";
 }
 
+function encodeExperienceCursor(createdAt, id) {
+  return btoa(`${createdAt}\n${id}`).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function decodeExperienceCursor(value) {
+  if (typeof value !== "string" || value.length > 256 || !/^[A-Za-z0-9_-]+$/.test(value)) return null;
+  try {
+    const encoded = value.replace(/-/g, "+").replace(/_/g, "/");
+    const decoded = atob(encoded.padEnd(Math.ceil(encoded.length / 4) * 4, "="));
+    const [createdAt, id, ...extra] = decoded.split("\n");
+    if (extra.length || !Number.isFinite(Date.parse(createdAt)) || !/^[0-9a-f-]{36}$/i.test(id)) return null;
+    return { createdAt, id };
+  } catch {
+    return null;
+  }
+}
+
 async function serveEvidence(request, env, evidenceId) {
   const user = await getCurrentUser(request, env);
   if (!user) {
@@ -1247,8 +1341,9 @@ async function serveEvidence(request, env, evidenceId) {
   }
   if (!env.DB || !env.BUCKET) return new Response("Evidence storage is unavailable.", { status: 503 });
   try {
+    await ensureExperienceOptionColumns(env);
     const record = await env.DB.prepare(`
-      SELECT ee.object_key, ee.original_filename, ee.content_type,
+      SELECT ee.object_key, ee.preview_object_key, ee.original_filename, ee.content_type,
         e.author_id, e.visibility
       FROM experience_evidence ee
       INNER JOIN experiences e ON e.id = ee.experience_id
@@ -1256,10 +1351,14 @@ async function serveEvidence(request, env, evidenceId) {
     `).bind(evidenceId, "shared").first();
     if (!record) return new Response("Evidence not found.", { status: 404 });
     if (!(await canViewExperience(env, user, record))) return new Response("Evidence not found.", { status: 404 });
-    const isVideo = record.content_type.startsWith("video/");
+    const requestedPreview = new URL(request.url).searchParams.get("variant") === "preview";
+    const wantsPreview = Boolean(record.preview_object_key) && (requestedPreview || record.author_id !== user.id);
+    const objectKey = wantsPreview ? record.preview_object_key : record.object_key;
+    const contentType = wantsPreview ? "image/webp" : record.content_type;
+    const isVideo = contentType.startsWith("video/");
     let object;
     try {
-      object = await env.BUCKET.get(record.object_key, request.headers.get("range") ? { range: request.headers } : undefined);
+      object = await env.BUCKET.get(objectKey, request.headers.get("range") ? { range: request.headers } : undefined);
     } catch (error) {
       if (request.headers.get("range")) return new Response(null, { status: 416, headers: { "accept-ranges": "bytes" } });
       throw error;
@@ -1270,8 +1369,8 @@ async function serveEvidence(request, env, evidenceId) {
     const offset = Number(object.range?.offset) || 0;
     const length = Number(object.range?.length) || object.size;
     const headers = new Headers({
-        "content-type": record.content_type,
-        "content-disposition": `${record.content_type.startsWith("image/") || isVideo ? "inline" : "attachment"}; filename="${filename}"`,
+        "content-type": contentType,
+        "content-disposition": `${contentType.startsWith("image/") || isVideo ? "inline" : "attachment"}; filename="${filename}"`,
         "cache-control": "private, no-store",
         "x-content-type-options": "nosniff",
         "accept-ranges": isVideo ? "bytes" : "none",
@@ -1418,7 +1517,7 @@ async function submitExperience(request, env) {
     return json({ error: "Submit the experience using the form." }, 415);
   }
   const contentLength = Number(request.headers.get("content-length") || 0);
-  if (contentLength > MAX_TOTAL_BYTES + 1024 * 1024) {
+  if (contentLength > MAX_TOTAL_BYTES + 7 * 1024 * 1024) {
     return json({ error: "Attachments exceed the 50 MB combined limit." }, 413);
   }
 
@@ -1473,6 +1572,17 @@ async function submitExperience(request, env) {
   if (totalBytes > MAX_TOTAL_BYTES) {
     return json({ error: "Attachments must total 50 MB or less." }, 413);
   }
+  let invalidPreview = false;
+  const previews = files.map((file, index) => {
+    const preview = form.get(`evidencePreview-${index}`);
+    if (!(preview instanceof File) || preview.size === 0) return null;
+    if (!file.type.startsWith("image/") || file.type === "image/gif" || preview.type !== "image/webp" || preview.size > 1024 * 1024) {
+      invalidPreview = true;
+      return null;
+    }
+    return preview;
+  });
+  if (invalidPreview) return json({ error: "A photo preview could not be processed. Please remove the photo and try again." }, 400);
 
   let automaticReview = false;
   try {
@@ -1511,9 +1621,12 @@ async function submitExperience(request, env) {
   const storedFiles = [];
   try {
     await ensureExperienceOptionColumns(env);
-    for (const file of files) {
+    await retryEvidenceCleanup(env);
+    for (let index = 0; index < files.length; index++) {
+      const file = files[index];
       const evidenceId = crypto.randomUUID();
       const objectKey = `evidence/${experienceId}/${evidenceId}`;
+      const previewObjectKey = previews[index] ? `evidence/${experienceId}/${evidenceId}-preview` : null;
       const originalFilename = safeFilename(file.name);
       await env.BUCKET.put(objectKey, file.stream(), {
         httpMetadata: { contentType: file.type },
@@ -1522,10 +1635,12 @@ async function submitExperience(request, env) {
       storedFiles.push({
         id: evidenceId,
         objectKey,
+        previewObjectKey,
         originalFilename,
         contentType: file.type,
         sizeBytes: file.size,
       });
+      if (previewObjectKey) await env.BUCKET.put(previewObjectKey, previews[index].stream(), { httpMetadata: { contentType: previews[index].type } });
     }
 
     const statements = [
@@ -1554,12 +1669,13 @@ async function submitExperience(request, env) {
       ),
       ...storedFiles.map((file) => env.DB.prepare(`
         INSERT INTO experience_evidence (
-          id, experience_id, object_key, original_filename, content_type, size_bytes, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+          id, experience_id, object_key, preview_object_key, original_filename, content_type, size_bytes, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `).bind(
         file.id,
         experienceId,
         file.objectKey,
+        file.previewObjectKey,
         file.originalFilename,
         file.contentType,
         file.sizeBytes,
@@ -1568,7 +1684,7 @@ async function submitExperience(request, env) {
     ];
     await env.DB.batch(statements);
   } catch (error) {
-    await Promise.allSettled(storedFiles.map((file) => env.BUCKET.delete(file.objectKey)));
+    await deleteEvidenceObjects(env, storedFiles.flatMap((file) => [file.objectKey, file.previewObjectKey]));
     console.error("Experience submission failed", error);
     return json({ error: "NFD couldn’t save your experience right now. Your details are still here; please try again." }, 503);
   }

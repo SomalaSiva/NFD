@@ -40,6 +40,15 @@
     .range-toggle{display:inline-flex;align-items:center;gap:9px;margin:2px 0 0;color:#42554a;font-size:12px;font-weight:650;cursor:pointer}.range-toggle input{width:16px;height:16px;accent-color:#0d7054}.field[hidden]{display:none!important}
     .feed-photo-grid.scrollable{display:flex;gap:8px;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x mandatory;scrollbar-width:thin;scrollbar-color:#9bb9a4 #edf2ee;padding:0 1px 7px}.feed-photo-grid.scrollable .feed-photo{flex:0 0 100%;min-width:0;scroll-snap-align:start}.feed-photo-grid.scrollable .feed-photo-image{display:block;width:100%;height:clamp(250px,62vw,620px);aspect-ratio:auto;object-fit:contain;background:#edf2ee}.feed-comment-delete,.feed-comments-setting{border:1px solid #dce7de;border-radius:7px;background:#fff;color:#52685b;padding:5px 8px;font-size:9px;font-weight:650;cursor:pointer}.feed-comment-delete{float:right;color:#8d4b41;border-color:#ead9d4}.feed-comment-delete:hover{background:#fff5f1}.feed-comments-setting{margin-left:7px}.feed-comments-setting:hover{background:#edf5ef}
     @media(max-width:680px){.feed-photo-grid.scrollable .feed-photo{flex-basis:100%}.feed-photo-grid.scrollable .feed-photo-image{height:clamp(240px,78vw,480px)}}
+    @media(max-width:720px){
+      .shell{padding-left:14px;padding-right:14px}.topbar-inner{gap:10px}.top-actions{min-width:0;max-width:calc(100vw - 170px);overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:none}.top-actions::-webkit-scrollbar{display:none}
+      .control,.feed-comment-input{font-size:16px!important;min-height:46px}.feed-comment-input{min-height:70px}.submit,.secondary-button,.feed-reaction,.feed-comments-toggle,.feed-comments-setting,.friend-action,.remove-file{min-height:44px}.feed-reaction{padding:8px 10px}.feed-comments-toggle,.feed-comments-setting{padding:8px 10px}
+      .feed-meta{font-size:13px;gap:8px 14px}.feed-category,.feed-title-group .feed-category{font-size:18px}.feed-incident{font-size:11px}.feed-full summary,.feed-full p,.feed-caption{font-size:14px}.feed-file-link{min-height:44px;font-size:12px}
+      .feed-card{content-visibility:auto;contain-intrinsic-size:auto 700px}
+      .feed-load-more{width:100%;margin-top:14px}
+    }
+    @media(max-width:420px){.account-menu-button{width:44px;height:44px}.feed-card-main{padding:17px 14px}.feed-engagement{margin-left:12px;margin-right:12px}.feed-reactions{gap:6px}.feed-reaction{font-size:12px}.feed-heading-actions .feed-filter-toggle{width:46px;height:46px}}
+    :focus-visible{outline:3px solid rgba(25,132,95,.45);outline-offset:2px}
   </style>
 </head>
 <body>
@@ -146,6 +155,7 @@
           <div class="section-head"><span class="section-title" id="evidence-heading">Add photos, videos, or documents</span><span class="section-hint">Optional</span></div>
           <input class="file-input" id="evidence-files" name="evidence" type="file" accept=".jpg,.jpeg,.png,.webp,.gif,.heic,.heif,.avif,.mp4,.webm,.mov,.pdf,.doc,.docx" multiple>
           <label class="upload" for="evidence-files" id="upload-zone"><span class="upload-inner"><span class="upload-symbol"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M5 14.5v4a1.5 1.5 0 0 0 1.5 1.5h11a1.5 1.5 0 0 0 1.5-1.5v-4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="upload-copy"><strong>Drop files here or <span>browse</span></strong><small>Photos, videos, or documents · Up to 5 files · 25 MB each, 50 MB total</small><span class="upload-button">Choose files</span></span></span></label>
+          <p class="helper">NFD keeps your original evidence and creates a smaller display copy of supported photos for the feed.</p>
           <div class="file-list" id="file-list" aria-live="polite"></div>
           <p class="privacy-note"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M8 10V7a4 4 0 0 1 8 0v3m-4 4v3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>Redact private details such as addresses, account numbers, or personal messages. Only upload material you have the right to share.</p>
         </section>
@@ -181,6 +191,7 @@
         <p class="feed-result-count" id="feed-result-count" role="status" aria-live="polite"></p>
         <div id="feed-state" class="feed-state" role="status" aria-live="polite">Looking for stories…</div>
         <div id="feed-list" class="feed-list"></div>
+        <button class="secondary-button feed-load-more" id="feed-load-more" type="button" hidden>Show more stories</button>
       </section>
       <section id="profile-page" class="profile-page" aria-labelledby="profile-heading" hidden>
         <div class="profile-heading"><div><div class="eyebrow">Your NFD account</div><h1 id="profile-heading">Your profile</h1><p class="intro">Your account details and the experiences you’ve shared. Your profile details are visible only to you.</p></div></div>
@@ -241,6 +252,7 @@
     const feedPlaceSuggestions=document.getElementById('feed-place-suggestions');
     const feedLocationSuggestions=document.getElementById('feed-location-suggestions');
     const feedResultCount=document.getElementById('feed-result-count');
+    const feedLoadMore=document.getElementById('feed-load-more');
     const feedBanner=document.getElementById('feed-shared-banner');
     const appLayout=document.getElementById('app-layout');
     const loginPage=document.getElementById('login-page');
@@ -268,6 +280,8 @@
     const experienceStep=document.getElementById('step-experience');
     const reviewStep=document.getElementById('step-review');
     let selectedFiles=[];
+    const filePreviewUrls=new Map();
+    function getFilePreviewUrl(file){if(!filePreviewUrls.has(file))filePreviewUrls.set(file,URL.createObjectURL(file));return filePreviewUrls.get(file)}
     const prettySize=bytes=>bytes<1024*1024?`${Math.max(1,Math.round(bytes/1024))} KB`:`${(bytes/1024/1024).toFixed(1)} MB`;
     const iconForFile=()=>'<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 3.8h7l4 4V20H7a2 2 0 0 1-2-2V5.8a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-width="1.6"/><path d="M14 4v4h4M8.5 12h7M8.5 15.5h7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
     function renderFiles(){
@@ -275,12 +289,12 @@
       selectedFiles.forEach((file,index)=>{
         const item=document.createElement('div');item.className='file-item';
         const thumb=document.createElement('div');thumb.className='file-thumb';
-        if(file.type.startsWith('image/')){const img=document.createElement('img');img.src=URL.createObjectURL(file);img.alt='';thumb.append(img)}else thumb.innerHTML=iconForFile();
+        if(file.type.startsWith('image/')){const img=document.createElement('img');img.src=getFilePreviewUrl(file);img.alt='';thumb.append(img)}else thumb.innerHTML=iconForFile();
         const meta=document.createElement('div');meta.className='file-meta';
         const name=document.createElement('div');name.className='file-name';name.textContent=file.name;
         const size=document.createElement('div');size.className='file-size';size.textContent=prettySize(file.size);
         meta.append(name,size);
-        const remove=document.createElement('button');remove.type='button';remove.className='remove-file';remove.setAttribute('aria-label',`Remove ${file.name}`);remove.textContent='×';remove.addEventListener('click',()=>{selectedFiles.splice(index,1);renderFiles()});
+        const remove=document.createElement('button');remove.type='button';remove.className='remove-file';remove.setAttribute('aria-label',`Remove ${file.name}`);remove.textContent='×';remove.addEventListener('click',()=>{selectedFiles.splice(index,1);const previewUrl=filePreviewUrls.get(file);if(previewUrl)URL.revokeObjectURL(previewUrl);filePreviewUrls.delete(file);renderFiles()});
         item.append(thumb,meta,remove);list.append(item);
       });
     }
@@ -325,7 +339,7 @@
       selectedFiles.forEach(file=>{
         const item=document.createElement('div');item.className='file-item';
         const thumb=document.createElement('div');thumb.className='file-thumb';
-        if(file.type.startsWith('image/')){const img=document.createElement('img');img.src=URL.createObjectURL(file);img.alt='';thumb.append(img)}else thumb.innerHTML=iconForFile();
+        if(file.type.startsWith('image/')){const img=document.createElement('img');img.src=getFilePreviewUrl(file);img.alt='';thumb.append(img)}else thumb.innerHTML=iconForFile();
         const meta=document.createElement('div');meta.className='file-meta';
         const name=document.createElement('div');name.className='file-name';name.textContent=file.name;
         const size=document.createElement('div');size.className='file-size';size.textContent=prettySize(file.size);
@@ -359,6 +373,19 @@
       if(Number.isNaN(date.getTime()))return 'Date unavailable';
       try{return date.toLocaleString(undefined,{dateStyle:'medium',timeStyle:'short',...(timeZone?{timeZone}:{})})}catch{return date.toLocaleString(undefined,{dateStyle:'medium',timeStyle:'short'})}
     }
+    async function createFeedPreview(file){
+      if(!file.type.startsWith('image/')||file.type==='image/gif'||file.size<300*1024||typeof createImageBitmap!=='function')return null;
+      let bitmap;
+      try{
+        bitmap=await createImageBitmap(file);
+        const scale=Math.min(1,1600/Math.max(bitmap.width,bitmap.height));
+        const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(bitmap.width*scale));canvas.height=Math.max(1,Math.round(bitmap.height*scale));
+        const context=canvas.getContext('2d');if(!context)return null;
+        context.drawImage(bitmap,0,0,canvas.width,canvas.height);
+        const preview=await new Promise(resolve=>canvas.toBlob(resolve,'image/webp',.8));
+        return preview?.type==='image/webp'&&preview.size<file.size&&preview.size<=1024*1024?preview:null;
+      }catch{return null}finally{bitmap?.close?.()}
+    }
     function addText(parent,tag,className,value){
       const element=document.createElement(tag);if(className)element.className=className;element.textContent=value||'';parent.append(element);return element;
     }
@@ -366,19 +393,23 @@
       const link=document.createElement('a');link.className='feed-file-link';link.href=`/api/evidence/${encodeURIComponent(file.id)}`;link.target='_blank';link.rel='noopener noreferrer';
       addText(link,'span','feed-file-icon','▤');addText(link,'span','',`${file.originalFilename} · ${prettySize(file.sizeBytes)}`);return link;
     }
-    function renderFeed(experiences,total){
-      feedList.replaceChildren();feedState.hidden=true;
+    const videoLoader='IntersectionObserver' in window?new IntersectionObserver(entries=>entries.forEach(entry=>{if(entry.isIntersecting){const video=entry.target;video.src=video.dataset.src;delete video.dataset.src;videoLoader.unobserve(video)}}),{rootMargin:'320px 0px'}):null;
+    let feedLoadedCount=0;let feedNextCursor='';
+    function renderFeed(experiences,total,{append=false,nextCursor=''}={}){
+      if(!append){feedList.replaceChildren();feedLoadedCount=0}
+      feedState.hidden=true;feedNextCursor=nextCursor||'';
       const placeQuery=feedPlaceSearch.value.trim();const locationQuery=feedLocationSearch.value.trim();
       const filterActive=Boolean(placeQuery||locationQuery||feedExperienceCategory.value||feedIncidentCategory.value||feedPlaceCategory.value);
       const countLabel=filterActive?`${total} matching stor${total===1?'y':'ies'}`:`${total} stor${total===1?'y':'ies'} in the feed`;
-      feedResultCount.textContent=`${countLabel}${total>experiences.length?` · Showing the newest ${experiences.length}`:''}`;
+      feedResultCount.textContent=`${countLabel}${total>0?` · Showing ${Math.min(total,feedLoadedCount+experiences.length)} of ${total}`:''}`;
       if(!experiences.length){
+        if(append){feedLoadMore.hidden=true;return}
         const empty=document.createElement('div');empty.className='feed-empty';
         addText(empty,'strong','', filterActive?'No stories found here':'No stories here yet');
         addText(empty,'p','', filterActive?'Try a shorter name or a wider area. Our search is clever, not psychic.':'Be the first to add a story. We promise not to make you write a novel.');
         if(filterActive){const clear=document.createElement('button');clear.className='secondary-button';clear.type='button';clear.textContent='Clear search';clear.addEventListener('click',clearFeedFilters);empty.append(clear)}
         else{const link=document.createElement('a');link.className='submit';link.href='/share';const icon=document.createElement('img');icon.src='/nfd-icon.png';icon.alt='';icon.setAttribute('aria-hidden','true');const label=document.createElement('span');label.textContent='Drop your story';link.append(icon,label);empty.append(link)}
-        feedList.append(empty);return;
+        feedList.append(empty);feedLoadMore.hidden=true;return;
       }
       experiences.forEach(experience=>{
         const card=document.createElement('article');card.className='feed-card';
@@ -407,9 +438,9 @@
         const documents=(experience.evidence||[]).filter(file=>!file.contentType?.startsWith('image/')&&!file.contentType?.startsWith('video/'));
         if(images.length){
           const gallery=document.createElement('div');gallery.className=`feed-photo-grid${images.length>1?' multi scrollable':''}`;gallery.setAttribute('aria-label',images.length>1?`${images.length} photos. Scroll horizontally to see one photo at a time.`:`${images.length} attached photo`);
-          images.forEach(file=>{
+          images.forEach((file,index)=>{
             const link=document.createElement('a');link.className='feed-photo';link.href=`/api/evidence/${encodeURIComponent(file.id)}`;link.target='_blank';link.rel='noopener noreferrer';
-            const image=document.createElement('img');image.className='feed-photo-image';image.src=link.href;image.alt=`Photo attached to ${experience.experienceCategory} experience`;image.loading='lazy';image.title=file.originalFilename;link.append(image);gallery.append(link);
+            const image=document.createElement('img');image.className='feed-photo-image';image.src=file.hasPreview?`${link.href}?variant=preview`:link.href;image.alt=`Photo attached to ${experience.experienceCategory} experience`;image.loading=index===0?'eager':'lazy';image.decoding='async';image.title=file.originalFilename;link.append(image);gallery.append(link);
           });
           const media=document.createElement('div');media.className='feed-media';media.append(gallery);
           if(images.length>1)addText(media,'p','feed-gallery-hint',`Swipe or scroll sideways to see all ${images.length} photos →`);
@@ -417,7 +448,7 @@
         }
         if(videos.length){
           const gallery=document.createElement('div');gallery.className=`feed-video-grid${videos.length===1?' single':''}`;
-          videos.forEach(file=>{const video=document.createElement('video');video.className='feed-video';video.controls=true;video.preload='metadata';video.playsInline=true;video.title=file.originalFilename;video.src=`/api/evidence/${encodeURIComponent(file.id)}`;gallery.append(video)});
+          videos.forEach(file=>{const video=document.createElement('video');video.className='feed-video';video.controls=true;video.preload='none';video.playsInline=true;video.title=file.originalFilename;video.dataset.src=`/api/evidence/${encodeURIComponent(file.id)}`;if(videoLoader)videoLoader.observe(video);else video.src=video.dataset.src;gallery.append(video)});
           card.append(gallery);
         }
         const full=document.createElement('details');full.className='feed-full';
@@ -433,6 +464,9 @@
         renderEngagement(card,experience);
         feedList.append(card);
       });
+      feedLoadedCount+=experiences.length;
+      feedResultCount.textContent=`${countLabel} · Showing ${Math.min(total,feedLoadedCount)} of ${total}`;
+      feedLoadMore.hidden=!feedNextCursor;
     }
     const reactionChoices=[['like','👍','Like'],['dislike','👎','Dislike'],['love','❤️','Love it'],['hate','😡','Hate it']];
     function renderEngagement(card,experience){
@@ -617,14 +651,17 @@
     [feedExperienceCategory,feedIncidentCategory,feedPlaceCategory].forEach(select=>select.addEventListener('change',()=>{updateFeedFilterToggle();loadFeed()}));
     [feedPlaceSearch,feedLocationSearch].forEach(input=>input.addEventListener('input',updateFeedFilterToggle));
     document.getElementById('clear-feed-filters').addEventListener('click',clearFeedFilters);
-    async function loadFeed(){
+    async function loadFeed({append=false}={}){
       const requestNumber=++feedRequestNumber;
+      if(!append){feedNextCursor='';feedLoadedCount=0;feedLoadMore.hidden=true;feedList.replaceChildren()}
+      if(append&&!feedNextCursor)return;
       const params=new URLSearchParams();
       if(feedPlaceSearch.value.trim())params.set('place',feedPlaceSearch.value.trim());
       if(feedLocationSearch.value.trim())params.set('location',feedLocationSearch.value.trim());
       if(feedExperienceCategory.value)params.set('experienceCategory',feedExperienceCategory.value);
       if(feedIncidentCategory.value)params.set('incidentCategory',feedIncidentCategory.value);
       if(feedPlaceCategory.value)params.set('placeCategory',feedPlaceCategory.value);
+      if(append&&feedNextCursor)params.set('cursor',feedNextCursor);
       feedState.textContent=params.size?'Looking for matching stories…':'Looking for stories…';feedState.hidden=false;
       try{
         const response=await fetch(`/api/experiences${params.size?`?${params}`:''}`,{headers:{accept:'application/json'},cache:'no-store'});
@@ -637,9 +674,10 @@
         updateSelectOptions(feedIncidentCategory,result.incidentCategoryOptions,'Any incident type');
         updateSelectOptions(feedPlaceCategory,result.placeCategoryOptions,'Any place type');
         updateFeedFilterToggle();
-        renderFeed(result.experiences||[],Number(result.total)||0);
-      }catch(error){if(requestNumber!==feedRequestNumber)return;feedState.hidden=true;feedResultCount.textContent='';feedList.replaceChildren();addText(feedList,'div','feed-error',error instanceof TypeError?'The feed could not connect. Try refreshing this page.':error.message)}
+        renderFeed(result.experiences||[],Number(result.total)||0,{append,nextCursor:result.nextCursor||''});
+      }catch(error){if(requestNumber!==feedRequestNumber)return;feedState.hidden=true;if(append){feedState.textContent=error instanceof TypeError?'More stories could not load. Check your connection and try again.':error.message;feedState.hidden=false}else{feedResultCount.textContent='';feedList.replaceChildren();addText(feedList,'div','feed-error',error instanceof TypeError?'The feed could not connect. Try refreshing this page.':error.message)}}
     }
+    feedLoadMore.addEventListener('click',async()=>{if(feedLoadMore.disabled||!feedNextCursor)return;feedLoadMore.disabled=true;feedLoadMore.textContent='Loading stories…';await loadFeed({append:true});feedLoadMore.disabled=false;feedLoadMore.textContent='Show more stories'});
     const adminFeedback=document.getElementById('admin-feedback');
     const adminManagement=document.getElementById('admin-user-management');
     const adminUserList=document.getElementById('admin-user-list');
@@ -803,6 +841,9 @@
       if(!aiReviewConsent.hidden&&aiReviewConsentCheckbox.checked)payload.append('aiReviewConsent','yes');
       selectedFiles.forEach(file=>payload.append('evidence',file,file.name));
       try{
+        button.textContent='Preparing photos…';
+        for(let index=0;index<selectedFiles.length;index++){const preview=await createFeedPreview(selectedFiles[index]);if(preview)payload.append(`evidencePreview-${index}`,preview,`nfd-photo-${index}.webp`)}
+        button.textContent='Sharing…';
         const response=await fetch('/api/experiences',{method:'POST',body:payload});
         const result=await response.json().catch(()=>({}));
         if(response.status===422&&result.moderation){

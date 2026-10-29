@@ -57,6 +57,7 @@ export const experienceEvidence = sqliteTable("experience_evidence", {
   id: text("id").primaryKey(),
   experienceId: text("experience_id").notNull().references(() => experiences.id, { onDelete: "cascade" }),
   objectKey: text("object_key").notNull().unique(),
+  previewObjectKey: text("preview_object_key"),
   originalFilename: text("original_filename").notNull(),
   contentType: text("content_type").notNull(),
   sizeBytes: integer("size_bytes").notNull(),
@@ -94,3 +95,9 @@ export const nfdActivityAudit = sqliteTable("nfd_activity_audit", {
   index("nfd_activity_audit_created_idx").on(table.createdAt),
   index("nfd_activity_audit_actor_created_idx").on(table.actorUserId, table.createdAt),
 ]);
+
+export const nfdEvidenceCleanup = sqliteTable("nfd_evidence_cleanup", {
+  objectKey: text("object_key").primaryKey(),
+  queuedAt: text("queued_at").notNull(),
+  attempts: integer("attempts").notNull().default(0),
+});
