@@ -214,20 +214,23 @@
           check them against the <a href="/guidelines">NFD Community Guidelines</a>. Documents are not sent
           for this check. The review must approve a post before NFD shares it. If the check flags a draft, the
           author may see a suggested rewrite and flagged file names; the author chooses whether to use the
-          wording or edit/remove files themselves.
+          wording or edit/remove files themselves. NFD keeps the original attachment for the post and sends
+          the same file bytes to Gemini in resumable chunks for review; the upload method does not replace or
+          compress the copy stored with the NFD post.
         </p>
         <p>
           Before sharing while this feature is enabled, you must acknowledge the Google processing. NFD sends
           the categories, short and full descriptions, and photos or videos, but not your NFD account ID or
-          email. Google’s Gemini API unpaid-service terms say Google may use submitted content and responses
-          to improve products, and human reviewers may read or process them. Google advises against submitting
-          sensitive, confidential, or personal information to unpaid services. An anonymous NFD post may still
-          identify you to Google if its text or media contains identifying details. Google’s terms and
-          available quotas can change. NFD limits review requests to 50 per day, but that app limit does not
-          guarantee Google usage will always be free. NFD administrators should keep the connected Google AI
-          Studio project on the unpaid tier with no billing account if they want to avoid Gemini API charges.
-          If Gemini is unavailable or NFD’s daily limit is reached, the post is not shared until review can
-          run.
+          email. Gemini temporarily stores uploaded review files; NFD requests deletion as soon as the review
+          finishes, and Google says Files API uploads are automatically deleted after 48 hours. Google’s
+          Gemini API unpaid-service terms say Google may use submitted content and responses to improve
+          products, and human reviewers may read or process them. Google advises against submitting sensitive,
+          confidential, or personal information to unpaid services. An anonymous NFD post may still identify
+          you to Google if its text or media contains identifying details. Google’s terms and available quotas
+          can change. NFD limits review requests to 50 per day, but that app limit does not guarantee Google
+          usage will always be free. NFD administrators should keep the connected Google AI Studio project on
+          the unpaid tier with no billing account if they want to avoid Gemini API charges. If Gemini is
+          unavailable or NFD’s daily limit is reached, the post is not shared until review can run.
         </p>
 
         <h2>Questions about your information</h2>
