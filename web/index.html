@@ -62,8 +62,8 @@
     .ghost-mode-banner{display:flex;justify-content:center;align-items:center;gap:15px;padding:9px 16px;background:#eaf4ed;color:#315c43;border-bottom:1px solid #d6e8da;font-size:12px}.ghost-mode-banner[hidden]{display:none}.ghost-mode-banner button{border:0;background:transparent;color:#176a4e;font:inherit;font-weight:750;text-decoration:underline;cursor:pointer}
     .ghost-panel{margin:18px 0;padding:18px 20px;background:#f4f8f4;border:1px solid #dce8de;border-radius:14px}.ghost-panel[hidden],.ghost-profile-ready[hidden],.ghost-create-form[hidden]{display:none!important}.ghost-panel h2{margin:0;color:#284a38;font-size:17px}.ghost-settings-copy{max-width:680px;margin:8px 0 13px;color:#66776d;font-size:12px;line-height:1.6}.ghost-settings-feedback{margin:0 0 10px;color:#64756b;font-size:11px}.ghost-profile-ready{display:grid;grid-template-columns:1fr auto;align-items:center;gap:5px 14px}.ghost-profile-ready strong{color:#294735;font-size:14px}.ghost-profile-ready span{color:#738078;font-size:11px}.ghost-profile-state{grid-column:1;color:#738078;font-size:11px}.ghost-profile-actions{grid-column:2;grid-row:1/4;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px}.ghost-profile-actions button{white-space:nowrap}.ghost-deactivate-button{border-color:#e6c8c4;color:#9a3f36}.ghost-create-form{display:grid;grid-template-columns:1fr;gap:7px;max-width:520px}.ghost-create-form label{margin-top:5px;color:#41564a;font-size:11px;font-weight:700}.ghost-create-form .helper{margin:0 0 5px}.ghost-create-form .submit{justify-self:start}.ghost-access-toggle{min-width:135px}.ghost-access-toggle[aria-pressed="true"]{border-color:#a9c9b2;background:#edf6ef;color:#28613d}
     .post-search-row .control:first-child{flex:1}.restricted-email-row .control{max-width:none;min-width:0;flex:1}.admin-post-item{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start}.admin-post-copy{min-width:0}.admin-post-copy p{margin:6px 0 0;color:#64756c;font-size:11px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere}.admin-post-copy .admin-user-added{line-height:1.5}.admin-delete-post{align-self:start;white-space:nowrap}
-    .admin-navigation{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:25px;padding-bottom:18px;border-bottom:1px solid var(--line)}.admin-navigation a{padding:8px 10px;border:1px solid #e1e9e3;border-radius:999px;background:#fff;color:#53645b;font-size:10px;font-weight:680}.admin-navigation a:hover,.admin-navigation a[aria-current="page"]{border-color:#b9d0bd;background:#edf5ef;color:var(--green)}.admin-overview{margin-top:20px;padding:19px;background:#f7faf7;border:1px solid #e4ece5;border-radius:12px}.admin-overview h2{margin:0;font-size:16px}.admin-overview p{margin:7px 0 0}
-    @media(max-width:560px){.ghost-mode-banner{justify-content:space-between}.ghost-profile-ready{grid-template-columns:1fr}.ghost-profile-actions{grid-column:1;grid-row:auto;justify-content:flex-start}.ghost-profile-state{grid-column:1}.post-search-row,.restricted-email-row{align-items:stretch;flex-direction:column}.post-search-row .control,.restricted-email-row .control{max-width:none;width:100%}.admin-user-item.admin-post-item{grid-template-columns:1fr;align-items:stretch}.admin-post-item .admin-delete-post{width:100%}.admin-navigation{gap:5px}.admin-navigation a{flex:1 1 auto;text-align:center}}
+    .admin-navigation{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:25px;padding-bottom:18px;border-bottom:1px solid var(--line)}.admin-navigation a{padding:8px 10px;border:1px solid #e1e9e3;border-radius:999px;background:#fff;color:#53645b;font-size:10px;font-weight:680}.admin-navigation a:hover,.admin-navigation a[aria-current="page"]{border-color:#b9d0bd;background:#edf5ef;color:var(--green)}.admin-overview{margin-top:20px;padding:19px;background:#f7faf7;border:1px solid #e4ece5;border-radius:12px}.admin-overview h2{margin:0;font-size:16px}.admin-overview p{margin:7px 0 0}.admin-list-filters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:13px 0 14px}.admin-list-filters label{display:grid;gap:5px;min-width:0;color:#607168;font-size:10px;font-weight:650}.admin-list-filters .control{width:100%;max-width:none;height:39px;font-size:11px}.admin-user-filter-row{grid-template-columns:minmax(0,2fr) minmax(120px,1fr);max-width:560px}
+    @media(max-width:560px){.ghost-mode-banner{justify-content:space-between}.ghost-profile-ready{grid-template-columns:1fr}.ghost-profile-actions{grid-column:1;grid-row:auto;justify-content:flex-start}.ghost-profile-state{grid-column:1}.post-search-row,.restricted-email-row{align-items:stretch;flex-direction:column}.post-search-row .control,.restricted-email-row .control{max-width:none;width:100%}.admin-user-item.admin-post-item{grid-template-columns:1fr;align-items:stretch}.admin-post-item .admin-delete-post{width:100%}.admin-navigation{gap:5px}.admin-navigation a{flex:1 1 auto;text-align:center}.admin-list-filters,.admin-user-filter-row{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
@@ -116,11 +116,20 @@
           <div class="admin-add-row"><input class="control" type="email" id="admin-email" name="email" placeholder="name@example.com" autocomplete="email" required><button class="submit" type="submit">Give admin access</button></div>
         </form>
         <h3>People with admin access</h3>
+        <div class="admin-list-filters admin-user-filter-row">
+          <label><span>Search admins</span><input class="control" type="search" id="admin-user-search" placeholder="Search by email"></label>
+          <label><span>Access type</span><select class="control" id="admin-user-type-filter"><option value="">All access</option><option value="owner">Owner</option><option value="admin">Administrators</option></select></label>
+        </div>
         <ul class="admin-user-list" id="admin-user-list"></ul>
       </section>
       <section class="admin-user-management member-directory" id="member-directory" hidden aria-labelledby="member-directory-heading">
         <h2 id="member-directory-heading">People using NFD</h2>
         <p>Only you can view this list. Deactivated accounts cannot be found, receive friend requests, or send or receive messages. Their account data and shared-post history are retained.</p>
+        <div class="admin-list-filters">
+          <label><span>Search members</span><input class="control" type="search" id="member-search" placeholder="Name, email, or account ID"></label>
+          <label><span>Provider</span><select class="control" id="member-provider-filter"><option value="">All providers</option><option value="google">Google</option><option value="chatgpt">ChatGPT</option><option value="ghost">Ghost profile</option></select></label>
+          <label><span>Status</span><select class="control" id="member-status-filter"><option value="">All accounts</option><option value="active">Active</option><option value="inactive">Deactivated</option></select></label>
+        </div>
         <p class="admin-feedback" id="member-directory-feedback" role="status" aria-live="polite">Loading NFD members…</p>
         <ul class="admin-user-list" id="member-directory-list"></ul>
       </section>
@@ -131,6 +140,11 @@
           <label for="admin-post-search-query">Find a post</label>
           <div class="admin-add-row post-search-row"><input class="control" type="search" id="admin-post-search-query" placeholder="Search authors or story text"><button class="secondary-button" type="submit">Search posts</button></div>
         </form>
+        <div class="admin-list-filters">
+          <label><span>Visibility</span><select class="control" id="admin-post-visibility-filter"><option value="">All visibility</option><option value="public">Public</option><option value="anonymous">Anonymous</option><option value="friends">Friends only</option></select></label>
+          <label><span>Author status</span><select class="control" id="admin-post-author-filter"><option value="">All authors</option><option value="active">Active</option><option value="inactive">Deactivated</option></select></label>
+          <label><span>Experience type</span><select class="control" id="admin-post-category-filter"><option value="">All experience types</option></select></label>
+        </div>
         <p class="admin-feedback" id="admin-post-feedback" role="status" aria-live="polite">Loading recent posts…</p>
         <ul class="admin-user-list" id="admin-post-list"></ul>
       </section>
@@ -141,18 +155,32 @@
           <label for="restricted-email-input">Block an email address</label>
           <div class="admin-add-row restricted-email-row"><input class="control" type="email" id="restricted-email-input" placeholder="name@example.com" autocomplete="off" required><input class="control" type="text" id="restricted-email-reason" maxlength="240" placeholder="Reason (optional)"><button class="submit" type="submit">Block email</button></div>
         </form>
+        <div class="admin-list-filters">
+          <label><span>Search restrictions</span><input class="control" type="search" id="restricted-email-search" placeholder="Email or reason"></label>
+          <label><span>Reason</span><select class="control" id="restricted-email-reason-filter"><option value="">All restrictions</option><option value="with-reason">With a reason</option><option value="without-reason">No reason recorded</option></select></label>
+        </div>
         <p class="admin-feedback" id="restricted-email-feedback" role="status" aria-live="polite">Loading restricted emails…</p>
         <ul class="admin-user-list" id="restricted-email-list"></ul>
       </section>
       <section class="admin-user-management" id="ghost-access-panel" hidden aria-labelledby="ghost-access-heading">
         <h2 id="ghost-access-heading">Ghost mode access</h2>
         <p>Allow or remove Ghost mode for individual NFD accounts. Members can create one separate identity after access is enabled.</p>
+        <div class="admin-list-filters">
+          <label><span>Search accounts</span><input class="control" type="search" id="ghost-access-search" placeholder="Name, email, or Ghost ID"></label>
+          <label><span>Access</span><select class="control" id="ghost-access-filter"><option value="">All accounts</option><option value="enabled">Ghost mode enabled</option><option value="disabled">Ghost mode disabled</option></select></label>
+          <label><span>Provider</span><select class="control" id="ghost-provider-filter"><option value="">All providers</option><option value="google">Google</option><option value="chatgpt">ChatGPT</option></select></label>
+        </div>
         <p class="admin-feedback" id="ghost-access-feedback" role="status" aria-live="polite">Loading account access…</p>
         <ul class="admin-user-list" id="ghost-access-list"></ul>
       </section>
       <section class="admin-user-management" id="activity-audit" hidden aria-labelledby="activity-audit-heading">
         <h2 id="activity-audit-heading">Account activity</h2>
         <p>Sign-ins and key account actions, with no IP address, device fingerprint, or precise location collection. Records are kept while the account exists. Story text and comment text are not copied into this log.</p>
+        <div class="admin-list-filters">
+          <label><span>Search activity</span><input class="control" type="search" id="activity-search" placeholder="Person, action, or record ID"></label>
+          <label><span>Action</span><select class="control" id="activity-action-filter"><option value="">All actions</option></select></label>
+          <label><span>Provider</span><select class="control" id="activity-provider-filter"><option value="">All providers</option></select></label>
+        </div>
         <p class="admin-feedback" id="activity-audit-feedback" role="status" aria-live="polite">Loading activity…</p>
         <ul class="admin-user-list" id="activity-audit-list"></ul>
       </section>
@@ -949,13 +977,20 @@
     const restrictedEmailsPanel=document.getElementById('restricted-emails-panel');
     const restrictedEmailFeedback=document.getElementById('restricted-email-feedback');
     const restrictedEmailList=document.getElementById('restricted-email-list');
+    let adminUsersData=null,memberDirectoryUsers=[],adminExperiencePosts=[],restrictedEmailEntries=[],ghostAccessUsers=[],activityEntries=[];
+    const filterText=(...values)=>values.filter(value=>value!==null&&value!==undefined).join(' ').toLocaleLowerCase();
+    function setDynamicFilterOptions(select,values,allLabel,format=value=>value){
+      if(!select)return;const selected=select.value;const unique=[...new Set(values.filter(Boolean))].sort((a,b)=>String(a).localeCompare(String(b)));
+      select.replaceChildren(new Option(allLabel,''),...unique.map(value=>new Option(format(value),value)));
+      if(unique.includes(selected))select.value=selected;
+    }
     function setAdminFeedback(message,isError=false){adminFeedback.textContent=message;adminFeedback.classList.toggle('error',isError)}
     function renderAdminUsers(data){
-      adminUserList.replaceChildren();
-      const ownerItem=document.createElement('li');ownerItem.className='admin-user-item';
-      const ownerLabel=document.createElement('div');ownerLabel.className='admin-user-email';ownerLabel.textContent=data.ownerEmail||'Site owner';
-      const ownerNote=document.createElement('span');ownerNote.className='admin-user-added';ownerNote.textContent='Owner · permanent admin access';ownerLabel.append(ownerNote);ownerItem.append(ownerLabel);adminUserList.append(ownerItem);
-      const admins=data.admins||[];
+      adminUsersData=data;adminUserList.replaceChildren();
+      const query=document.getElementById('admin-user-search').value.trim().toLocaleLowerCase();const type=document.getElementById('admin-user-type-filter').value;
+      const ownerEmail=data.ownerEmail||'Site owner';const showOwner=(!type||type==='owner')&&filterText(ownerEmail).includes(query);
+      if(showOwner){const ownerItem=document.createElement('li');ownerItem.className='admin-user-item';const ownerLabel=document.createElement('div');ownerLabel.className='admin-user-email';ownerLabel.textContent=ownerEmail;const ownerNote=document.createElement('span');ownerNote.className='admin-user-added';ownerNote.textContent='Owner · permanent admin access';ownerLabel.append(ownerNote);ownerItem.append(ownerLabel);adminUserList.append(ownerItem)}
+      const admins=(data.admins||[]).filter(admin=>(!type||type==='admin')&&filterText(admin.email).includes(query));
       admins.forEach(admin=>{
         const item=document.createElement('li');item.className='admin-user-item';
         const label=document.createElement('div');label.className='admin-user-email';label.textContent=admin.email;
@@ -973,12 +1008,13 @@
         });
         item.append(label,remove);adminUserList.append(item);
       });
-      if(!admins.length)setAdminFeedback('Your owner account is the only admin right now.');
+      if(!showOwner&&!admins.length)setAdminFeedback('No administrators match these filters.');else if((data.admins||[]).length===0)setAdminFeedback('Your owner account is the only admin right now.');
     }
     function renderMemberDirectory(data){
-      const users=data.users||[];memberDirectoryList.replaceChildren();
-      memberDirectoryFeedback.textContent=`${data.total||0} ${Number(data.total)===1?'account has':'accounts have'} signed in.`;
-      if(!users.length){memberDirectoryFeedback.textContent='No accounts have signed in yet.';return}
+      memberDirectoryUsers=data.users||[];const query=document.getElementById('member-search').value.trim().toLocaleLowerCase(),provider=document.getElementById('member-provider-filter').value,statusFilter=document.getElementById('member-status-filter').value;
+      const users=memberDirectoryUsers.filter(user=>(!query||filterText(user.displayName,user.email,user.accountId,user.providerSubject).includes(query))&&(!provider||user.provider===provider)&&(!statusFilter||(statusFilter==='active'?user.active!==false:user.active===false)));
+      memberDirectoryList.replaceChildren();memberDirectoryFeedback.textContent=`Showing ${users.length} of ${memberDirectoryUsers.length} accounts.`;
+      if(!users.length){memberDirectoryFeedback.textContent=memberDirectoryUsers.length?'No accounts match these filters.':'No accounts have signed in yet.';return}
       users.forEach(user=>{
         const item=document.createElement('li');item.className='admin-user-item';
         const label=document.createElement('div');label.className='admin-user-email';label.textContent=user.displayName||user.email||'NFD member';
@@ -1026,9 +1062,15 @@
         const response=await fetch(`/api/admin/experiences${query?`?q=${encodeURIComponent(query)}`:''}`,{headers:{accept:'application/json'},cache:'no-store'});
         const result=await response.json().catch(()=>({}));
         if(!response.ok)throw new Error(result.error||'Shared posts could not be loaded.');
-        adminPostManagement.hidden=false;adminPostList.replaceChildren();
-        const posts=result.posts||[];adminPostFeedback.textContent=`Showing ${posts.length} ${posts.length===1?'post':'posts'}${posts.length===100?' (the most recent 100 matches)':''}.`;
-        if(!posts.length){adminPostFeedback.textContent=query?'No shared posts matched that search.':'There are no shared posts yet.';return}
+        adminExperiencePosts=result.posts||[];adminPostManagement.hidden=false;
+        setDynamicFilterOptions(document.getElementById('admin-post-category-filter'),adminExperiencePosts.map(post=>post.experienceCategory),'All experience types');renderAdminExperiences();
+      }catch(error){adminPostManagement.hidden=error.message.includes('administrator');adminPostFeedback.textContent=error.message;adminPostFeedback.classList.add('error')}
+    }
+    function renderAdminExperiences(){
+        adminPostList.replaceChildren();const query=adminPostSearch.value.trim();const visibility=document.getElementById('admin-post-visibility-filter').value,authorStatus=document.getElementById('admin-post-author-filter').value,category=document.getElementById('admin-post-category-filter').value;
+        const posts=adminExperiencePosts.filter(post=>(!visibility||post.visibility===visibility)&&(!authorStatus||(authorStatus==='active'?post.authorActive!==false:post.authorActive===false))&&(!category||post.experienceCategory===category));
+        adminPostFeedback.textContent=`Showing ${posts.length} of ${adminExperiencePosts.length} loaded posts${adminExperiencePosts.length===100?' (up to 100 search matches)':''}.`;
+        if(!posts.length){adminPostFeedback.textContent=adminExperiencePosts.length?'No loaded posts match these filters.':query?'No shared posts matched that search.':'There are no shared posts yet.';return}
         posts.forEach(post=>{
           const item=document.createElement('li');item.className='admin-user-item admin-post-item';
           const copy=document.createElement('div');copy.className='admin-post-copy';
@@ -1043,21 +1085,25 @@
             try{
               const deletion=await fetch('/api/admin/experiences',{method:'DELETE',headers:{'content-type':'application/json',accept:'application/json'},body:JSON.stringify({experienceId:post.id})});
               const saved=await deletion.json().catch(()=>({}));if(!deletion.ok)throw new Error(saved.error||'Post could not be deleted.');
-              await loadAdminExperiences();adminPostFeedback.textContent=saved.cleanupPending?'Post deleted; attachment cleanup is queued.':'Post and its attachments deleted.';
+              await loadAdminExperiences(adminPostSearch.value.trim());adminPostFeedback.textContent=saved.cleanupPending?'Post deleted; attachment cleanup is queued.':'Post and its attachments deleted.';
             }catch(error){remove.disabled=false;adminPostFeedback.textContent=error.message;adminPostFeedback.classList.add('error')}
           });
           item.append(copy,remove);adminPostList.append(item);
         });
-      }catch(error){adminPostManagement.hidden=error.message.includes('administrator');adminPostFeedback.textContent=error.message;adminPostFeedback.classList.add('error')}
     }
     async function loadRestrictedEmails(){
       restrictedEmailFeedback.textContent='Loading restricted emails…';restrictedEmailFeedback.classList.remove('error');
       try{
         const response=await fetch('/api/admin/restricted-emails',{headers:{accept:'application/json'},cache:'no-store'});const result=await response.json().catch(()=>({}));
         if(!response.ok)throw new Error(result.error||'Restricted emails could not be loaded.');
-        restrictedEmailsPanel.hidden=false;restrictedEmailList.replaceChildren();const emails=result.emails||[];
-        restrictedEmailFeedback.textContent=`${emails.length} ${emails.length===1?'email is':'emails are'} restricted.`;
-        if(!emails.length){restrictedEmailFeedback.textContent='No email addresses are restricted.';return}
+        restrictedEmailEntries=result.emails||[];restrictedEmailsPanel.hidden=false;renderRestrictedEmails();
+      }catch(error){restrictedEmailsPanel.hidden=error.message.includes('administrator');restrictedEmailFeedback.textContent=error.message;restrictedEmailFeedback.classList.add('error')}
+    }
+    function renderRestrictedEmails(){
+        restrictedEmailList.replaceChildren();const query=document.getElementById('restricted-email-search').value.trim().toLocaleLowerCase(),reasonFilter=document.getElementById('restricted-email-reason-filter').value;
+        const emails=restrictedEmailEntries.filter(entry=>(!query||filterText(entry.email,entry.reason,entry.createdBy).includes(query))&&(!reasonFilter||(reasonFilter==='with-reason'?Boolean(entry.reason):!entry.reason)));
+        restrictedEmailFeedback.textContent=`Showing ${emails.length} of ${restrictedEmailEntries.length} restricted emails.`;
+        if(!emails.length){restrictedEmailFeedback.textContent=restrictedEmailEntries.length?'No restricted emails match these filters.':'No email addresses are restricted.';return}
         emails.forEach(entry=>{
           const item=document.createElement('li');item.className='admin-user-item';
           const label=document.createElement('div');label.className='admin-user-email';label.textContent=entry.email;
@@ -1071,15 +1117,20 @@
           });
           item.append(label,unblock);restrictedEmailList.append(item);
         });
-      }catch(error){restrictedEmailsPanel.hidden=error.message.includes('administrator');restrictedEmailFeedback.textContent=error.message;restrictedEmailFeedback.classList.add('error')}
     }
     async function loadGhostAccess(){
       ghostAccessPanel.hidden=false;ghostAccessFeedback.textContent='Loading account access…';ghostAccessFeedback.classList.remove('error');
       try{
         const response=await fetch('/api/admin/ghost-access',{headers:{accept:'application/json'},cache:'no-store'});const result=await response.json().catch(()=>({}));
         if(!response.ok)throw new Error(result.error||'Ghost mode access could not be loaded.');
-        const users=result.users||[];ghostAccessList.replaceChildren();ghostAccessFeedback.textContent=`Ghost mode can be enabled for ${users.length} NFD ${users.length===1?'account':'accounts'}.`;
-        if(!users.length){ghostAccessFeedback.textContent='No NFD accounts are available yet.';return}
+        ghostAccessUsers=result.users||[];renderGhostAccess();
+      }catch(error){ghostAccessFeedback.textContent=error.message;ghostAccessFeedback.classList.add('error')}
+    }
+    function renderGhostAccess(){
+        const query=document.getElementById('ghost-access-search').value.trim().toLocaleLowerCase(),access=document.getElementById('ghost-access-filter').value,provider=document.getElementById('ghost-provider-filter').value;
+        const users=ghostAccessUsers.filter(user=>(!query||filterText(user.name,user.email,user.ghostHandle).includes(query))&&(!access||(access==='enabled'?user.enabled:!user.enabled))&&(!provider||user.provider===provider));
+        ghostAccessList.replaceChildren();ghostAccessFeedback.textContent=`Showing ${users.length} of ${ghostAccessUsers.length} NFD accounts.`;
+        if(!users.length){ghostAccessFeedback.textContent=ghostAccessUsers.length?'No NFD accounts match these filters.':'No NFD accounts are available yet.';return}
         users.forEach(user=>{
           const item=document.createElement('li');item.className='admin-user-item';const label=document.createElement('div');label.className='admin-user-email';label.textContent=user.name||user.email||'NFD member';
           if(user.email)addText(label,'span','member-email',user.email);
@@ -1088,11 +1139,17 @@
           toggle.addEventListener('click',async()=>{toggle.disabled=true;ghostAccessFeedback.textContent=`${user.enabled?'Removing':'Enabling'} Ghost mode access…`;try{const update=await fetch('/api/admin/ghost-access',{method:'PUT',headers:{'content-type':'application/json',accept:'application/json'},body:JSON.stringify({userId:user.id,enabled:!user.enabled})});const saved=await update.json().catch(()=>({}));if(!update.ok)throw new Error(saved.error||'Ghost mode access could not be changed.');await loadGhostAccess();ghostAccessFeedback.textContent=`Ghost mode ${saved.enabled?'enabled':'disabled'} for ${user.name||user.email||'NFD member'}.`}catch(error){toggle.disabled=false;ghostAccessFeedback.textContent=error.message;ghostAccessFeedback.classList.add('error')}});
           item.append(label,note,toggle);ghostAccessList.append(item);
         });
-      }catch(error){ghostAccessFeedback.textContent=error.message;ghostAccessFeedback.classList.add('error')}
     }
     async function loadActivityAudit(){
       activityAudit.hidden=false;activityAuditFeedback.textContent='Loading account activity…';activityAuditFeedback.classList.remove('error');
-      try{const response=await fetch('/api/admin/activity',{headers:{accept:'application/json'},cache:'no-store'});const result=await response.json().catch(()=>({}));if(!response.ok)throw new Error(result.error||'Account activity could not be loaded.');const items=result.activities||[];activityAuditList.replaceChildren();activityAuditFeedback.textContent=`Showing ${items.length}${items.length===500?'+':''} recent account activities.`;if(!items.length){activityAuditFeedback.textContent='No account activity has been recorded yet.';return}items.forEach(activity=>{const item=document.createElement('li');item.className='admin-user-item audit-activity';const label=document.createElement('div');label.className='admin-user-email';label.textContent=activity.displayName||activity.email||'NFD member';const when=addText(label,'time','audit-time',prettyDate(activity.createdAt));when.dateTime=activity.createdAt;addText(label,'span','member-email',activity.email||'');const meta=addText(item,'div','audit-details',activity.action.replaceAll('_',' '));const detail=[];if(activity.details?.provider)detail.push(activity.details.provider);if(activity.details?.reaction)detail.push(activity.details.reaction);if(activity.details?.visibility)detail.push(`${activity.details.visibility} audience`);if(Number.isFinite(activity.details?.attachmentCount))detail.push(`${activity.details.attachmentCount} attachment${activity.details.attachmentCount===1?'':'s'}`);if(activity.targetType!=='account'&&activity.targetType&&activity.targetId)detail.push(`${activity.targetType} · ${activity.targetId}`);if(detail.length)addText(meta,'span','audit-time',detail.join(' · '));item.append(label,meta);activityAuditList.append(item)})}catch(error){activityAuditFeedback.textContent=error.message;activityAuditFeedback.classList.add('error')}
+      try{const response=await fetch('/api/admin/activity',{headers:{accept:'application/json'},cache:'no-store'});const result=await response.json().catch(()=>({}));if(!response.ok)throw new Error(result.error||'Account activity could not be loaded.');activityEntries=result.activities||[];setDynamicFilterOptions(document.getElementById('activity-action-filter'),activityEntries.map(item=>item.action),'All actions',value=>value.replaceAll('_',' '));setDynamicFilterOptions(document.getElementById('activity-provider-filter'),activityEntries.map(item=>item.details?.provider),'All providers');renderActivityAudit()}catch(error){activityAuditFeedback.textContent=error.message;activityAuditFeedback.classList.add('error')}
+    }
+    function renderActivityAudit(){
+      const query=document.getElementById('activity-search').value.trim().toLocaleLowerCase(),action=document.getElementById('activity-action-filter').value,provider=document.getElementById('activity-provider-filter').value;
+      const items=activityEntries.filter(activity=>(!query||filterText(activity.displayName,activity.email,activity.action,activity.targetType,activity.targetId,JSON.stringify(activity.details||{})).includes(query))&&(!action||activity.action===action)&&(!provider||activity.details?.provider===provider));
+      activityAuditList.replaceChildren();activityAuditFeedback.textContent=`Showing ${items.length} of ${activityEntries.length}${activityEntries.length===500?'+ recent':''} account activities.`;
+      if(!items.length){activityAuditFeedback.textContent=activityEntries.length?'No activity matches these filters.':'No account activity has been recorded yet.';return}
+      items.forEach(activity=>{const item=document.createElement('li');item.className='admin-user-item audit-activity';const label=document.createElement('div');label.className='admin-user-email';label.textContent=activity.displayName||activity.email||'NFD member';const when=addText(label,'time','audit-time',prettyDate(activity.createdAt));when.dateTime=activity.createdAt;addText(label,'span','member-email',activity.email||'');const meta=addText(item,'div','audit-details',activity.action.replaceAll('_',' '));const detail=[];if(activity.details?.provider)detail.push(activity.details.provider);if(activity.details?.reaction)detail.push(activity.details.reaction);if(activity.details?.visibility)detail.push(`${activity.details.visibility} audience`);if(Number.isFinite(activity.details?.attachmentCount))detail.push(`${activity.details.attachmentCount} attachment${activity.details.attachmentCount===1?'':'s'}`);if(activity.targetType!=='account'&&activity.targetType&&activity.targetId)detail.push(`${activity.targetType} · ${activity.targetId}`);if(detail.length)addText(meta,'span','audit-time',detail.join(' · '));item.append(label,meta);activityAuditList.append(item)})
     }
     async function loadModerationSettings(){
       moderationSettings.hidden=false;moderationFeedback.textContent='Loading automatic-review settings…';moderationFeedback.classList.remove('error');moderationToggle.disabled=true;
@@ -1178,6 +1235,22 @@
       }catch(error){setAdminFeedback(error.message,true)}finally{button.disabled=false}
     });
     document.getElementById('admin-post-search-form').addEventListener('submit',event=>{event.preventDefault();loadAdminExperiences()});
+    document.getElementById('admin-user-search').addEventListener('input',()=>{if(adminUsersData)renderAdminUsers(adminUsersData)});
+    document.getElementById('admin-user-type-filter').addEventListener('change',()=>{if(adminUsersData)renderAdminUsers(adminUsersData)});
+    document.getElementById('member-search').addEventListener('input',()=>renderMemberDirectory({users:memberDirectoryUsers}));
+    document.getElementById('member-provider-filter').addEventListener('change',()=>renderMemberDirectory({users:memberDirectoryUsers}));
+    document.getElementById('member-status-filter').addEventListener('change',()=>renderMemberDirectory({users:memberDirectoryUsers}));
+    document.getElementById('admin-post-visibility-filter').addEventListener('change',renderAdminExperiences);
+    document.getElementById('admin-post-author-filter').addEventListener('change',renderAdminExperiences);
+    document.getElementById('admin-post-category-filter').addEventListener('change',renderAdminExperiences);
+    document.getElementById('restricted-email-search').addEventListener('input',renderRestrictedEmails);
+    document.getElementById('restricted-email-reason-filter').addEventListener('change',renderRestrictedEmails);
+    document.getElementById('ghost-access-search').addEventListener('input',renderGhostAccess);
+    document.getElementById('ghost-access-filter').addEventListener('change',renderGhostAccess);
+    document.getElementById('ghost-provider-filter').addEventListener('change',renderGhostAccess);
+    document.getElementById('activity-search').addEventListener('input',renderActivityAudit);
+    document.getElementById('activity-action-filter').addEventListener('change',renderActivityAudit);
+    document.getElementById('activity-provider-filter').addEventListener('change',renderActivityAudit);
     document.getElementById('restricted-email-form').addEventListener('submit',async event=>{
       event.preventDefault();const emailInput=document.getElementById('restricted-email-input');const reasonInput=document.getElementById('restricted-email-reason');const email=emailInput.value.trim().toLowerCase();if(!email)return;
       if(!window.confirm(`Block ${email} from signing in or creating an NFD account? Any existing matching account will be deactivated and signed out.`))return;
