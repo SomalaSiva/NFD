@@ -36,6 +36,13 @@
       "when": 1793325013608,
       "tag": "0005_ghost_lifecycle",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1793325902430,
+      "tag": "0006_profile_deactivation",
+      "breakpoints": true
     }
   ]
 }

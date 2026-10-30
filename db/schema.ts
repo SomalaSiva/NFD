@@ -9,6 +9,7 @@ export const nfdUsers = sqliteTable("nfd_users", {
   displayName: text("display_name"),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
+  active: integer("active").notNull().default(1),
 }, (table) => [uniqueIndex("nfd_users_provider_subject_unique").on(table.provider, table.providerSubject)]);
 
 export const nfdSessions = sqliteTable("nfd_sessions", {

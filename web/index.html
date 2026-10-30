@@ -104,7 +104,7 @@
       </section>
       <section class="admin-user-management member-directory" id="member-directory" hidden aria-labelledby="member-directory-heading">
         <h2 id="member-directory-heading">People using NFD</h2>
-        <p>Only you can view this list. It includes account identifiers, provider, sign-in/join dates, and shared-post totals.</p>
+        <p>Only you can view this list. Deactivated accounts cannot be found, receive friend requests, or send or receive messages. Their account data and shared-post history are retained.</p>
         <p class="admin-feedback" id="member-directory-feedback" role="status" aria-live="polite">Loading NFD members…</p>
         <ul class="admin-user-list" id="member-directory-list"></ul>
       </section>
@@ -946,7 +946,25 @@
         const internalId=addText(identifiers,'p','','NFD account ID: ');const internalCode=document.createElement('code');internalCode.textContent=user.accountId||'Unavailable';internalId.append(internalCode);
         const providerId=addText(identifiers,'p','',`${method} account ID: `);const providerCode=document.createElement('code');providerCode.textContent=user.providerSubject||'Unavailable';providerId.append(providerCode);
         label.append(identifiers);
-        item.append(label,note);memberDirectoryList.append(item);
+        const status=document.createElement('span');status.className='admin-user-added';status.textContent=user.active===false?'Deactivated':'Active';
+        item.append(label,note,status);
+        if(user.canDeactivate){
+          const toggle=document.createElement('button');toggle.type='button';toggle.className='secondary-button account-status-toggle';toggle.textContent=user.active===false?'Reactivate account':'Deactivate account';
+          toggle.setAttribute('aria-label',`${user.active===false?'Reactivate':'Deactivate'} ${user.displayName||user.email||'NFD account'}`);
+          toggle.addEventListener('click',async()=>{
+            const active=user.active===false;
+            if(!active&&!window.confirm(`Deactivate ${user.displayName||user.email||'this NFD account'}? People will no longer find or message this account.`))return;
+            toggle.disabled=true;memberDirectoryFeedback.textContent=active?'Reactivating account…':'Deactivating account…';memberDirectoryFeedback.classList.remove('error');
+            try{
+              const response=await fetch('/api/admin/account-status',{method:'PUT',headers:{'content-type':'application/json',accept:'application/json'},body:JSON.stringify({userId:user.accountId,active})});
+              const result=await response.json().catch(()=>({}));
+              if(!response.ok)throw new Error(result.error||'Account status could not be changed.');
+              await loadMemberDirectory();memberDirectoryFeedback.textContent=`${user.displayName||user.email||'NFD account'} ${active?'reactivated':'deactivated'}.`;
+            }catch(error){toggle.disabled=false;memberDirectoryFeedback.textContent=error.message;memberDirectoryFeedback.classList.add('error')}
+          });
+          item.append(toggle);
+        }
+        memberDirectoryList.append(item);
       });
     }
     async function loadMemberDirectory(){

@@ -33,6 +33,13 @@ const GOOGLE_SESSION_COOKIE = "__Host-nfd_session";
 const GOOGLE_OAUTH_COOKIE = "__Host-nfd_google_oauth";
 const GHOST_MODE_COOKIE = "__Host-nfd_ghost";
 const GOOGLE_SESSION_SECONDS = 60 * 60 * 24 * 30;
+const AVAILABLE_IDENTITY_SQL = `u.active = 1 AND (
+  u.provider != 'ghost' OR EXISTS (
+    SELECT 1 FROM nfd_ghost_profiles gp
+    INNER JOIN nfd_users owner ON owner.id = gp.owner_user_id
+    WHERE gp.ghost_user_id = u.id AND gp.active = 1 AND owner.active = 1
+  )
+)`;
 let googleJwksCache;
 let googleJwksExpiresAt = 0;
 let identityTablesPromise;
@@ -128,6 +135,9 @@ export default {
     }
     if (url.pathname === "/api/admin/ghost-access" && ["GET", "PUT"].includes(request.method)) {
       return manageGhostAccess(request, env);
+    }
+    if (request.method === "PUT" && url.pathname === "/api/admin/account-status") {
+      return updateAccountStatus(request, env);
     }
     if (url.pathname === "/api/admins" && ["GET", "POST"].includes(request.method)) {
       return manageAdmins(request, env);
@@ -282,6 +292,10 @@ async function finishGoogleSignIn(request, env) {
       VALUES (?, 'google', ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET email = excluded.email, display_name = excluded.display_name, updated_at = excluded.updated_at
     `).bind(userId, claims.sub, claims.email.toLowerCase(), claims.name || null, now, now).run();
+    const account = await env.DB.prepare("SELECT active FROM nfd_users WHERE id = ? LIMIT 1").bind(userId).first();
+    if (Number(account?.active) !== 1) {
+      return redirect("/login?account=deactivated", 302, [clearOauthCookie]);
+    }
     const sessionToken = randomToken(32);
     const sessionHash = await sha256Base64Url(sessionToken);
     const expiresAt = new Date(Date.now() + GOOGLE_SESSION_SECONDS * 1000).toISOString();
@@ -325,11 +339,11 @@ async function getAuthenticatedUser(request, env) {
       await ensureIdentityTables(env);
       const sessionHash = await sha256Base64Url(token);
       const session = await env.DB.prepare(`
-        SELECT u.id, u.provider, u.provider_subject AS subject, u.email, u.display_name AS name, s.expires_at
+        SELECT u.id, u.provider, u.provider_subject AS subject, u.email, u.display_name AS name, u.active, s.expires_at
         FROM nfd_sessions s INNER JOIN nfd_users u ON u.id = s.user_id
         WHERE s.session_hash = ? LIMIT 1
       `).bind(sessionHash).first();
-      if (session && Date.parse(session.expires_at) > Date.now()) return session;
+      if (session && Number(session.active) === 1 && Date.parse(session.expires_at) > Date.now()) return session;
       if (session) await env.DB.prepare("DELETE FROM nfd_sessions WHERE session_hash = ?").bind(sessionHash).run();
     } catch (error) {
       console.error("Google session lookup failed", error);
@@ -355,6 +369,8 @@ async function getAuthenticatedUser(request, env) {
           VALUES (?, 'chatgpt', ?, ?, NULL, ?, ?)
           ON CONFLICT(id) DO UPDATE SET email = COALESCE(NULLIF(excluded.email, ''), nfd_users.email), updated_at = excluded.updated_at
         `).bind(user.id, user.subject, user.email, now, now).run();
+        const account = await env.DB.prepare("SELECT active FROM nfd_users WHERE id = ? LIMIT 1").bind(user.id).first();
+        if (Number(account?.active) !== 1) return null;
         if (!knownAccount) await recordActivity(env, user.id, "account_created", "account", user.id, { provider: "chatgpt" });
       } catch (error) {
         console.error("ChatGPT profile save failed", error);
@@ -376,8 +392,9 @@ async function getCurrentUser(request, env) {
       SELECT u.id, u.provider_subject AS subject, u.display_name AS name, p.handle
       FROM nfd_ghost_profiles p
       INNER JOIN nfd_users u ON u.id = p.ghost_user_id
+      INNER JOIN nfd_users owner ON owner.id = p.owner_user_id AND owner.active = 1
       INNER JOIN nfd_ghost_access a ON a.user_id = p.owner_user_id AND a.enabled = 1
-      WHERE p.ghost_user_id = ? AND p.owner_user_id = ? AND p.active = 1
+      WHERE p.ghost_user_id = ? AND p.owner_user_id = ? AND p.active = 1 AND u.active = 1
       LIMIT 1
     `).bind(ghostUserId, user.id).first();
     if (!ghost) return user;
@@ -644,9 +661,19 @@ async function ensureIdentityTables(env) {
         display_name TEXT,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,
+        active INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0, 1)),
         UNIQUE (provider, provider_subject)
       )
     `).run();
+    const userColumns = await env.DB.prepare("PRAGMA table_info(nfd_users)").all();
+    if (!(userColumns.results || []).some((column) => column.name === "active")) {
+      try {
+        await env.DB.prepare("ALTER TABLE nfd_users ADD COLUMN active INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0, 1))").run();
+      } catch (error) {
+        const refreshedColumns = await env.DB.prepare("PRAGMA table_info(nfd_users)").all();
+        if (!(refreshedColumns.results || []).some((column) => column.name === "active")) throw error;
+      }
+    }
     await env.DB.prepare(`
       CREATE TABLE IF NOT EXISTS nfd_sessions (
         session_hash TEXT PRIMARY KEY NOT NULL,
@@ -1168,7 +1195,8 @@ async function removeAdmin(request, env) {
 }
 
 async function listNfdUsers(request, env) {
-  if (!(await getCurrentUser(request, env))) {
+  const actor = await getCurrentUser(request, env);
+  if (!actor) {
     return json({ error: "Sign in to view NFD members." }, 401);
   }
   if (!(await isOwner(request, env))) {
@@ -1177,13 +1205,14 @@ async function listNfdUsers(request, env) {
   if (!env.DB) return json({ error: "The NFD member directory is unavailable right now." }, 503);
   try {
     await ensureIdentityTables(env);
+    await ensureGhostTables(env);
     const result = await env.DB.prepare(`
-      SELECT u.id, u.provider_subject, u.email, u.display_name, u.provider, u.created_at, u.updated_at,
+      SELECT u.id, u.provider_subject, u.email, u.display_name, u.provider, u.created_at, u.updated_at, u.active,
         (SELECT MAX(a.created_at) FROM nfd_activity_audit a WHERE a.actor_user_id = u.id) AS last_activity_at,
         COUNT(e.id) AS shared_post_count
       FROM nfd_users u
       LEFT JOIN experiences e ON e.author_id = u.id AND e.status = 'shared'
-      GROUP BY u.id, u.provider_subject, u.email, u.display_name, u.provider, u.created_at, u.updated_at
+      GROUP BY u.id, u.provider_subject, u.email, u.display_name, u.provider, u.created_at, u.updated_at, u.active
       ORDER BY u.created_at DESC
       LIMIT 500
     `).all();
@@ -1194,6 +1223,8 @@ async function listNfdUsers(request, env) {
         email: user.email || "",
         displayName: user.display_name || "",
         provider: user.provider,
+        active: Number(user.active) === 1,
+        canDeactivate: user.id !== actor.id,
         accountId: user.id,
         providerSubject: user.provider_subject,
         joinedAt: user.created_at,
@@ -1208,29 +1239,68 @@ async function listNfdUsers(request, env) {
   }
 }
 
+async function updateAccountStatus(request, env) {
+  const actor = await getCurrentUser(request, env);
+  if (!actor) return json({ error: "Sign in to manage NFD accounts." }, 401);
+  if (!(await isOwner(request, env))) return json({ error: "Only the NFD owner can deactivate or reactivate accounts." }, 403);
+  if (!env.DB) return json({ error: "NFD account settings are unavailable right now." }, 503);
+  if (!request.headers.get("content-type")?.toLowerCase().includes("application/json")) {
+    return json({ error: "Send an account and its active status as JSON." }, 415);
+  }
+  const body = await request.json().catch(() => null);
+  const userId = typeof body?.userId === "string" ? body.userId.trim().slice(0, 200) : "";
+  if (!userId || typeof body?.active !== "boolean") return json({ error: "Choose an account and whether it should be active." }, 400);
+  if (userId === actor.id) return json({ error: "The site owner account cannot be deactivated." }, 400);
+  try {
+    await ensureIdentityTables(env);
+    await ensureGhostTables(env);
+    const target = await env.DB.prepare("SELECT id, email, active FROM nfd_users WHERE id = ? LIMIT 1").bind(userId).first();
+    if (!target) return json({ error: "That NFD account could not be found." }, 404);
+    if ((target.email || "").trim().toLowerCase() === ownerEmail(env)) {
+      return json({ error: "The site owner account cannot be deactivated." }, 400);
+    }
+    const active = body.active ? 1 : 0;
+    const updatedAt = new Date().toISOString();
+    await env.DB.prepare("UPDATE nfd_users SET active = ?, updated_at = ? WHERE id = ?").bind(active, updatedAt, target.id).run();
+    if (!active) {
+      await env.DB.prepare("DELETE FROM nfd_sessions WHERE user_id = ?").bind(target.id).run();
+      await env.DB.prepare(`
+        UPDATE nfd_friend_requests SET status = 'rejected', updated_at = ?
+        WHERE status = 'pending' AND (from_user_id = ? OR to_user_id = ?)
+      `).bind(updatedAt, target.id, target.id).run();
+    }
+    await recordActivity(env, actor.id, active ? "account_reactivated" : "account_deactivated", "account", target.id);
+    return json({ ok: true, userId: target.id, active: Boolean(active) });
+  } catch (error) {
+    console.error("NFD account status update failed", error instanceof Error ? error.message : String(error));
+    return json({ error: "NFD account status could not be updated right now." }, 503);
+  }
+}
+
 async function manageFriends(request, env) {
   const user = await getCurrentUser(request, env);
   if (!user) return json({ error: "Sign in to manage your NFD friends." }, 401);
   if (!env.DB) return json({ error: "NFD friends are unavailable right now." }, 503);
   try {
+    await ensureGhostTables(env);
     if (request.method === "GET") {
       const [friends, incoming, outgoing] = await Promise.all([
         env.DB.prepare(`
           SELECT f.id, u.id AS user_id, u.display_name, u.email, f.created_at
           FROM nfd_friend_requests f
           INNER JOIN nfd_users u ON u.id = CASE WHEN f.from_user_id = ? THEN f.to_user_id ELSE f.from_user_id END
-          WHERE f.status = 'accepted' AND (f.from_user_id = ? OR f.to_user_id = ?)
+          WHERE f.status = 'accepted' AND (f.from_user_id = ? OR f.to_user_id = ?) AND ${AVAILABLE_IDENTITY_SQL}
           ORDER BY lower(COALESCE(u.display_name, u.email))
         `).bind(user.id, user.id, user.id).all(),
         env.DB.prepare(`
           SELECT f.id, u.display_name, u.email, f.created_at
           FROM nfd_friend_requests f INNER JOIN nfd_users u ON u.id = f.from_user_id
-          WHERE f.to_user_id = ? AND f.status = 'pending' ORDER BY f.created_at DESC
+          WHERE f.to_user_id = ? AND f.status = 'pending' AND ${AVAILABLE_IDENTITY_SQL} ORDER BY f.created_at DESC
         `).bind(user.id).all(),
         env.DB.prepare(`
           SELECT f.id, u.display_name, u.email, f.created_at
           FROM nfd_friend_requests f INNER JOIN nfd_users u ON u.id = f.to_user_id
-          WHERE f.from_user_id = ? AND f.status = 'pending' ORDER BY f.created_at DESC
+          WHERE f.from_user_id = ? AND f.status = 'pending' AND ${AVAILABLE_IDENTITY_SQL} ORDER BY f.created_at DESC
         `).bind(user.id).all(),
       ]);
       const simplify = (result) => (result.results || []).map((row) => ({
@@ -1251,12 +1321,12 @@ async function manageFriends(request, env) {
     const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
     let target;
     if (targetUserId) {
-      target = await env.DB.prepare("SELECT id FROM nfd_users WHERE id = ? LIMIT 1").bind(targetUserId).first();
+      target = await env.DB.prepare(`SELECT u.id FROM nfd_users u WHERE u.id = ? AND ${AVAILABLE_IDENTITY_SQL} LIMIT 1`).bind(targetUserId).first();
     } else {
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email) || email.length > 254) {
         return json({ error: "Choose a suggested NFD member or enter a valid email address." }, 400);
       }
-      target = await env.DB.prepare("SELECT id FROM nfd_users WHERE lower(email) = ? LIMIT 1").bind(email).first();
+      target = await env.DB.prepare(`SELECT u.id FROM nfd_users u WHERE lower(u.email) = ? AND ${AVAILABLE_IDENTITY_SQL} LIMIT 1`).bind(email).first();
     }
     if (!target || target.id === user.id) {
       return json({ ok: true, message: "If that member can be found on NFD, they’ll see your request in their profile." }, 202);
@@ -1308,12 +1378,13 @@ async function getAcceptedFriend(env, userId, friendId) {
   // Auth provider subject IDs (for example, "google:123…") are opaque NFD IDs,
   // so do not assume that an account ID is a UUID.
   if (typeof friendId !== "string" || !/^[A-Za-z0-9:_-]{1,200}$/.test(friendId) || friendId === userId) return null;
+  await ensureGhostTables(env);
   return env.DB.prepare(`
     SELECT u.id, COALESCE(NULLIF(trim(u.display_name), ''), 'NFD member') AS name
     FROM nfd_friend_requests f
     INNER JOIN nfd_users u ON u.id = CASE WHEN f.from_user_id = ? THEN f.to_user_id ELSE f.from_user_id END
     WHERE f.status = 'accepted' AND (f.from_user_id = ? OR f.to_user_id = ?)
-      AND u.id = ?
+      AND u.id = ? AND ${AVAILABLE_IDENTITY_SQL}
     LIMIT 1
   `).bind(userId, userId, userId, friendId).first();
 }
@@ -1324,6 +1395,7 @@ async function listMessageThreads(request, env) {
   if (!env.DB) return json({ error: "NFD messages are unavailable right now." }, 503);
   try {
     await ensureMessagingTables(env);
+    await ensureGhostTables(env);
     const now = new Date().toISOString();
     await env.DB.prepare("DELETE FROM nfd_messages WHERE expires_at IS NOT NULL AND expires_at <= ?").bind(now).run();
     const result = await env.DB.prepare(`
@@ -1338,7 +1410,7 @@ async function listMessageThreads(request, env) {
           WHERE m.sender_id = u.id AND m.recipient_id = ? AND m.seen_at IS NULL) AS unread_count
       FROM nfd_friend_requests f
       INNER JOIN nfd_users u ON u.id = CASE WHEN f.from_user_id = ? THEN f.to_user_id ELSE f.from_user_id END
-      WHERE f.status = 'accepted' AND (f.from_user_id = ? OR f.to_user_id = ?)
+      WHERE f.status = 'accepted' AND (f.from_user_id = ? OR f.to_user_id = ?) AND ${AVAILABLE_IDENTITY_SQL}
       ORDER BY COALESCE(last_message_at, f.updated_at) DESC, lower(name)
     `).bind(user.id, user.id, user.id, user.id, user.id, user.id, user.id, user.id).all();
     return json({ currentUserId: user.id, friends: (result.results || []).map((row) => ({
@@ -1451,7 +1523,7 @@ async function suggestNfdFriends(request, env) {
       SELECT u.id, COALESCE(NULLIF(trim(u.display_name), ''), 'NFD member') AS display_name, p.handle
       FROM nfd_users u
       LEFT JOIN nfd_ghost_profiles p ON p.ghost_user_id = u.id AND p.active = 1
-      WHERE u.id != ? AND (u.provider != 'ghost' OR p.ghost_user_id IS NOT NULL)
+      WHERE u.id != ? AND u.active = 1 AND (u.provider != 'ghost' OR p.ghost_user_id IS NOT NULL)
         AND (instr(lower(COALESCE(u.display_name, '')), lower(?)) > 0
           OR instr(lower(substr(u.email, 1, instr(u.email, '@') - 1)), lower(?)) = 1
           OR instr(lower(COALESCE(p.handle, '')), lower(?)) = 1)
@@ -1478,7 +1550,14 @@ async function respondToFriendRequest(request, env, requestId, accept) {
   if (!user) return json({ error: "Sign in to respond to friend requests." }, 401);
   if (!env.DB) return json({ error: "NFD friends are unavailable right now." }, 503);
   try {
-    const incoming = await env.DB.prepare("SELECT from_user_id FROM nfd_friend_requests WHERE id = ? AND to_user_id = ? AND status = 'pending' LIMIT 1").bind(requestId, user.id).first();
+    await ensureGhostTables(env);
+    const incoming = await env.DB.prepare(`
+      SELECT f.from_user_id FROM nfd_friend_requests f
+      INNER JOIN nfd_users u ON u.id = f.from_user_id
+      WHERE f.id = ? AND f.to_user_id = ? AND f.status = 'pending' AND ${AVAILABLE_IDENTITY_SQL}
+      LIMIT 1
+    `).bind(requestId, user.id).first();
+    if (!incoming) return json({ error: "That incoming request is no longer available." }, 404);
     const result = await env.DB.prepare(`
       UPDATE nfd_friend_requests SET status = ?, updated_at = ?
       WHERE id = ? AND to_user_id = ? AND status = 'pending'
@@ -1529,6 +1608,7 @@ async function listExperiences(request, env) {
   try {
     await ensureExperienceOptionColumns(env);
     await ensureEngagementTables(env);
+    await ensureGhostTables(env);
     const url = new URL(request.url);
     const placeSearch = cleanSearchTerm(url.searchParams.get("place"));
     const locationSearch = cleanSearchTerm(url.searchParams.get("location"));
@@ -1580,7 +1660,11 @@ async function listExperiences(request, env) {
         SELECT e.id, e.author_id, e.experience_category, e.incident_category, e.place, e.place_category,
           e.location_details, e.incident_time, e.incident_time_end, e.incident_time_zone, e.short_description,
           e.full_description, e.visibility, e.comments_enabled, e.created_at,
-          CASE WHEN e.visibility = 'anonymous' THEN NULL ELSE u.display_name END AS author_name
+          CASE WHEN e.visibility = 'anonymous' OR u.active != 1 OR (u.provider = 'ghost' AND NOT EXISTS (
+            SELECT 1 FROM nfd_ghost_profiles gp
+            INNER JOIN nfd_users owner ON owner.id = gp.owner_user_id
+            WHERE gp.ghost_user_id = u.id AND gp.active = 1 AND owner.active = 1
+          )) THEN NULL ELSE u.display_name END AS author_name
         FROM experiences e LEFT JOIN nfd_users u ON u.id = e.author_id
         WHERE ${pageConditions.join(" AND ")}
         ORDER BY e.created_at DESC
