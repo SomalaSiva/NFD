@@ -1529,7 +1529,7 @@ async function refreshMessageNavBadge() {
     );
     navUnreadCount.hidden = unread === 0;
     navUnreadCount.textContent = unread > 99 ? "99+" : String(unread);
-    messagesNavLink.setAttribute("aria-label", unread ? `Messages, ${unread} unread` : "Messages");
+    messagesNavLink.setAttribute("aria-label", unread ? `Notifications, ${unread} unread` : "Notifications");
   } catch {}
 }
 function formatMessageTime(value) {
