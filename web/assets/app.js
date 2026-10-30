@@ -651,21 +651,6 @@ function renderDocumentLink(file) {
   addText(link, "span", "", `${file.originalFilename} · ${prettySize(file.sizeBytes)}`);
   return link;
 }
-const videoLoader =
-  "IntersectionObserver" in window
-    ? new IntersectionObserver(
-        (entries) =>
-          entries.forEach((entry) => {
-            if (entry.isIntersecting) {
-              const video = entry.target;
-              video.src = video.dataset.src;
-              delete video.dataset.src;
-              videoLoader.unobserve(video);
-            }
-          }),
-        { rootMargin: "320px 0px" },
-      )
-    : null;
 let feedLoadedCount = 0;
 let feedNextCursor = "";
 function renderFeed(experiences, total, { append = false, nextCursor = "" } = {}) {
@@ -886,19 +871,31 @@ function renderFeed(experiences, total, { append = false, nextCursor = "" } = {}
       const gallery = document.createElement("div");
       gallery.className = `feed-video-grid${videos.length === 1 ? " single" : ""}`;
       videos.forEach((file) => {
+        const videoItem = document.createElement("div");
+        videoItem.className = "feed-video-item";
         const video = document.createElement("video");
         video.className = "feed-video";
         video.controls = true;
-        video.preload = "none";
+        video.preload = "metadata";
         video.playsInline = true;
         video.title = file.originalFilename;
         video.poster = file.hasPreview
           ? `/api/evidence/${encodeURIComponent(file.id)}?variant=preview`
           : videoFallbackPoster;
-        video.dataset.src = `/api/evidence/${encodeURIComponent(file.id)}`;
-        if (videoLoader) videoLoader.observe(video);
-        else video.src = video.dataset.src;
-        gallery.append(video);
+        video.src = `/api/evidence/${encodeURIComponent(file.id)}`;
+        const playbackMessage = addText(
+          gallery,
+          "p",
+          "feed-video-error",
+          "This video could not be played. Its format or codec may not be supported by this browser.",
+        );
+        playbackMessage.hidden = true;
+        playbackMessage.setAttribute("role", "status");
+        video.addEventListener("error", () => {
+          playbackMessage.hidden = false;
+        });
+        videoItem.append(video, playbackMessage);
+        gallery.append(videoItem);
       });
       card.append(gallery);
     }

@@ -2454,9 +2454,21 @@ textarea.control::placeholder {
 .feed-video-grid.single {
   grid-template-columns: 1fr;
 }
+.feed-video-item {
+  min-width: 0;
+}
 .feed-video-grid.single .feed-video {
   max-height: 640px;
   aspect-ratio: 16/9;
+}
+.feed-video-error {
+  margin: 6px 0 0;
+  border: 1px solid #ead6c8;
+  border-radius: 8px;
+  background: #fff7f1;
+  padding: 8px 10px;
+  color: #825238;
+  font-size: 0.9rem;
 }
 .feed-gallery-hint {
   margin: 5px 2px 0;
