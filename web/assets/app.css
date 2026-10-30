@@ -3442,11 +3442,14 @@ textarea.control::placeholder {
 }
 .topbar-navigation .top-actions {
   min-height: 54px;
-  justify-content: center;
+  justify-content: flex-start;
   gap: clamp(22px, 4vw, 48px);
   overflow-x: auto;
   overscroll-behavior-x: contain;
   scrollbar-width: none;
+}
+.topbar-navigation .messages-nav-link {
+  margin-left: auto;
 }
 .topbar-navigation .top-actions::-webkit-scrollbar {
   display: none;
@@ -3465,6 +3468,9 @@ textarea.control::placeholder {
     justify-content: flex-start;
     gap: 17px;
     padding: 0 14px;
+  }
+  .topbar-navigation .messages-nav-link {
+    margin-left: 0;
   }
   .topbar-navigation .top-actions a:nth-child(2),
   .topbar-navigation .top-actions a.feed-nav-link,
