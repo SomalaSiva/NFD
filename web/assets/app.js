@@ -100,6 +100,8 @@ const appLayout = document.getElementById("app-layout");
 const loginPage = document.getElementById("login-page");
 const adminPage = document.getElementById("admin-page");
 const mainNav = document.getElementById("main-nav");
+const mainNavRow = document.getElementById("main-nav-row");
+const accountMenuWrap = document.getElementById("account-menu-wrap");
 const adminNavLink = document.getElementById("admin-nav-link");
 const accountAdminLink = document.getElementById("account-admin-link");
 const ghostModeSetupLink = document.getElementById("ghost-mode-setup");
@@ -111,6 +113,11 @@ const messagesNavLink = document.getElementById("messages-nav-link");
 const navUnreadCount = document.getElementById("nav-unread-count");
 const trustScorePendingCount = document.getElementById("trust-score-pending-count");
 const trustScorePage = document.getElementById("trust-score-page");
+function setMainNavigationVisible(visible) {
+  mainNav.hidden = !visible;
+  mainNavRow.hidden = !visible;
+  accountMenuWrap.hidden = !visible;
+}
 let messageNavRefreshTimer;
 const SESSION_IDLE_LIMIT_MS = 4 * 60 * 1000;
 const SESSION_ACTIVITY_STORAGE_KEY = "nfd:last-active-at";
@@ -2710,7 +2717,7 @@ async function loadAdminPage() {
 }
 async function updateNavigation() {
   if (location.pathname === "/login") {
-    mainNav.hidden = true;
+    setMainNavigationVisible(false);
     return;
   }
   try {
@@ -2719,7 +2726,7 @@ async function updateNavigation() {
       cache: "no-store",
     });
     if (!response.ok) {
-      mainNav.hidden = true;
+      setMainNavigationVisible(false);
       if (response.status === 401) location.replace("/auth/signout?idle=1&return_to=%2Flogin%3Fidle%3D1");
       return;
     }
@@ -2728,7 +2735,7 @@ async function updateNavigation() {
     currentUserId = result.userId || currentUserId;
     adminNavLink.hidden = !result.isAdmin;
     accountAdminLink.hidden = !result.isAdmin;
-    mainNav.hidden = false;
+    setMainNavigationVisible(true);
     currentGhostMode = result.ghostMode || { allowed: false, active: false, profile: null };
     const hasGhostProfile = Boolean(currentGhostMode.profile);
     ghostModeSetupLink.hidden = !currentGhostMode.allowed || hasGhostProfile;
@@ -2747,7 +2754,7 @@ async function updateNavigation() {
       if (document.visibilityState === "visible") refreshMessageNavBadge();
     }, 15000);
   } catch {
-    mainNav.hidden = true;
+    setMainNavigationVisible(false);
   }
 }
 updateNavigation();
@@ -2879,7 +2886,7 @@ document.getElementById("restricted-email-form").addEventListener("submit", asyn
 if (location.pathname === "/login") {
   appLayout.hidden = true;
   loginPage.hidden = false;
-  mainNav.hidden = true;
+  setMainNavigationVisible(false);
   document.title = "Sign in — NFD";
   const params = new URLSearchParams(location.search);
   document.getElementById("user-signin").href = "/auth/chatgpt-resume?return_to=%2Ffeed";
