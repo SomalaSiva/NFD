@@ -6,6 +6,8 @@ NFD is a Cloudflare Worker application backed by D1 and R2. Source stays organiz
 
 - `worker/index.js` is the Worker entry point and HTTP route table.
 - `worker/routes/admin.js` contains administrator authorization and admin operations.
+- `worker/routes/social.js` contains friend discovery, requests, and direct messages.
+- `worker/routes/experiences.js` contains feed, profile posts, comments, reactions, attachments, and submission workflows.
 - `web/` contains the shared page shell, privacy and community-guideline pages, and static assets.
 - `db/schema.ts` is the Drizzle schema; sequential SQL migrations and snapshots are in `drizzle/`.
 - `scripts/build-worker.mjs` bundles Worker modules with esbuild and packages the web shell into `dist/`.
