@@ -761,7 +761,9 @@ export function createExperienceRoutes(services) {
       fullDescription: textField(form, "fullDescription", 4000),
       visibility: textField(form, "visibility", 20),
     };
-    const missing = Object.entries(fields).some(([key, value]) => key !== "locationDetails" && !value);
+    const missing = Object.entries(fields).some(
+      ([key, value]) => !["locationDetails", "incidentTimeEnd"].includes(key) && !value,
+    );
     if (missing) return json({ error: "Complete the required experience details before sharing." }, 400);
     if (!INCIDENT_CATEGORIES_BY_EXPERIENCE[fields.experienceCategory]?.includes(fields.incidentCategory)) {
       return json({ error: "Choose an incident that matches the experience category." }, 400);
