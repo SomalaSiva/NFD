@@ -15,6 +15,13 @@
       "when": 1793333565392,
       "tag": "0001_session_idle_timeout",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1793335085529,
+      "tag": "0002_trust_score",
+      "breakpoints": true
     }
   ]
 }

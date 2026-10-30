@@ -20,6 +20,7 @@ NFD is a story-sharing web app. Its pages are plain HTML, CSS, and JavaScript. A
 - `worker/routes/admin.js` — administrator operations and audit/member lists.
 - `worker/routes/social.js` — friends, requests, and messages.
 - `worker/routes/experiences.js` — feed, profiles, comments, reactions, attachments, and post submission.
+- `worker/routes/trust-score.js` — discoverable member profiles, commitments, disputes, agreements, approvals, and fulfillment records.
 - `worker/lib/` — shared Worker utilities.
 - `web/index.html` — shared page markup and route-specific page sections.
 - `web/assets/app.css` and `web/assets/app.js` — shared styles and browser behavior.
@@ -71,5 +72,11 @@ NFD production is published through OpenAI Sites. Commit and push the exact sour
 - `/admin/activity` — account activity (owner only)
 - `/admin/moderation` — automatic post review
 - `/admin/admins` — administrator access (owner only)
+
+## Trust Score
+
+`/trust-score` adapts the full Wordkeep project’s trust workflows to NFD accounts and Cloudflare D1. It includes opt-in people discovery, transparent participant-confirmed commitment outcomes, dispute resolution, structured agreements, version history, participant approvals, fulfillment confirmation, and downloadable agreement records. Trust Score deliberately shows separate outcome counts instead of a single opaque rating. Disputed outcomes remain separate until all participants agree.
+
+Trust Score uses the signed-in NFD identity, including an active NFD Ghost identity where applicable. Email addresses are not displayed. Profiles are private until the member opts into the directory. Invites and approvals are handled inside Trust Score; NFD does not send external email notifications for these records. Wordkeep’s demo people and local SQLite data are not imported, and account registration does not count as an agreement approval.
 
 Admin permissions are checked by the Worker APIs as well as by page navigation.

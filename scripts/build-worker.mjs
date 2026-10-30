@@ -23,13 +23,27 @@ const appCssBase64 = Buffer.from(
 const appJsBase64 = Buffer.from(readFileSync(path.join(root, "web/assets/app.js"), "utf8"), "utf8").toString(
   "base64",
 );
+const trustScoreCssBase64 = Buffer.from(
+  readFileSync(path.join(root, "web/assets/trust-score.css"), "utf8"),
+  "utf8",
+).toString("base64");
+const trustScoreJsBase64 = Buffer.from(
+  readFileSync(path.join(root, "web/assets/trust-score.js"), "utf8"),
+  "utf8",
+).toString("base64");
 const appCss = Buffer.from(appCssBase64, "base64");
 const appJs = Buffer.from(appJsBase64, "base64");
+const trustScoreCss = Buffer.from(trustScoreCssBase64, "base64");
+const trustScoreJs = Buffer.from(trustScoreJsBase64, "base64");
 const cssAssetName = `app.${createHash("sha256").update(appCss).digest("hex").slice(0, 12)}.css`;
 const jsAssetName = `app.${createHash("sha256").update(appJs).digest("hex").slice(0, 12)}.js`;
+const trustScoreCssAssetName = `trust-score.${createHash("sha256").update(trustScoreCss).digest("hex").slice(0, 12)}.css`;
+const trustScoreJsAssetName = `trust-score.${createHash("sha256").update(trustScoreJs).digest("hex").slice(0, 12)}.js`;
 const page = readFileSync(path.join(root, "web/index.html"), "utf8")
   .replace("/assets/app.css", `/assets/${cssAssetName}`)
-  .replace("/assets/app.js", `/assets/${jsAssetName}`);
+  .replace("/assets/app.js", `/assets/${jsAssetName}`)
+  .replace("/assets/trust-score.css", `/assets/${trustScoreCssAssetName}`)
+  .replace("/assets/trust-score.js", `/assets/${trustScoreJsAssetName}`);
 const pageBase64 = Buffer.from(page, "utf8").toString("base64");
 const privacyPage = readFileSync(path.join(root, "web/privacy.html"), "utf8");
 const privacyPageBase64 = Buffer.from(privacyPage, "utf8").toString("base64");
@@ -50,7 +64,7 @@ mkdirSync(path.join(dist, "server"), { recursive: true });
 mkdirSync(path.join(dist, ".openai"), { recursive: true });
 writeFileSync(
   path.join(dist, "server/index.js"),
-  `const APP_ICON = Uint8Array.from(atob("${iconBase64}"), (character) => character.charCodeAt(0));\nconst APP_CSS = new TextDecoder().decode(Uint8Array.from(atob("${appCssBase64}"), (character) => character.charCodeAt(0)));\nconst APP_JS = new TextDecoder().decode(Uint8Array.from(atob("${appJsBase64}"), (character) => character.charCodeAt(0)));\nconst PAGE_HTML = new TextDecoder().decode(Uint8Array.from(atob("${pageBase64}"), (character) => character.charCodeAt(0)));\nconst PRIVACY_HTML = new TextDecoder().decode(Uint8Array.from(atob("${privacyPageBase64}"), (character) => character.charCodeAt(0)));\nconst GUIDELINES_HTML = new TextDecoder().decode(Uint8Array.from(atob("${guidelinesPageBase64}"), (character) => character.charCodeAt(0)));\n${worker}`,
+  `const APP_ICON = Uint8Array.from(atob("${iconBase64}"), (character) => character.charCodeAt(0));\nconst APP_CSS = new TextDecoder().decode(Uint8Array.from(atob("${appCssBase64}"), (character) => character.charCodeAt(0)));\nconst APP_JS = new TextDecoder().decode(Uint8Array.from(atob("${appJsBase64}"), (character) => character.charCodeAt(0)));\nconst TRUST_SCORE_CSS = new TextDecoder().decode(Uint8Array.from(atob("${trustScoreCssBase64}"), (character) => character.charCodeAt(0)));\nconst TRUST_SCORE_JS = new TextDecoder().decode(Uint8Array.from(atob("${trustScoreJsBase64}"), (character) => character.charCodeAt(0)));\nconst PAGE_HTML = new TextDecoder().decode(Uint8Array.from(atob("${pageBase64}"), (character) => character.charCodeAt(0)));\nconst PRIVACY_HTML = new TextDecoder().decode(Uint8Array.from(atob("${privacyPageBase64}"), (character) => character.charCodeAt(0)));\nconst GUIDELINES_HTML = new TextDecoder().decode(Uint8Array.from(atob("${guidelinesPageBase64}"), (character) => character.charCodeAt(0)));\n${worker}`,
 );
 copyFileSync(path.join(root, ".openai/hosting.json"), path.join(dist, ".openai/hosting.json"));
 console.log("Built the NFD Site Worker.");

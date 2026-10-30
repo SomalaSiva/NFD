@@ -8,6 +8,7 @@ let ghostTablesPromise;
 let adminTablesPromise;
 let emailRestrictionTablesPromise;
 let messagingTablesPromise;
+let trustScoreTablesPromise;
 
 export async function ensureAdminTable(env) {
   if (!env.DB) throw new Error("The NFD database is unavailable.");
@@ -83,6 +84,85 @@ export async function ensureMessagingTables(env) {
     throw error;
   });
   await messagingTablesPromise;
+}
+
+export async function ensureTrustScoreTables(env) {
+  if (!env.DB) throw new Error("The NFD database is unavailable.");
+  trustScoreTablesPromise ||= (async () => {
+    const statements = [
+      `CREATE TABLE IF NOT EXISTS nfd_trust_profiles (
+        user_id TEXT PRIMARY KEY NOT NULL REFERENCES nfd_users(id) ON DELETE CASCADE,
+        role TEXT NOT NULL DEFAULT '', city TEXT NOT NULL DEFAULT '', category TEXT NOT NULL DEFAULT 'Other',
+        bio TEXT NOT NULL DEFAULT '',
+        directory_visible INTEGER NOT NULL DEFAULT 0 CHECK (directory_visible IN (0, 1)),
+        updated_at TEXT NOT NULL
+      )`,
+      "CREATE INDEX IF NOT EXISTS nfd_trust_profiles_directory_idx ON nfd_trust_profiles (directory_visible, updated_at)",
+      `CREATE TABLE IF NOT EXISTS nfd_trust_commitments (
+        id TEXT PRIMARY KEY NOT NULL,
+        created_by TEXT NOT NULL REFERENCES nfd_users(id) ON DELETE CASCADE,
+        title TEXT NOT NULL, description TEXT NOT NULL, category TEXT NOT NULL, due_at TEXT NOT NULL,
+        status TEXT NOT NULL, fulfillment_reported_at TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+      )`,
+      "CREATE INDEX IF NOT EXISTS nfd_trust_commitments_creator_created_idx ON nfd_trust_commitments (created_by, created_at)",
+      "CREATE INDEX IF NOT EXISTS nfd_trust_commitments_status_due_idx ON nfd_trust_commitments (status, due_at)",
+      `CREATE TABLE IF NOT EXISTS nfd_trust_commitment_participants (
+        id TEXT PRIMARY KEY NOT NULL,
+        commitment_id TEXT NOT NULL REFERENCES nfd_trust_commitments(id) ON DELETE CASCADE,
+        user_id TEXT NOT NULL REFERENCES nfd_users(id) ON DELETE CASCADE,
+        role TEXT NOT NULL DEFAULT 'participant', invitation_status TEXT NOT NULL DEFAULT 'invited',
+        fulfillment_confirmed_at TEXT, dispute_resolution TEXT, dispute_note TEXT, created_at TEXT NOT NULL,
+        UNIQUE (commitment_id, user_id)
+      )`,
+      "CREATE INDEX IF NOT EXISTS nfd_trust_commitment_participant_user_idx ON nfd_trust_commitment_participants (user_id, created_at)",
+      `CREATE TABLE IF NOT EXISTS nfd_trust_commitment_events (
+        id TEXT PRIMARY KEY NOT NULL,
+        commitment_id TEXT NOT NULL REFERENCES nfd_trust_commitments(id) ON DELETE CASCADE,
+        actor_user_id TEXT NOT NULL REFERENCES nfd_users(id) ON DELETE CASCADE,
+        action TEXT NOT NULL, details_json TEXT NOT NULL DEFAULT '{}', created_at TEXT NOT NULL
+      )`,
+      "CREATE INDEX IF NOT EXISTS nfd_trust_commitment_events_created_idx ON nfd_trust_commitment_events (commitment_id, created_at)",
+      `CREATE TABLE IF NOT EXISTS nfd_trust_agreements (
+        id TEXT PRIMARY KEY NOT NULL,
+        owner_user_id TEXT NOT NULL REFERENCES nfd_users(id) ON DELETE CASCADE,
+        title TEXT NOT NULL, description TEXT NOT NULL, status TEXT NOT NULL,
+        version INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+      )`,
+      "CREATE INDEX IF NOT EXISTS nfd_trust_agreements_owner_updated_idx ON nfd_trust_agreements (owner_user_id, updated_at)",
+      `CREATE TABLE IF NOT EXISTS nfd_trust_agreement_versions (
+        id TEXT PRIMARY KEY NOT NULL,
+        agreement_id TEXT NOT NULL REFERENCES nfd_trust_agreements(id) ON DELETE CASCADE,
+        version INTEGER NOT NULL, content_json TEXT NOT NULL,
+        changed_by TEXT NOT NULL REFERENCES nfd_users(id) ON DELETE CASCADE,
+        reason TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL,
+        UNIQUE (agreement_id, version)
+      )`,
+      "CREATE INDEX IF NOT EXISTS nfd_trust_agreement_versions_created_idx ON nfd_trust_agreement_versions (agreement_id, created_at)",
+      `CREATE TABLE IF NOT EXISTS nfd_trust_agreement_participants (
+        id TEXT PRIMARY KEY NOT NULL,
+        agreement_id TEXT NOT NULL REFERENCES nfd_trust_agreements(id) ON DELETE CASCADE,
+        version INTEGER NOT NULL,
+        user_id TEXT NOT NULL REFERENCES nfd_users(id) ON DELETE CASCADE,
+        responsibility TEXT NOT NULL, decision TEXT, decision_note TEXT NOT NULL DEFAULT '',
+        decided_version INTEGER, fulfillment_confirmed_at TEXT, created_at TEXT NOT NULL,
+        UNIQUE (agreement_id, version, user_id)
+      )`,
+      "CREATE INDEX IF NOT EXISTS nfd_trust_agreement_participant_user_idx ON nfd_trust_agreement_participants (user_id, created_at)",
+      `CREATE TABLE IF NOT EXISTS nfd_trust_agreement_events (
+        id TEXT PRIMARY KEY NOT NULL,
+        agreement_id TEXT NOT NULL REFERENCES nfd_trust_agreements(id) ON DELETE CASCADE,
+        version INTEGER NOT NULL,
+        actor_user_id TEXT NOT NULL REFERENCES nfd_users(id) ON DELETE CASCADE,
+        action TEXT NOT NULL, details_json TEXT NOT NULL DEFAULT '{}', created_at TEXT NOT NULL
+      )`,
+      "CREATE INDEX IF NOT EXISTS nfd_trust_agreement_events_created_idx ON nfd_trust_agreement_events (agreement_id, created_at)",
+    ];
+    for (const statement of statements) await env.DB.prepare(statement).run();
+  })().catch((error) => {
+    trustScoreTablesPromise = undefined;
+    throw error;
+  });
+  await trustScoreTablesPromise;
 }
 
 export async function ensureGhostTables(env) {

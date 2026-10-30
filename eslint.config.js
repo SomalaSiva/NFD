@@ -15,6 +15,8 @@ export default [
         APP_CSS: "readonly",
         APP_JS: "readonly",
         APP_ICON: "readonly",
+        TRUST_SCORE_CSS: "readonly",
+        TRUST_SCORE_JS: "readonly",
         PAGE_HTML: "readonly",
         PRIVACY_HTML: "readonly",
         GUIDELINES_HTML: "readonly",
