@@ -17,6 +17,21 @@ export const nfdSessions = sqliteTable("nfd_sessions", {
   createdAt: text("created_at").notNull(),
 }, (table) => [index("nfd_sessions_user_id_idx").on(table.userId)]);
 
+export const nfdGhostAccess = sqliteTable("nfd_ghost_access", {
+  userId: text("user_id").primaryKey().references(() => nfdUsers.id, { onDelete: "cascade" }),
+  enabled: integer("enabled").notNull().default(0),
+  grantedBy: text("granted_by").notNull().references(() => nfdUsers.id),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export const nfdGhostProfiles = sqliteTable("nfd_ghost_profiles", {
+  ghostUserId: text("ghost_user_id").primaryKey().references(() => nfdUsers.id, { onDelete: "cascade" }),
+  ownerUserId: text("owner_user_id").notNull().unique().references(() => nfdUsers.id, { onDelete: "cascade" }),
+  handle: text("handle").notNull().unique(),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+}, (table) => [index("nfd_ghost_profiles_owner_idx").on(table.ownerUserId)]);
+
 export const experiences = sqliteTable("experiences", {
   id: text("id").primaryKey(),
   authorId: text("author_id").notNull(),

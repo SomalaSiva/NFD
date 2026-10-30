@@ -57,14 +57,21 @@
     .nav-unread-count{min-width:18px;height:18px;display:inline-grid;place-items:center;padding:0 5px;border-radius:999px;background:#0d7054;color:#fff;font-size:10px;line-height:1;font-weight:750}
     .nav-unread-count[hidden],#admin-nav-link[hidden],#account-admin-link[hidden]{display:none!important}
   </style>
+  <style>
+    .account-menu button{display:block;width:100%;padding:10px 12px;border:0;border-radius:8px;background:transparent;color:#405249;text-align:left;font:inherit;font-size:12px;font-weight:650;cursor:pointer}.account-menu button:hover{background:#edf5ef;color:var(--green)}
+    .ghost-mode-banner{display:flex;justify-content:center;align-items:center;gap:15px;padding:9px 16px;background:#eaf4ed;color:#315c43;border-bottom:1px solid #d6e8da;font-size:12px}.ghost-mode-banner[hidden]{display:none}.ghost-mode-banner button{border:0;background:transparent;color:#176a4e;font:inherit;font-weight:750;text-decoration:underline;cursor:pointer}
+    .ghost-panel{margin:18px 0;padding:18px 20px;background:#f4f8f4;border:1px solid #dce8de;border-radius:14px}.ghost-panel[hidden],.ghost-profile-ready[hidden],.ghost-create-form[hidden]{display:none!important}.ghost-panel h2{margin:0;color:#284a38;font-size:17px}.ghost-settings-copy{max-width:680px;margin:8px 0 13px;color:#66776d;font-size:12px;line-height:1.6}.ghost-settings-feedback{margin:0 0 10px;color:#64756b;font-size:11px}.ghost-profile-ready{display:grid;grid-template-columns:1fr auto;align-items:center;gap:5px 14px}.ghost-profile-ready strong{color:#294735;font-size:14px}.ghost-profile-ready span{color:#738078;font-size:11px}.ghost-profile-ready button{grid-column:2;grid-row:1/3}.ghost-create-form{display:grid;grid-template-columns:1fr;gap:7px;max-width:520px}.ghost-create-form label{margin-top:5px;color:#41564a;font-size:11px;font-weight:700}.ghost-create-form .helper{margin:0 0 5px}.ghost-create-form .submit{justify-self:start}.ghost-access-toggle{min-width:135px}.ghost-access-toggle[aria-pressed="true"]{border-color:#a9c9b2;background:#edf6ef;color:#28613d}
+    @media(max-width:560px){.ghost-mode-banner{justify-content:space-between}.ghost-profile-ready{grid-template-columns:1fr}.ghost-profile-ready button{grid-column:1;grid-row:auto;justify-self:start}}
+  </style>
 </head>
 <body>
   <header class="topbar">
     <div class="shell topbar-inner">
       <a class="brand" href="/feed" aria-label="NFD — No Face Docs home"><span class="brand-mark"><img src="/nfd-icon.png" alt=""></span><span class="brand-copy"><span class="brand-name">NFD</span><span class="brand-subtitle">No Face Docs</span></span></a>
-      <nav class="top-actions" id="main-nav" aria-label="Main navigation" hidden><a class="feed-nav-link" href="/feed">Lore Feed</a><a class="messages-nav-link" id="messages-nav-link" href="/messages" aria-label="Messages">Messages<span class="nav-unread-count" id="nav-unread-count" aria-live="polite" hidden></span></a><a class="nav-share-link" href="/share"><img src="/nfd-icon.png" alt="" aria-hidden="true"><span>Drop your story</span></a><a href="/admin" id="admin-nav-link" hidden>Admin</a><div class="account-menu-wrap"><button class="account-menu-button" type="button" id="account-menu-button" aria-label="Open your account menu" aria-expanded="false" aria-controls="account-menu"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="8" r="3.5" stroke="currentColor" stroke-width="1.7"/><path d="M5.2 20c.7-3.5 3.1-5.2 6.8-5.2s6.1 1.7 6.8 5.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button><div class="account-menu" id="account-menu" hidden><a href="/profile">My profile</a><a href="/admin" id="account-admin-link" hidden>Admin</a><a href="/auth/signout?return_to=%2Flogin" target="_top">Sign out</a></div></div></nav>
+      <nav class="top-actions" id="main-nav" aria-label="Main navigation" hidden><a class="feed-nav-link" href="/feed">Lore Feed</a><a class="messages-nav-link" id="messages-nav-link" href="/messages" aria-label="Messages">Messages<span class="nav-unread-count" id="nav-unread-count" aria-live="polite" hidden></span></a><a class="nav-share-link" href="/share"><img src="/nfd-icon.png" alt="" aria-hidden="true"><span>Drop your story</span></a><a href="/admin" id="admin-nav-link" hidden>Admin</a><div class="account-menu-wrap"><button class="account-menu-button" type="button" id="account-menu-button" aria-label="Open your account menu" aria-expanded="false" aria-controls="account-menu"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="8" r="3.5" stroke="currentColor" stroke-width="1.7"/><path d="M5.2 20c.7-3.5 3.1-5.2 6.8-5.2s6.1 1.7 6.8 5.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button><div class="account-menu" id="account-menu" hidden><a href="/profile">My profile</a><a href="/profile" id="ghost-mode-setup" hidden>Set up Ghost mode</a><button type="button" id="ghost-mode-toggle" hidden>Turn on Ghost mode</button><a href="/admin" id="account-admin-link" hidden>Admin</a><a href="/auth/signout?return_to=%2Flogin" target="_top">Sign out</a></div></div></nav>
     </div>
   </header>
+  <div class="ghost-mode-banner" id="ghost-mode-banner" role="status" hidden><span>Ghost mode is on · <strong id="ghost-mode-handle"></strong></span><button type="button" id="ghost-mode-exit">Turn off Ghost mode</button></div>
   <main id="login-page" class="shell auth-page" hidden>
     <section class="auth-panel" aria-labelledby="login-heading">
       <div class="auth-kicker">No Face Docs · Secure access</div>
@@ -100,6 +107,12 @@
         <p>Only you can view this list. It includes account identifiers, provider, sign-in/join dates, and shared-post totals.</p>
         <p class="admin-feedback" id="member-directory-feedback" role="status" aria-live="polite">Loading NFD members…</p>
         <ul class="admin-user-list" id="member-directory-list"></ul>
+      </section>
+      <section class="admin-user-management" id="ghost-access-panel" hidden aria-labelledby="ghost-access-heading">
+        <h2 id="ghost-access-heading">Ghost mode access</h2>
+        <p>Allow or remove Ghost mode for individual NFD accounts. Members can create one separate identity after access is enabled.</p>
+        <p class="admin-feedback" id="ghost-access-feedback" role="status" aria-live="polite">Loading account access…</p>
+        <ul class="admin-user-list" id="ghost-access-list"></ul>
       </section>
       <section class="admin-user-management" id="activity-audit" hidden aria-labelledby="activity-audit-heading">
         <h2 id="activity-audit-heading">Account activity</h2>
@@ -201,7 +214,18 @@
         <button class="secondary-button feed-load-more" id="feed-load-more" type="button" hidden>Show more stories</button>
       </section>
       <section id="profile-page" class="profile-page" aria-labelledby="profile-heading" hidden>
-        <div class="profile-heading"><div><div class="eyebrow">Your NFD account</div><h1 id="profile-heading">Your profile</h1><p class="intro">Your account details and the experiences you’ve shared. Your profile details are visible only to you.</p></div></div>
+        <div class="profile-heading"><div><div class="eyebrow">Your NFD account</div><h1 id="profile-heading">Your profile</h1><p class="intro" id="profile-intro">Your account details and the experiences you’ve shared. Your profile details are visible only to you.</p></div></div>
+        <section class="ghost-panel" id="ghost-settings" aria-labelledby="ghost-settings-heading" hidden>
+          <h2 id="ghost-settings-heading">Ghost mode</h2>
+          <p class="ghost-settings-copy" id="ghost-settings-copy">Use a separate NFD identity for friends, posts, and messages. Other people see your Ghost name and ID. Choose details that do not identify you.</p>
+          <p class="ghost-settings-feedback" id="ghost-settings-feedback" role="status" aria-live="polite"></p>
+          <div class="ghost-profile-ready" id="ghost-profile-ready" hidden><strong id="ghost-profile-name"></strong><span id="ghost-profile-handle"></span><button class="secondary-button" type="button" id="ghost-profile-toggle">Turn on Ghost mode</button></div>
+          <form class="ghost-create-form" id="ghost-create-form" hidden>
+            <label for="ghost-name">Ghost name <span class="optional">Optional</span></label><input class="control" id="ghost-name" name="name" maxlength="64" placeholder="A name people will recognize" autocomplete="off">
+            <label for="ghost-handle">Ghost ID <span class="optional">Optional</span></label><input class="control" id="ghost-handle" name="handle" maxlength="32" placeholder="Generated for you if left blank" autocomplete="off"><p class="helper">Share this ID so people can find your Ghost profile.</p>
+            <button class="submit" type="submit">Create Ghost profile</button>
+          </form>
+        </section>
         <div class="profile-summary" id="profile-summary"><div class="profile-loading">Loading your profile…</div></div>
         <section class="friends-panel" aria-labelledby="friends-heading">
           <div class="friends-panel-heading"><div><h2 id="friends-heading">Your NFD friends</h2><p>Search by the name on their NFD account or the start of their email username. Friends can see stories you share with friends only.</p></div></div>
@@ -280,6 +304,11 @@
     const mainNav=document.getElementById('main-nav');
     const adminNavLink=document.getElementById('admin-nav-link');
     const accountAdminLink=document.getElementById('account-admin-link');
+    const ghostModeSetupLink=document.getElementById('ghost-mode-setup');
+    const ghostModeToggle=document.getElementById('ghost-mode-toggle');
+    const ghostModeBanner=document.getElementById('ghost-mode-banner');
+    const ghostModeHandle=document.getElementById('ghost-mode-handle');
+    const ghostModeExit=document.getElementById('ghost-mode-exit');
     const messagesNavLink=document.getElementById('messages-nav-link');
     const navUnreadCount=document.getElementById('nav-unread-count');
     let messageNavRefreshTimer;
@@ -290,6 +319,13 @@
     document.addEventListener('click',event=>{if(!accountMenu.contains(event.target)&&!accountMenuButton.contains(event.target))closeAccountMenu()});
     document.addEventListener('keydown',event=>{if(event.key==='Escape'){closeAccountMenu();accountMenuButton.focus()}});
     const profilePage=document.getElementById('profile-page');
+    const ghostSettings=document.getElementById('ghost-settings');
+    const ghostSettingsFeedback=document.getElementById('ghost-settings-feedback');
+    const ghostCreateForm=document.getElementById('ghost-create-form');
+    const ghostProfileReady=document.getElementById('ghost-profile-ready');
+    const ghostProfileName=document.getElementById('ghost-profile-name');
+    const ghostProfileHandle=document.getElementById('ghost-profile-handle');
+    const ghostProfileToggle=document.getElementById('ghost-profile-toggle');
     const messagesPage=document.getElementById('messages-page');
     const messageThreadList=document.getElementById('message-thread-list');
     const messageInboxStatus=document.getElementById('message-inbox-status');
@@ -303,6 +339,7 @@
     const messageSend=document.getElementById('message-send');
     const messageFeedback=document.getElementById('message-feedback');
     let currentUserId='';
+    let currentGhostMode={allowed:false,active:false,profile:null};
     let currentMessageFriendId='';
     let messageRefreshTimer;
     let messageRefreshInFlight=false;
@@ -553,15 +590,44 @@
       form.addEventListener('submit',async event=>{event.preventDefault();const body=input.value.trim();if(!body||!commentsEnabled)return;submit.disabled=true;feedback.textContent='Posting comment…';try{const response=await fetch(`/api/experiences/${encodeURIComponent(experience.id)}/comments`,{method:'POST',headers:{'content-type':'application/json',accept:'application/json'},body:JSON.stringify({body})});const result=await response.json().catch(()=>({}));if(!response.ok)throw new Error(result.error||'Comment could not be posted.');input.value='';counts.commentCount=(Number(counts.commentCount)||0)+1;commentToggle.textContent=`💬 Comment · ${counts.commentCount}`;feedback.textContent='Comment posted.';commentsLoaded=false;await loadComments()}catch(error){feedback.textContent=error.message}finally{submit.disabled=false}});
     }
     function setProfileMessage(message,isError=false){profileMessage.textContent=message;profileMessage.classList.toggle('error',isError);profileMessage.hidden=!message}
+    function renderGhostSettings(state){
+      currentGhostMode=state||{allowed:false,active:false,profile:null};
+      ghostSettings.hidden=!currentGhostMode.allowed;
+      if(!currentGhostMode.allowed)return;
+      const profile=currentGhostMode.profile;
+      ghostProfileReady.hidden=!profile;
+      ghostCreateForm.hidden=Boolean(profile);
+      if(profile){ghostProfileName.textContent=profile.name||'Ghost profile';ghostProfileHandle.textContent=`@${profile.handle}`;ghostProfileToggle.textContent=currentGhostMode.active?'Turn off Ghost mode':'Turn on Ghost mode';ghostSettingsFeedback.textContent=currentGhostMode.active?'You are using this identity for your profile, friends, messages, and posts.':'Your Ghost identity is separate from your personal account.'}
+      else ghostSettingsFeedback.textContent='Ghost mode is enabled for your account. Create one separate identity to get started.';
+    }
+    async function loadGhostSettings(){
+      try{const response=await fetch('/api/ghost-mode',{headers:{accept:'application/json'},cache:'no-store'});const result=await response.json().catch(()=>({}));if(!response.ok)throw new Error(result.error||'Ghost mode settings could not be loaded.');renderGhostSettings(result)}
+      catch(error){ghostSettings.hidden=true;setProfileMessage(error.message,true)}
+    }
+    async function changeGhostMode(active,button){
+      if(button)button.disabled=true;
+      ghostSettingsFeedback.textContent=active?'Turning Ghost mode on…':'Turning Ghost mode off…';
+      try{const response=await fetch('/api/ghost-mode',{method:'PUT',headers:{'content-type':'application/json',accept:'application/json'},body:JSON.stringify({active})});const result=await response.json().catch(()=>({}));if(!response.ok)throw new Error(result.error||'Ghost mode could not be changed.');window.location.assign('/feed')}
+      catch(error){ghostSettingsFeedback.textContent=error.message;if(button)button.disabled=false}
+    }
+    ghostCreateForm.addEventListener('submit',async event=>{
+      event.preventDefault();const submit=ghostCreateForm.querySelector('button[type="submit"]');submit.disabled=true;ghostSettingsFeedback.textContent='Creating your separate identity…';
+      try{const response=await fetch('/api/ghost-profile',{method:'POST',headers:{'content-type':'application/json',accept:'application/json'},body:JSON.stringify({name:document.getElementById('ghost-name').value,handle:document.getElementById('ghost-handle').value})});const result=await response.json().catch(()=>({}));if(!response.ok)throw new Error(result.error||'Your Ghost profile could not be created.');await loadGhostSettings()}
+      catch(error){ghostSettingsFeedback.textContent=error.message}finally{submit.disabled=false}
+    });
+    ghostProfileToggle.addEventListener('click',()=>changeGhostMode(!currentGhostMode.active,ghostProfileToggle));
+    ghostModeToggle.addEventListener('click',()=>changeGhostMode(!currentGhostMode.active,ghostModeToggle));
+    ghostModeExit.addEventListener('click',()=>changeGhostMode(false,ghostModeExit));
     function renderProfile(data){
       const user=data.user||{};const displayName=user.name||user.email?.split('@')[0]||'NFD member';
+      document.getElementById('profile-intro').textContent=user.provider==='ghost'?'This Ghost identity has its own friends, messages, and posts, separate from your personal NFD profile.':'Your account details and the experiences you’ve shared. Your profile details are visible only to you.';
       const initials=displayName.split(/\s+/).filter(Boolean).slice(0,2).map(part=>part[0]).join('').toUpperCase()||'N';
       profileSummary.replaceChildren();
       addText(profileSummary,'div','profile-avatar',initials);
       const identity=addText(profileSummary,'div','profile-identity','');
       addText(identity,'h2','',displayName);
-      addText(identity,'p','',user.email||'Email not provided by this sign-in method');
-      addText(profileSummary,'span','profile-provider',user.provider==='google'?'Google account':'ChatGPT account');
+      addText(identity,'p','',user.provider==='ghost'?`@${user.ghostHandle}`:(user.email||'Email not provided by this sign-in method'));
+      addText(profileSummary,'span','profile-provider',user.provider==='ghost'?'Ghost profile':user.provider==='google'?'Google account':'ChatGPT account');
       profilePostList.replaceChildren();
       const posts=data.experiences||[];
       profilePostCount.textContent=`${data.total||0} ${Number(data.total)===1?'post':'posts'} shared`;
@@ -619,6 +685,7 @@
         if(!response.ok)throw new Error(result.error||'Your profile could not be loaded.');
         renderProfile(result);
         loadFriends();
+        await loadGhostSettings();
       }catch(error){profileSummary.innerHTML='';profilePostList.replaceChildren();profilePostCount.textContent='';const message=addText(profilePostList,'div','profile-error',error instanceof TypeError?'Your profile could not connect. Try refreshing this page.':error.message);message.setAttribute('role','alert')}
     }
     function setFriendsFeedback(message,error=false){friendsFeedback.textContent=message;friendsFeedback.classList.toggle('error',error)}
@@ -657,7 +724,7 @@
         friendSearchFeedback.textContent=`${suggestions.length} matching ${suggestions.length===1?'member':'members'} found.`;
         suggestions.forEach(suggestion=>{
           const item=document.createElement('li');item.className='friend-item friend-suggestion-item';
-          const person=document.createElement('div');person.className='friend-person';addText(person,'strong','',suggestion.name);addText(person,'span','','NFD member');item.append(person);
+          const person=document.createElement('div');person.className='friend-person';addText(person,'strong','',suggestion.name);addText(person,'span','',suggestion.handle?`Ghost profile · @${suggestion.handle}`:'NFD member');item.append(person);
           const connect=document.createElement('button');connect.type='button';connect.className='friend-action friend-suggestion-connect';connect.textContent='Connect';connect.setAttribute('aria-label',`Send a friend request to ${suggestion.name}`);connect.addEventListener('click',async()=>{
             connect.disabled=true;connect.textContent='Sending…';friendSearchFeedback.textContent='Sending friend request…';
             try{const send=await fetch('/api/friends',{method:'POST',headers:{'content-type':'application/json',accept:'application/json'},body:JSON.stringify({userId:suggestion.id})});const sent=await send.json().catch(()=>({}));if(!send.ok)throw new Error(sent.error||'The friend request could not be sent.');friendSearchInput.value='';friendSuggestions.replaceChildren();friendSuggestions.hidden=true;friendSearchFeedback.textContent=sent.message||'Friend request sent. They’ll see it in their NFD profile.';await loadFriends()}
@@ -820,6 +887,9 @@
     const memberDirectory=document.getElementById('member-directory');
     const memberDirectoryFeedback=document.getElementById('member-directory-feedback');
     const memberDirectoryList=document.getElementById('member-directory-list');
+    const ghostAccessPanel=document.getElementById('ghost-access-panel');
+    const ghostAccessFeedback=document.getElementById('ghost-access-feedback');
+    const ghostAccessList=document.getElementById('ghost-access-list');
     const activityAudit=document.getElementById('activity-audit');
     const activityAuditFeedback=document.getElementById('activity-audit-feedback');
     const activityAuditList=document.getElementById('activity-audit-list');
@@ -860,7 +930,7 @@
         const item=document.createElement('li');item.className='admin-user-item';
         const label=document.createElement('div');label.className='admin-user-email';label.textContent=user.displayName||user.email||'NFD member';
         if(user.email){const email=document.createElement('span');email.className='member-email';email.textContent=user.email;label.append(email)}
-        const method=user.provider==='google'?'Google':'ChatGPT';
+        const method=user.provider==='ghost'?'Ghost profile':user.provider==='google'?'Google':'ChatGPT';
         const count=Number(user.sharedPostCount)||0;
         const note=document.createElement('span');note.className='admin-user-added';note.textContent=`${method} · Joined ${prettyDate(user.joinedAt)} · ${count} shared ${count===1?'post':'posts'}${user.lastActivityAt?` · Active ${prettyDate(user.lastActivityAt)}`:''}`;
         const identifiers=document.createElement('details');identifiers.className='member-identifiers';addText(identifiers,'summary','','Account identifiers');
@@ -878,6 +948,23 @@
         if(!response.ok)throw new Error(result.error||'The member list could not be loaded.');
         renderMemberDirectory(result);
       }catch(error){memberDirectoryFeedback.textContent=error.message;memberDirectoryFeedback.classList.add('error')}
+    }
+    async function loadGhostAccess(){
+      ghostAccessPanel.hidden=false;ghostAccessFeedback.textContent='Loading account access…';ghostAccessFeedback.classList.remove('error');
+      try{
+        const response=await fetch('/api/admin/ghost-access',{headers:{accept:'application/json'},cache:'no-store'});const result=await response.json().catch(()=>({}));
+        if(!response.ok)throw new Error(result.error||'Ghost mode access could not be loaded.');
+        const users=result.users||[];ghostAccessList.replaceChildren();ghostAccessFeedback.textContent=`Ghost mode can be enabled for ${users.length} NFD ${users.length===1?'account':'accounts'}.`;
+        if(!users.length){ghostAccessFeedback.textContent='No NFD accounts are available yet.';return}
+        users.forEach(user=>{
+          const item=document.createElement('li');item.className='admin-user-item';const label=document.createElement('div');label.className='admin-user-email';label.textContent=user.name||user.email||'NFD member';
+          if(user.email)addText(label,'span','member-email',user.email);
+          const note=document.createElement('span');note.className='admin-user-added';note.textContent=user.ghostHandle?`Ghost profile · @${user.ghostHandle}`:`${user.provider==='google'?'Google':'ChatGPT'} account`;
+          const toggle=document.createElement('button');toggle.type='button';toggle.className='secondary-button ghost-access-toggle';toggle.setAttribute('aria-pressed',String(user.enabled));toggle.setAttribute('aria-label',`${user.enabled?'Disable':'Enable'} Ghost mode for ${user.name||user.email||'NFD member'}`);toggle.textContent=user.enabled?'Disable Ghost mode':'Enable Ghost mode';
+          toggle.addEventListener('click',async()=>{toggle.disabled=true;ghostAccessFeedback.textContent=`${user.enabled?'Removing':'Enabling'} Ghost mode access…`;try{const update=await fetch('/api/admin/ghost-access',{method:'PUT',headers:{'content-type':'application/json',accept:'application/json'},body:JSON.stringify({userId:user.id,enabled:!user.enabled})});const saved=await update.json().catch(()=>({}));if(!update.ok)throw new Error(saved.error||'Ghost mode access could not be changed.');await loadGhostAccess();ghostAccessFeedback.textContent=`Ghost mode ${saved.enabled?'enabled':'disabled'} for ${user.name||user.email||'NFD member'}.`}catch(error){toggle.disabled=false;ghostAccessFeedback.textContent=error.message;ghostAccessFeedback.classList.add('error')}});
+          item.append(label,note,toggle);ghostAccessList.append(item);
+        });
+      }catch(error){ghostAccessFeedback.textContent=error.message;ghostAccessFeedback.classList.add('error')}
     }
     async function loadActivityAudit(){
       activityAudit.hidden=false;activityAuditFeedback.textContent='Loading account activity…';activityAuditFeedback.classList.remove('error');
@@ -916,6 +1003,13 @@
         if(!response.ok){mainNav.hidden=true;return}
         const result=await response.json().catch(()=>({}));
         currentUserId=result.userId||currentUserId;adminNavLink.hidden=!result.isAdmin;accountAdminLink.hidden=!result.isAdmin;mainNav.hidden=false;
+        currentGhostMode=result.ghostMode||{allowed:false,active:false,profile:null};
+        const hasGhostProfile=Boolean(currentGhostMode.profile);
+        ghostModeSetupLink.hidden=!currentGhostMode.allowed||hasGhostProfile;
+        ghostModeToggle.hidden=!currentGhostMode.allowed||!hasGhostProfile;
+        ghostModeToggle.textContent=currentGhostMode.active?'Turn off Ghost mode':'Turn on Ghost mode';
+        ghostModeBanner.hidden=!currentGhostMode.active;
+        ghostModeHandle.textContent=currentGhostMode.profile?.handle?`@${currentGhostMode.profile.handle}`:'';
         await refreshMessageNavBadge();clearInterval(messageNavRefreshTimer);messageNavRefreshTimer=setInterval(()=>{if(document.visibilityState==='visible')refreshMessageNavBadge()},15000);
       }catch{mainNav.hidden=true}
     }
@@ -946,7 +1040,7 @@
       if(googleStatus){const feedback=document.getElementById('google-feedback');feedback.style.display='block';feedback.textContent=googleStatus==='setup'?'Google sign-in is not set up yet. The NFD owner needs to finish connecting Google.':googleStatus==='cancelled'?'Google sign-in was cancelled. No account changes were made.':'Google sign-in could not be completed. Please try again.'}
     }else if(location.pathname==='/admin'){
       appLayout.hidden=true;adminPage.hidden=false;document.title='Administrator — NFD';
-      loadAdminUsers();
+      loadAdminUsers();loadGhostAccess();
     }else if(location.pathname==='/profile'){
       appLayout.classList.add('profile-mode');form.hidden=true;reviewPage.hidden=true;feedPage.hidden=true;profilePage.hidden=false;
       document.title='Your profile — NFD';loadProfile();

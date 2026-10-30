@@ -22,6 +22,13 @@
       "when": 1793312400000,
       "tag": "0003_daffy_scalphunter",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1793323263717,
+      "tag": "0004_ghost_mode",
+      "breakpoints": true
     }
   ]
 }
