@@ -31,6 +31,7 @@ const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GOOGLE_JWKS_URL = "https://www.googleapis.com/oauth2/v3/certs";
 const GOOGLE_SESSION_COOKIE = "__Host-nfd_session";
 const GOOGLE_OAUTH_COOKIE = "__Host-nfd_google_oauth";
+const GHOST_MODE_COOKIE = "nfd_ghost_mode";
 const GOOGLE_SESSION_SECONDS = 60 * 60 * 24 * 30;
 let googleJwksCache;
 let googleJwksExpiresAt = 0;
@@ -40,6 +41,7 @@ let moderationTablesPromise;
 let experienceOptionColumnsPromise;
 let evidenceCleanupTablePromise;
 let messagingTablesPromise;
+let ghostProfileTablesPromise;
 
 export default {
   async fetch(request, env) {
@@ -112,8 +114,12 @@ export default {
         return json({ error: "Sign in to use NFD." }, 401);
       }
       await recordAppSession(env, user);
-      return json({ isAdmin: await isAdmin(request, env), provider: user.provider });
+      await ensureGhostProfileTables(env);
+      const hasGhostProfile = Boolean(await env.DB.prepare("SELECT ghost_user_id FROM nfd_ghost_profiles WHERE owner_user_id = ? LIMIT 1").bind(user.accountId || user.id).first());
+      return json({ isAdmin: !user.isGhost && await isAdmin(request, env), provider: user.provider, userId: user.id, isGhost: Boolean(user.isGhost), ghostUsername: user.ghostUsername || "", displayName: user.name || "", hasGhostProfile });
     }
+    if (url.pathname === "/api/ghost-profile" && ["GET", "POST"].includes(request.method)) return manageGhostProfile(request, env);
+    if (request.method === "POST" && url.pathname === "/api/ghost-mode") return setGhostMode(request, env);
     if (url.pathname === "/api/admins" && ["GET", "POST"].includes(request.method)) {
       return manageAdmins(request, env);
     }
@@ -300,10 +306,10 @@ async function signOut(request, env) {
   const destination = hasChatGptSession
     ? `/signout-with-chatgpt?return_to=${encodeURIComponent(returnTo)}`
     : returnTo;
-  return redirect(destination, 302, [cookie(GOOGLE_SESSION_COOKIE, "", 0)]);
+  return redirect(destination, 302, [cookie(GOOGLE_SESSION_COOKIE, "", 0), cookie(GHOST_MODE_COOKIE, "", 0)]);
 }
 
-async function getCurrentUser(request, env) {
+async function getAuthenticatedAccount(request, env) {
   const token = getCookie(request, GOOGLE_SESSION_COOKIE);
   if (token && env.DB) {
     try {
@@ -349,6 +355,103 @@ async function getCurrentUser(request, env) {
   }
 
   return null;
+}
+
+async function getCurrentUser(request, env) {
+  const account = await getAuthenticatedAccount(request, env);
+  if (!account) return null;
+  const ownerUserId = account.id;
+  const ghostUserId = getCookie(request, GHOST_MODE_COOKIE);
+  if (!ghostUserId) return { ...account, accountId: ownerUserId, isGhost: false, ghostUsername: "" };
+  try {
+    await ensureGhostProfileTables(env);
+    const ghost = await env.DB.prepare(`
+      SELECT u.id, u.provider_subject AS subject, u.display_name AS name, gp.username
+      FROM nfd_ghost_profiles gp INNER JOIN nfd_users u ON u.id = gp.ghost_user_id
+      WHERE gp.ghost_user_id = ? AND gp.owner_user_id = ? LIMIT 1
+    `).bind(ghostUserId, ownerUserId).first();
+    if (!ghost) return null;
+    return { ...account, id: ghost.id, provider: "ghost", subject: ghost.subject, email: "", name: ghost.name || ghost.username, accountId: ownerUserId, isGhost: true, ghostUsername: ghost.username };
+  } catch (error) {
+    console.error("Ghost identity lookup failed", error);
+    return null;
+  }
+}
+
+async function ensureGhostProfileTables(env) {
+  if (!env.DB) throw new Error("The NFD database is unavailable.");
+  ghostProfileTablesPromise ||= (async () => {
+    await ensureIdentityTables(env);
+    await env.DB.prepare(`
+      CREATE TABLE IF NOT EXISTS nfd_ghost_profiles (
+        ghost_user_id TEXT PRIMARY KEY NOT NULL,
+        owner_user_id TEXT NOT NULL UNIQUE,
+        username TEXT NOT NULL UNIQUE COLLATE NOCASE,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (ghost_user_id) REFERENCES nfd_users(id) ON DELETE CASCADE,
+        FOREIGN KEY (owner_user_id) REFERENCES nfd_users(id) ON DELETE CASCADE
+      )
+    `).run();
+    await env.DB.prepare("CREATE INDEX IF NOT EXISTS nfd_ghost_profiles_owner_idx ON nfd_ghost_profiles (owner_user_id)").run();
+  })().catch((error) => { ghostProfileTablesPromise = undefined; throw error; });
+  await ghostProfileTablesPromise;
+}
+
+async function manageGhostProfile(request, env) {
+  const account = await getAuthenticatedAccount(request, env);
+  if (!account) return json({ error: "Sign in to manage your ghost profile." }, 401);
+  try {
+    await ensureGhostProfileTables(env);
+    if (request.method === "GET") {
+      const profile = await env.DB.prepare(`
+        SELECT u.id, u.display_name AS name, gp.username
+        FROM nfd_ghost_profiles gp INNER JOIN nfd_users u ON u.id = gp.ghost_user_id
+        WHERE gp.owner_user_id = ? LIMIT 1
+      `).bind(account.id).first();
+      return json({ profile: profile ? { id: profile.id, name: profile.name || profile.username, username: profile.username } : null, active: Boolean(profile && getCookie(request, GHOST_MODE_COOKIE) === profile.id) });
+    }
+    if (!request.headers.get("content-type")?.toLowerCase().includes("application/json")) return json({ error: "Send a display name and username as JSON." }, 415);
+    const body = await request.json().catch(() => null);
+    const name = typeof body?.name === "string" ? body.name.trim().replace(/\s+/g, " ").slice(0, 32) : "";
+    const username = typeof body?.username === "string" ? body.username.trim().replace(/^@/, "").toLowerCase() : "";
+    if (name.length < 2) return json({ error: "Choose a display name with at least 2 characters." }, 400);
+    if (!/^[a-z0-9_]{3,24}$/.test(username)) return json({ error: "Choose a username with 3–24 letters, numbers, or underscores." }, 400);
+    const existing = await env.DB.prepare("SELECT ghost_user_id, username FROM nfd_ghost_profiles WHERE owner_user_id = ? OR lower(username) = lower(?) LIMIT 1").bind(account.id, username).first();
+    if (existing?.ghost_user_id) return json({ error: "You already have a ghost profile linked to this account." }, 409);
+    if (existing) return json({ error: "That username is already in use. Try another one." }, 409);
+    const id = `ghost:${crypto.randomUUID()}`;
+    const now = new Date().toISOString();
+    await env.DB.batch([
+      env.DB.prepare(`INSERT INTO nfd_users (id, provider, provider_subject, email, display_name, created_at, updated_at) VALUES (?, 'ghost', ?, ?, ?, ?, ?)`).bind(id, id, `ghost-${crypto.randomUUID()}@nfd.invalid`, name, now, now),
+      env.DB.prepare("INSERT INTO nfd_ghost_profiles (ghost_user_id, owner_user_id, username, created_at) VALUES (?, ?, ?, ?)").bind(id, account.id, username, now),
+    ]);
+    await recordActivity(env, account.id, "ghost_profile_created", "account", id);
+    return json({ profile: { id, name, username }, active: false }, 201);
+  } catch (error) {
+    console.error("Ghost profile setup failed", error);
+    return json({ error: "Your ghost profile could not be saved. The username may already be taken." }, 503);
+  }
+}
+
+async function setGhostMode(request, env) {
+  const account = await getAuthenticatedAccount(request, env);
+  if (!account) return json({ error: "Sign in to switch profiles." }, 401);
+  const body = await request.json().catch(() => null);
+  if (body?.enabled !== true) {
+    const activeGhost = getCookie(request, GHOST_MODE_COOKIE);
+    if (activeGhost) await recordActivity(env, account.id, "ghost_mode_disabled", "account", activeGhost);
+    return new Response(JSON.stringify({ ok: true, isGhost: false }), { headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "set-cookie": cookie(GHOST_MODE_COOKIE, "", 0) } });
+  }
+  try {
+    await ensureGhostProfileTables(env);
+    const profile = await env.DB.prepare("SELECT ghost_user_id, username FROM nfd_ghost_profiles WHERE owner_user_id = ? LIMIT 1").bind(account.id).first();
+    if (!profile) return json({ error: "Create your ghost profile before turning Ghost mode on." }, 404);
+    await recordActivity(env, account.id, "ghost_mode_enabled", "account", profile.ghost_user_id);
+    return new Response(JSON.stringify({ ok: true, isGhost: true, username: profile.username }), { headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "set-cookie": cookie(GHOST_MODE_COOKIE, profile.ghost_user_id, 60 * 60 * 24 * 30) } });
+  } catch (error) {
+    console.error("Ghost mode switch failed", error);
+    return json({ error: "Ghost mode could not be changed right now." }, 503);
+  }
 }
 
 async function ensureIdentityTables(env) {
@@ -896,13 +999,17 @@ async function listNfdUsers(request, env) {
   if (!env.DB) return json({ error: "The NFD member directory is unavailable right now." }, 503);
   try {
     await ensureIdentityTables(env);
+    await ensureGhostProfileTables(env);
     const result = await env.DB.prepare(`
-      SELECT u.id, u.provider_subject, u.email, u.display_name, u.provider, u.created_at, u.updated_at,
+      SELECT u.id, u.provider_subject, CASE WHEN gp.ghost_user_id IS NOT NULL THEN owner.email ELSE u.email END AS email,
+        u.display_name, u.provider, u.created_at, u.updated_at, gp.username AS ghost_username, gp.owner_user_id,
         (SELECT MAX(a.created_at) FROM nfd_activity_audit a WHERE a.actor_user_id = u.id) AS last_activity_at,
         COUNT(e.id) AS shared_post_count
       FROM nfd_users u
+      LEFT JOIN nfd_ghost_profiles gp ON gp.ghost_user_id = u.id
+      LEFT JOIN nfd_users owner ON owner.id = gp.owner_user_id
       LEFT JOIN experiences e ON e.author_id = u.id AND e.status = 'shared'
-      GROUP BY u.id, u.provider_subject, u.email, u.display_name, u.provider, u.created_at, u.updated_at
+      GROUP BY u.id, u.provider_subject, u.email, u.display_name, u.provider, u.created_at, u.updated_at, gp.ghost_username, gp.owner_user_id, owner.email
       ORDER BY u.created_at DESC
       LIMIT 500
     `).all();
@@ -915,6 +1022,8 @@ async function listNfdUsers(request, env) {
         provider: user.provider,
         accountId: user.id,
         providerSubject: user.provider_subject,
+        ghostUsername: user.ghost_username || "",
+        linkedOwnerAccountId: user.owner_user_id || "",
         joinedAt: user.created_at,
         updatedAt: user.updated_at,
         lastActivityAt: user.last_activity_at || "",
@@ -932,23 +1041,27 @@ async function manageFriends(request, env) {
   if (!user) return json({ error: "Sign in to manage your NFD friends." }, 401);
   if (!env.DB) return json({ error: "NFD friends are unavailable right now." }, 503);
   try {
+    await ensureGhostProfileTables(env);
     if (request.method === "GET") {
       const [friends, incoming, outgoing] = await Promise.all([
         env.DB.prepare(`
-          SELECT f.id, u.id AS user_id, u.display_name, u.email, f.created_at
+          SELECT f.id, u.id AS user_id, u.display_name, CASE WHEN gp.ghost_user_id IS NULL THEN u.email ELSE '' END AS email, gp.username AS ghost_username, f.created_at
           FROM nfd_friend_requests f
           INNER JOIN nfd_users u ON u.id = CASE WHEN f.from_user_id = ? THEN f.to_user_id ELSE f.from_user_id END
+          LEFT JOIN nfd_ghost_profiles gp ON gp.ghost_user_id = u.id
           WHERE f.status = 'accepted' AND (f.from_user_id = ? OR f.to_user_id = ?)
           ORDER BY lower(COALESCE(u.display_name, u.email))
         `).bind(user.id, user.id, user.id).all(),
         env.DB.prepare(`
-          SELECT f.id, u.display_name, u.email, f.created_at
+          SELECT f.id, u.id AS user_id, u.display_name, CASE WHEN gp.ghost_user_id IS NULL THEN u.email ELSE '' END AS email, gp.username AS ghost_username, f.created_at
           FROM nfd_friend_requests f INNER JOIN nfd_users u ON u.id = f.from_user_id
+          LEFT JOIN nfd_ghost_profiles gp ON gp.ghost_user_id = u.id
           WHERE f.to_user_id = ? AND f.status = 'pending' ORDER BY f.created_at DESC
         `).bind(user.id).all(),
         env.DB.prepare(`
-          SELECT f.id, u.display_name, u.email, f.created_at
+          SELECT f.id, u.id AS user_id, u.display_name, CASE WHEN gp.ghost_user_id IS NULL THEN u.email ELSE '' END AS email, gp.username AS ghost_username, f.created_at
           FROM nfd_friend_requests f INNER JOIN nfd_users u ON u.id = f.to_user_id
+          LEFT JOIN nfd_ghost_profiles gp ON gp.ghost_user_id = u.id
           WHERE f.from_user_id = ? AND f.status = 'pending' ORDER BY f.created_at DESC
         `).bind(user.id).all(),
       ]);
@@ -957,6 +1070,8 @@ async function manageFriends(request, env) {
         userId: row.user_id || "",
         name: row.display_name || "NFD member",
         email: row.email || "",
+        isGhost: Boolean(row.ghost_username),
+        username: row.ghost_username || "",
         createdAt: row.created_at,
       }));
       return json({ friends: simplify(friends), incoming: simplify(incoming), outgoing: simplify(outgoing) });
@@ -977,7 +1092,8 @@ async function manageFriends(request, env) {
       }
       target = await env.DB.prepare("SELECT id FROM nfd_users WHERE lower(email) = ? LIMIT 1").bind(email).first();
     }
-    if (!target || target.id === user.id) {
+    const targetGhost = target ? await env.DB.prepare("SELECT owner_user_id FROM nfd_ghost_profiles WHERE ghost_user_id = ? LIMIT 1").bind(target.id).first() : null;
+    if (!target || target.id === user.id || target.id === user.accountId || targetGhost?.owner_user_id === user.accountId) {
       return json({ ok: true, message: "If that member can be found on NFD, they’ll see your request in their profile." }, 202);
     }
     const existing = await env.DB.prepare(`
@@ -1165,12 +1281,16 @@ async function suggestNfdFriends(request, env) {
   const query = cleanSearchTerm(new URL(request.url).searchParams.get("q")).slice(0, 80);
   if (query.length < 2) return json({ suggestions: [], minimumCharacters: 2 });
   try {
+    await ensureGhostProfileTables(env);
     const result = await env.DB.prepare(`
-      SELECT u.id, COALESCE(NULLIF(trim(u.display_name), ''), 'NFD member') AS display_name
+      SELECT u.id, COALESCE(NULLIF(trim(u.display_name), ''), 'NFD member') AS display_name, gp.username AS ghost_username
       FROM nfd_users u
-      WHERE u.id != ?
+      LEFT JOIN nfd_ghost_profiles gp ON gp.ghost_user_id = u.id
+      WHERE u.id != ? AND u.id != ?
+        AND (gp.owner_user_id IS NULL OR gp.owner_user_id != ?)
         AND (instr(lower(COALESCE(u.display_name, '')), lower(?)) > 0
-          OR instr(lower(substr(u.email, 1, instr(u.email, '@') - 1)), lower(?)) = 1)
+          OR instr(lower(substr(u.email, 1, instr(u.email, '@') - 1)), lower(?)) = 1
+          OR (gp.username IS NOT NULL AND instr(lower(gp.username), lower(?)) > 0))
         AND NOT EXISTS (
           SELECT 1 FROM nfd_friend_requests f
           WHERE f.status IN ('pending', 'accepted')
@@ -1179,9 +1299,9 @@ async function suggestNfdFriends(request, env) {
       ORDER BY CASE WHEN instr(lower(COALESCE(u.display_name, '')), lower(?)) = 1 THEN 0 ELSE 1 END,
         lower(COALESCE(NULLIF(trim(u.display_name), ''), 'NFD member'))
       LIMIT 8
-    `).bind(user.id, query, query, user.id, user.id, query).all();
+    `).bind(user.id, user.accountId, user.accountId, query, query, query, user.id, user.id, query).all();
     return json({
-      suggestions: (result.results || []).map((row) => ({ id: row.id, name: row.display_name })),
+      suggestions: (result.results || []).map((row) => ({ id: row.id, name: row.display_name, isGhost: Boolean(row.ghost_username), username: row.ghost_username || "" })),
     });
   } catch (error) {
     console.error("NFD friend search failed", error);
@@ -1243,6 +1363,7 @@ async function listExperiences(request, env) {
   }
   if (!env.DB) return json({ error: "The NFD experience database is not available right now." }, 503);
   try {
+    await ensureGhostProfileTables(env);
     await ensureExperienceOptionColumns(env);
     await ensureEngagementTables(env);
     const url = new URL(request.url);
@@ -1296,8 +1417,10 @@ async function listExperiences(request, env) {
         SELECT e.id, e.author_id, e.experience_category, e.incident_category, e.place, e.place_category,
           e.location_details, e.incident_time, e.incident_time_end, e.incident_time_zone, e.short_description,
           e.full_description, e.visibility, e.comments_enabled, e.created_at,
-          CASE WHEN e.visibility = 'anonymous' THEN NULL ELSE u.display_name END AS author_name
+          CASE WHEN e.visibility = 'anonymous' THEN NULL ELSE u.display_name END AS author_name,
+          gp.username AS author_ghost_username
         FROM experiences e LEFT JOIN nfd_users u ON u.id = e.author_id
+        LEFT JOIN nfd_ghost_profiles gp ON gp.ghost_user_id = e.author_id
         WHERE ${pageConditions.join(" AND ")}
         ORDER BY e.created_at DESC
         LIMIT ${EXPERIENCE_PAGE_SIZE + 1}
@@ -1372,6 +1495,8 @@ async function listExperiences(request, env) {
         commentsEnabled: experience.comments_enabled !== 0,
         isMine: experience.author_id === user.id,
         authorName: experience.visibility === "anonymous" ? "" : (experience.author_name || "NFD member"),
+        authorIsGhost: experience.visibility !== "anonymous" && Boolean(experience.author_ghost_username),
+        authorGhostUsername: experience.visibility === "anonymous" ? "" : (experience.author_ghost_username || ""),
         createdAt: experience.created_at,
         evidence: evidenceByExperience.get(experience.id) || [],
         engagement: engagementByExperience.get(experience.id) || { counts: { like: 0, dislike: 0, love: 0, hate: 0 }, myReaction: "", commentCount: 0 },
@@ -1421,7 +1546,7 @@ async function getProfile(request, env) {
       }
     }
     return json({
-      user: { name: user.name || "", email: user.email || "", provider: user.provider },
+      user: { name: user.name || "", email: user.email || "", provider: user.provider, isGhost: Boolean(user.isGhost), ghostUsername: user.ghostUsername || "" },
       total: experiences.length,
       experiences: experiences.map((experience) => ({
         id: experience.id,
