@@ -480,12 +480,19 @@
           <div class="step active" id="step-experience">
             <span class="step-num">1</span>
             <div class="step-copy">
-              <div class="step-title">Your experience</div>
+              <div class="step-title">Your story</div>
               <div class="step-sub">What happened?</div>
             </div>
           </div>
-          <div class="step" id="step-review">
+          <div class="step" id="step-details">
             <span class="step-num">2</span>
+            <div class="step-copy">
+              <div class="step-title">Who, where, when</div>
+              <div class="step-sub">Add the context</div>
+            </div>
+          </div>
+          <div class="step" id="step-review">
+            <span class="step-num">3</span>
             <div class="step-copy">
               <div class="step-title">One last look</div>
               <div class="step-sub">Check, then post</div>
@@ -510,294 +517,313 @@
         <div class="heading-row" id="form-heading">
           <div>
             <div class="eyebrow">Your voice matters</div>
-            <h1>What happened?</h1>
-            <p class="intro">
+            <h1 id="form-step-title" tabindex="-1">What happened?</h1>
+            <p class="intro" id="form-step-intro">
               Good, bad, or complicated—share it in your own words. No need to make it sound like a press
               release.
             </p>
           </div>
-          <span class="save-status"><i></i> Step 1 of 2</span>
+          <span class="save-status" id="form-step-count"><i></i> Step 1 of 3</span>
         </div>
-        <form class="form-card" id="experience-form">
-          <section class="section" aria-labelledby="experience-details-heading">
-            <div class="section-head">
-              <span class="section-icon"
-                ><svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <path
-                    d="M6 4.5h12a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-11a2 2 0 0 1 2-2Z"
-                    stroke="currentColor"
-                    stroke-width="1.6"
-                  />
-                  <path
-                    d="M8 9h8M8 12.5h8M8 16h5"
-                    stroke="currentColor"
-                    stroke-width="1.6"
-                    stroke-linecap="round"
-                  /></svg></span
-              ><span class="section-title" id="experience-details-heading">The who, where, and when</span
-              ><span class="section-hint">The useful bits, first</span>
-            </div>
-            <div class="grid">
-              <div class="field">
-                <label for="experience-category">Experience category <span class="required">*</span></label>
-                <div class="select-wrap">
-                  <select class="control" id="experience-category" name="experienceCategory" required>
-                    <option value="" selected disabled>Choose a category</option>
-                    <option>Personal relationships</option>
-                    <option>Work and school</option>
-                    <option>Community and social life</option>
-                    <option>Business, products, and services</option>
-                    <option>Online and digital life</option>
-                    <option>Public places and travel</option>
-                    <option>Other or not sure</option>
-                  </select>
-                </div>
-              </div>
-              <div class="field">
-                <label for="incident-category">Incident category <span class="required">*</span></label>
-                <div class="select-wrap">
-                  <select class="control" id="incident-category" name="incidentCategory" required disabled>
-                    <option value="" selected disabled>Choose an experience type first</option>
-                  </select>
-                </div>
-                <p class="helper" id="incident-category-helper">
-                  Options will match the experience category you choose.
-                </p>
-              </div>
-              <div class="field full">
-                <label for="place"
-                  >Person, username, business, or place <span class="required">*</span></label
-                >
-                <div class="search-wrap">
-                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                    <circle cx="10.8" cy="10.8" r="6.8" stroke="currentColor" stroke-width="1.7" />
-                    <path
-                      d="m16 16 4.5 4.5"
-                      stroke="currentColor"
-                      stroke-width="1.7"
-                      stroke-linecap="round"
-                    /></svg
-                  ><input
-                    class="control"
-                    id="place"
-                    name="place"
-                    placeholder="Enter the exact public name, username, business, or place"
-                    autocomplete="off"
-                    required
-                  />
-                </div>
-                <p class="helper">
-                  Use the most accurate public name or account username, or the business or place name, so
-                  people can find related stories. Stick to firsthand details and never include private
-                  account information.
-                </p>
-              </div>
-              <div class="field">
-                <label for="place-category">Where did it happen? <span class="required">*</span></label>
-                <div class="select-wrap">
-                  <select class="control" id="place-category" name="placeCategory" required>
-                    <option value="" selected disabled>Choose a place type</option>
-                    <option>At work or school</option>
-                    <option>At home or a private residence</option>
-                    <option>In person at a public place</option>
-                    <option>On social media or a website</option>
-                    <option>By messaging or email</option>
-                    <option>By phone or video call</option>
-                    <option>At a business or service location</option>
-                    <option>Other or not sure</option>
-                  </select>
-                </div>
-              </div>
-              <div class="field">
-                <label for="incident-time" id="incident-time-label"
-                  >When did it start? <span class="required">*</span></label
-                >
-                <div class="date-wrap">
-                  <input
-                    class="control"
-                    type="datetime-local"
-                    id="incident-time"
-                    name="incidentTime"
-                    required
-                  />
-                </div>
-              </div>
-              <div class="field full">
-                <label class="range-toggle"
-                  ><input id="incident-time-range-toggle" type="checkbox" /><span
-                    >This happened over a time range</span
-                  ></label
-                >
-                <p class="helper">Turn this on to add when it ended.</p>
-              </div>
-              <div class="field" id="incident-time-end-field" hidden>
-                <label for="incident-time-end">When did it end? <span class="required">*</span></label>
-                <div class="date-wrap">
-                  <input
-                    class="control"
-                    type="datetime-local"
-                    id="incident-time-end"
-                    name="incidentTimeEnd"
-                  />
-                </div>
-              </div>
-              <div class="field full">
-                <label for="location-detail">Location details <span class="optional">Optional</span></label
-                ><input
-                  class="control"
-                  id="location-detail"
-                  name="locationDetail"
-                  placeholder="City, branch, or online URL"
-                />
-              </div>
-            </div>
-          </section>
-          <section class="section" aria-labelledby="description-heading">
-            <div class="section-head">
-              <span class="section-icon"
-                ><svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <path
-                    d="M5 5h14v11H9l-4 3V5Z"
-                    stroke="currentColor"
-                    stroke-width="1.6"
-                    stroke-linejoin="round"
-                  />
-                  <path
-                    d="M8 9h8M8 12h6"
-                    stroke="currentColor"
-                    stroke-width="1.6"
-                    stroke-linecap="round"
-                  /></svg></span
-              ><span class="section-title" id="description-heading">Put it in your words</span
-              ><span class="section-hint">Quick version, then the full story</span>
-            </div>
-            <div class="grid">
-              <div class="field full">
-                <label for="short-description">The quick version <span class="required">*</span></label
-                ><textarea
-                  class="control short-area"
-                  id="short-description"
-                  name="shortDescription"
-                  maxlength="240"
-                  placeholder="Give us the headline. Save the plot for below."
-                  required
-                ></textarea>
-                <div class="char-row">
-                  <span>The bit people can scan before committing to the full story.</span
-                  ><span class="count"><b id="short-char-count">0</b> / 240</span>
-                </div>
-              </div>
-              <div class="field full">
-                <label for="full-description">The full story <span class="required">*</span></label
-                ><textarea
-                  class="control"
-                  style="height: 170px; resize: vertical; padding: 11px 12px; line-height: 1.55"
-                  id="full-description"
-                  name="fullDescription"
-                  maxlength="4000"
-                  placeholder="Walk through what happened, when it happened, who was involved (roles or aliases are fine), what you expected, and what happened next. Include the impact or outcome if you’re comfortable. Share only what you know firsthand."
-                  required
-                ></textarea>
-                <div class="char-row">
-                  <span
-                    >Include the details that help someone understand the full story. Leave out private
-                    details you don’t want to share.</span
-                  ><span class="count"><b id="full-char-count">0</b> / 4,000</span>
-                </div>
-              </div>
-            </div>
-          </section>
-          <section class="section" aria-labelledby="audience-heading">
-            <div class="section-head">
-              <span class="section-title" id="audience-heading">Who can see this story?</span
-              ><span class="section-hint">Choose before sharing</span>
-            </div>
-            <fieldset class="audience-options">
-              <legend class="sr-only">Story audience</legend>
-              <label class="audience-option"
-                ><input type="radio" name="visibility" value="public" checked /><span
-                  ><strong>Public in NFD</strong
-                  ><small>All signed-in members can see it. Your name is shown.</small></span
-                ></label
-              >
-              <label class="audience-option"
-                ><input type="radio" name="visibility" value="friends" /><span
-                  ><strong>Friends only</strong
-                  ><small
-                    >Only accepted NFD friends can see the story and attached files. Your name is
-                    shown.</small
-                  ></span
-                ></label
-              >
-              <label class="audience-option"
-                ><input type="radio" name="visibility" value="anonymous" /><span
-                  ><strong>Anonymous</strong
-                  ><small
-                    >All signed-in members can see it, but your name and profile are hidden.</small
-                  ></span
-                ></label
-              >
-            </fieldset>
-            <p class="audience-note" id="audience-note">
-              Public stories include your NFD display name. Avoid details in the story or files that identify
-              you if you want to stay anonymous.
-            </p>
-          </section>
-          <section class="section" aria-labelledby="evidence-heading">
-            <div class="section-head">
-              <span class="section-title" id="evidence-heading">Add photos, videos, or documents</span
-              ><span class="section-hint">Optional</span>
-            </div>
-            <input
-              class="file-input"
-              id="evidence-files"
-              name="evidence"
-              type="file"
-              accept=".jpg,.jpeg,.png,.webp,.gif,.heic,.heif,.avif,.mp4,.webm,.mov,.pdf,.doc,.docx"
-              multiple
-            />
-            <label class="upload" for="evidence-files" id="upload-zone"
-              ><span class="upload-inner"
-                ><span class="upload-symbol"
+        <form class="form-card" id="experience-form" novalidate>
+          <div id="story-entry-step">
+            <section class="section" aria-labelledby="description-heading">
+              <div class="section-head">
+                <span class="section-icon"
                   ><svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                     <path
-                      d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M5 14.5v4a1.5 1.5 0 0 0 1.5 1.5h11a1.5 1.5 0 0 0 1.5-1.5v-4"
+                      d="M5 5h14v11H9l-4 3V5Z"
                       stroke="currentColor"
-                      stroke-width="1.7"
-                      stroke-linecap="round"
+                      stroke-width="1.6"
                       stroke-linejoin="round"
+                    />
+                    <path
+                      d="M8 9h8M8 12h6"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linecap="round"
                     /></svg></span
-                ><span class="upload-copy"
-                  ><strong>Drop files here or <span>browse</span></strong
-                  ><small>Photos, videos, or documents · Up to 5 files · 25 MB each, 50 MB total</small
-                  ><span class="upload-button">Choose files</span></span
-                ></span
-              ></label
-            >
-            <p class="helper">
-              NFD keeps your original evidence and creates a smaller display copy of supported photos for the
-              feed.
-            </p>
-            <div class="file-list" id="file-list" aria-live="polite"></div>
-            <p class="privacy-note">
-              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <rect x="5" y="10" width="14" height="11" rx="2" stroke="currentColor" stroke-width="1.7" />
-                <path
-                  d="M8 10V7a4 4 0 0 1 8 0v3m-4 4v3"
-                  stroke="currentColor"
-                  stroke-width="1.7"
-                  stroke-linecap="round"
-                /></svg
-              >Redact private details such as addresses, account numbers, or personal messages. Only upload
-              material you have the right to share.
-            </p>
-          </section>
-          <footer class="form-footer">
+                ><span class="section-title" id="description-heading">Put it in your words</span
+                ><span class="section-hint">Quick version, then the full story</span>
+              </div>
+              <div class="grid">
+                <div class="field full">
+                  <label for="short-description">The quick version <span class="required">*</span></label
+                  ><textarea
+                    class="control short-area"
+                    id="short-description"
+                    name="shortDescription"
+                    maxlength="240"
+                    placeholder="Give us the headline. Save the plot for below."
+                    required
+                  ></textarea>
+                  <div class="char-row">
+                    <span>The bit people can scan before committing to the full story.</span
+                    ><span class="count"><b id="short-char-count">0</b> / 240</span>
+                  </div>
+                </div>
+                <div class="field full">
+                  <label for="full-description">The full story <span class="required">*</span></label
+                  ><textarea
+                    class="control"
+                    style="height: 170px; resize: vertical; padding: 11px 12px; line-height: 1.55"
+                    id="full-description"
+                    name="fullDescription"
+                    maxlength="4000"
+                    placeholder="Walk through what happened, when it happened, who was involved (roles or aliases are fine), what you expected, and what happened next. Include the impact or outcome if you’re comfortable. Share only what you know firsthand."
+                    required
+                  ></textarea>
+                  <div class="char-row">
+                    <span
+                      >Include the details that help someone understand the full story. Leave out private
+                      details you don’t want to share.</span
+                    ><span class="count"><b id="full-char-count">0</b> / 4,000</span>
+                  </div>
+                </div>
+              </div>
+            </section>
+            <section class="section" aria-labelledby="audience-heading">
+              <div class="section-head">
+                <span class="section-title" id="audience-heading">Who can see this story?</span
+                ><span class="section-hint">Choose before sharing</span>
+              </div>
+              <fieldset class="audience-options">
+                <legend class="sr-only">Story audience</legend>
+                <label class="audience-option"
+                  ><input type="radio" name="visibility" value="public" checked /><span
+                    ><strong>Public in NFD</strong
+                    ><small>All signed-in members can see it. Your name is shown.</small></span
+                  ></label
+                >
+                <label class="audience-option"
+                  ><input type="radio" name="visibility" value="friends" /><span
+                    ><strong>Friends only</strong
+                    ><small
+                      >Only accepted NFD friends can see the story and attached files. Your name is
+                      shown.</small
+                    ></span
+                  ></label
+                >
+                <label class="audience-option"
+                  ><input type="radio" name="visibility" value="anonymous" /><span
+                    ><strong>Anonymous</strong
+                    ><small
+                      >All signed-in members can see it, but your name and profile are hidden.</small
+                    ></span
+                  ></label
+                >
+              </fieldset>
+              <p class="audience-note" id="audience-note">
+                Public stories include your NFD display name. Avoid details in the story or files that
+                identify you if you want to stay anonymous.
+              </p>
+            </section>
+            <section class="section" aria-labelledby="evidence-heading">
+              <div class="section-head">
+                <span class="section-title" id="evidence-heading">Add photos, videos, or documents</span
+                ><span class="section-hint">Optional</span>
+              </div>
+              <input
+                class="file-input"
+                id="evidence-files"
+                name="evidence"
+                type="file"
+                accept=".jpg,.jpeg,.png,.webp,.gif,.heic,.heif,.avif,.mp4,.webm,.mov,.pdf,.doc,.docx"
+                multiple
+              />
+              <label class="upload" for="evidence-files" id="upload-zone"
+                ><span class="upload-inner"
+                  ><span class="upload-symbol"
+                    ><svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <path
+                        d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M5 14.5v4a1.5 1.5 0 0 0 1.5 1.5h11a1.5 1.5 0 0 0 1.5-1.5v-4"
+                        stroke="currentColor"
+                        stroke-width="1.7"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      /></svg></span
+                  ><span class="upload-copy"
+                    ><strong>Drop files here or <span>browse</span></strong
+                    ><small>Photos, videos, or documents · Up to 5 files · 25 MB each, 50 MB total</small
+                    ><span class="upload-button">Choose files</span></span
+                  ></span
+                ></label
+              >
+              <p class="helper">
+                NFD keeps your original evidence and creates a smaller display copy of supported photos for
+                the feed.
+              </p>
+              <div class="file-list" id="file-list" aria-live="polite"></div>
+              <p class="privacy-note">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <rect x="5" y="10" width="14" height="11" rx="2" stroke="currentColor" stroke-width="1.7" />
+                  <path
+                    d="M8 10V7a4 4 0 0 1 8 0v3m-4 4v3"
+                    stroke="currentColor"
+                    stroke-width="1.7"
+                    stroke-linecap="round"
+                  /></svg
+                >Redact private details such as addresses, account numbers, or personal messages. Only upload
+                material you have the right to share.
+              </p>
+            </section>
+          </div>
+          <div id="experience-details-step" hidden>
+            <section class="section" aria-labelledby="experience-details-heading">
+              <div class="section-head">
+                <span class="section-icon"
+                  ><svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path
+                      d="M6 4.5h12a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-11a2 2 0 0 1 2-2Z"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                    />
+                    <path
+                      d="M8 9h8M8 12.5h8M8 16h5"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linecap="round"
+                    /></svg></span
+                ><span class="section-title" id="experience-details-heading">The who, where, and when</span
+                ><span class="section-hint">The useful bits, first</span>
+              </div>
+              <div class="grid">
+                <div class="field">
+                  <label for="experience-category">Experience category <span class="required">*</span></label>
+                  <div class="select-wrap">
+                    <select class="control" id="experience-category" name="experienceCategory" required>
+                      <option value="" selected disabled>Choose a category</option>
+                      <option>Personal relationships</option>
+                      <option>Work and school</option>
+                      <option>Community and social life</option>
+                      <option>Business, products, and services</option>
+                      <option>Online and digital life</option>
+                      <option>Public places and travel</option>
+                      <option>Other or not sure</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="field">
+                  <label for="incident-category">Incident category <span class="required">*</span></label>
+                  <div class="select-wrap">
+                    <select class="control" id="incident-category" name="incidentCategory" required disabled>
+                      <option value="" selected disabled>Choose an experience type first</option>
+                    </select>
+                  </div>
+                  <p class="helper" id="incident-category-helper">
+                    Options will match the experience category you choose.
+                  </p>
+                </div>
+                <div class="field full">
+                  <label for="place"
+                    >Person, username, business, or place <span class="required">*</span></label
+                  >
+                  <div class="search-wrap">
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <circle cx="10.8" cy="10.8" r="6.8" stroke="currentColor" stroke-width="1.7" />
+                      <path
+                        d="m16 16 4.5 4.5"
+                        stroke="currentColor"
+                        stroke-width="1.7"
+                        stroke-linecap="round"
+                      /></svg
+                    ><input
+                      class="control"
+                      id="place"
+                      name="place"
+                      placeholder="Enter the exact public name, username, business, or place"
+                      autocomplete="off"
+                      required
+                    />
+                  </div>
+                  <p class="helper">
+                    Use the most accurate public name or account username, or the business or place name, so
+                    people can find related stories. Stick to firsthand details and never include private
+                    account information.
+                  </p>
+                </div>
+                <div class="field">
+                  <label for="place-category">Where did it happen? <span class="required">*</span></label>
+                  <div class="select-wrap">
+                    <select class="control" id="place-category" name="placeCategory" required>
+                      <option value="" selected disabled>Choose a place type</option>
+                      <option>At work or school</option>
+                      <option>At home or a private residence</option>
+                      <option>In person at a public place</option>
+                      <option>On social media or a website</option>
+                      <option>By messaging or email</option>
+                      <option>By phone or video call</option>
+                      <option>At a business or service location</option>
+                      <option>Other or not sure</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="field">
+                  <label for="incident-time" id="incident-time-label"
+                    >When did it start? <span class="required">*</span></label
+                  >
+                  <div class="date-wrap">
+                    <input
+                      class="control"
+                      type="datetime-local"
+                      id="incident-time"
+                      name="incidentTime"
+                      required
+                    />
+                  </div>
+                </div>
+                <div class="field full">
+                  <label class="range-toggle"
+                    ><input id="incident-time-range-toggle" type="checkbox" /><span
+                      >This happened over a time range</span
+                    ></label
+                  >
+                  <p class="helper">Turn this on to add when it ended.</p>
+                </div>
+                <div class="field" id="incident-time-end-field" hidden>
+                  <label for="incident-time-end">When did it end? <span class="required">*</span></label>
+                  <div class="date-wrap">
+                    <input
+                      class="control"
+                      type="datetime-local"
+                      id="incident-time-end"
+                      name="incidentTimeEnd"
+                    />
+                  </div>
+                </div>
+                <div class="field full">
+                  <label for="location-detail">Location details <span class="optional">Optional</span></label
+                  ><input
+                    class="control"
+                    id="location-detail"
+                    name="locationDetail"
+                    placeholder="City, branch, or online URL"
+                  />
+                </div>
+              </div>
+            </section>
+          </div>
+          <footer class="form-footer" id="story-step-footer">
             <div class="terms">
               By continuing, you agree to our
               <a href="/guidelines" target="_blank" rel="noopener">Community Guidelines</a> and
               <a href="#">Terms</a>.
             </div>
+            <button class="submit" type="button" id="continue-to-details">
+              Continue
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path
+                  d="M5 12h13m-5-5 5 5-5 5"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </button>
+          </footer>
+          <footer class="form-footer" id="details-step-footer" hidden>
+            <button class="secondary-button" type="button" id="back-to-story">← Back</button>
             <button class="submit" type="submit">
               Continue to review
               <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">

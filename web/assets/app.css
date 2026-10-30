@@ -603,6 +603,9 @@ textarea.control::placeholder {
   align-items: center;
   gap: 16px;
 }
+.form-footer[hidden] {
+  display: none;
+}
 .terms {
   font-size: 10px;
   color: #94a09a;

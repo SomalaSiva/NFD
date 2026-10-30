@@ -233,7 +233,16 @@ const friendSuggestions = document.getElementById("friend-suggestions");
 const friendSearchFeedback = document.getElementById("friend-search-feedback");
 const audienceNote = document.getElementById("audience-note");
 const experienceStep = document.getElementById("step-experience");
+const detailsProgressStep = document.getElementById("step-details");
 const reviewStep = document.getElementById("step-review");
+const storyEntryStep = document.getElementById("story-entry-step");
+const experienceDetailsStep = document.getElementById("experience-details-step");
+const storyStepFooter = document.getElementById("story-step-footer");
+const detailsStepFooter = document.getElementById("details-step-footer");
+const formStepTitle = document.getElementById("form-step-title");
+const formStepIntro = document.getElementById("form-step-intro");
+const formStepCount = document.getElementById("form-step-count");
+let activeStoryFormStep = "story";
 let selectedFiles = [];
 const filePreviewUrls = new Map();
 function getFilePreviewUrl(file) {
@@ -425,6 +434,8 @@ function showReview() {
   reviewPage.hidden = false;
   experienceStep.classList.remove("active");
   experienceStep.classList.add("done");
+  detailsProgressStep.classList.remove("active");
+  detailsProgressStep.classList.add("done");
   reviewStep.classList.add("active");
   reviewNotice.classList.remove("show", "error");
   reviewNotice.replaceChildren();
@@ -436,6 +447,40 @@ function showReview() {
     'Looks right — share <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m5 12 4.5 4.5L19 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
+function validateStep(container) {
+  for (const control of container.querySelectorAll("input, select, textarea")) {
+    if (!control.disabled && !control.checkValidity()) {
+      control.reportValidity();
+      control.focus();
+      return false;
+    }
+  }
+  return true;
+}
+function showStoryFormStep(step) {
+  activeStoryFormStep = step;
+  const showDetails = step === "details";
+  storyEntryStep.hidden = showDetails;
+  experienceDetailsStep.hidden = !showDetails;
+  storyStepFooter.hidden = showDetails;
+  detailsStepFooter.hidden = !showDetails;
+  formStepTitle.textContent = showDetails ? "The who, where, and when" : "What happened?";
+  formStepIntro.textContent = showDetails
+    ? "Add the person, place, and timing so readers can understand the context."
+    : "Good, bad, or complicated—share it in your own words. No need to make it sound like a press release.";
+  formStepCount.lastChild.textContent = showDetails ? " Step 2 of 3" : " Step 1 of 3";
+  experienceStep.classList.toggle("active", !showDetails);
+  experienceStep.classList.toggle("done", showDetails);
+  detailsProgressStep.classList.toggle("active", showDetails);
+  detailsProgressStep.classList.remove("done");
+  reviewStep.classList.remove("active", "done");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+  formStepTitle.focus({ preventScroll: true });
+}
+document.getElementById("continue-to-details").addEventListener("click", () => {
+  if (validateStep(storyEntryStep)) showStoryFormStep("details");
+});
+document.getElementById("back-to-story").addEventListener("click", () => showStoryFormStep("story"));
 function updateIncidentCategoryOptions() {
   const options = incidentCategoriesByExperience[experienceCategoryInput.value] || [];
   incidentCategoryInput.replaceChildren();
@@ -459,10 +504,7 @@ function updateIncidentCategoryOptions() {
 function backToEdit() {
   reviewPage.hidden = true;
   form.hidden = false;
-  reviewStep.classList.remove("active");
-  experienceStep.classList.remove("done");
-  experienceStep.classList.add("active");
-  window.scrollTo({ top: 0, behavior: "smooth" });
+  showStoryFormStep("details");
 }
 function prettyDate(value, timeZone) {
   const date = new Date(value);
@@ -2948,8 +2990,11 @@ if (location.pathname === "/share") {
 }
 form.addEventListener("submit", (event) => {
   event.preventDefault();
-  if (!form.reportValidity()) return;
-  showReview();
+  if (activeStoryFormStep === "story") {
+    if (validateStep(storyEntryStep)) showStoryFormStep("details");
+    return;
+  }
+  if (validateStep(experienceDetailsStep)) showReview();
 });
 document.getElementById("edit-experience").addEventListener("click", backToEdit);
 document.getElementById("confirm-review").addEventListener("click", async (event) => {
