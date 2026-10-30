@@ -743,7 +743,7 @@ function renderFeed(experiences, total, { append = false, nextCursor = "" } = {}
       icon.alt = "";
       icon.setAttribute("aria-hidden", "true");
       const label = document.createElement("span");
-      label.textContent = "Drop your story";
+      label.textContent = "Drop your post";
       link.append(icon, label);
       empty.append(link);
     }
