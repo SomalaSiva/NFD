@@ -629,6 +629,44 @@ async function createVideoFeedPreview(file) {
     URL.revokeObjectURL(objectUrl);
   }
 }
+function captureFirstVideoFrame(video) {
+  if (
+    video.dataset.posterCaptured ||
+    video.error ||
+    !video.paused ||
+    !Number.isFinite(video.duration) ||
+    video.duration <= 0
+  )
+    return;
+  video.dataset.posterCaptured = "pending";
+  const originalTime = video.currentTime;
+  const frameTime = Math.min(1, video.duration * 0.1);
+  const onSeeked = () => {
+    if (!video.paused) {
+      video.dataset.posterCaptured = "skipped";
+      return;
+    }
+    try {
+      if (!video.videoWidth || !video.videoHeight) return;
+      const scale = Math.min(1, 960 / Math.max(video.videoWidth, video.videoHeight));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
+      canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
+      const context = canvas.getContext("2d");
+      if (!context) return;
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const poster = canvas.toDataURL("image/webp", 0.78);
+      if (poster.startsWith("data:image/webp")) video.poster = poster;
+    } catch {
+      // Keep the designed fallback poster if this browser cannot capture a frame.
+    } finally {
+      video.dataset.posterCaptured = "done";
+      if (video.paused) video.currentTime = originalTime;
+    }
+  };
+  video.addEventListener("seeked", onSeeked, { once: true });
+  video.currentTime = frameTime;
+}
 const videoFallbackPoster =
   "data:image/svg+xml," +
   encodeURIComponent(
@@ -883,6 +921,10 @@ function renderFeed(experiences, total, { append = false, nextCursor = "" } = {}
           ? `/api/evidence/${encodeURIComponent(file.id)}?variant=preview`
           : videoFallbackPoster;
         video.src = `/api/evidence/${encodeURIComponent(file.id)}`;
+        if (!file.hasPreview) {
+          video.addEventListener("loadedmetadata", () => captureFirstVideoFrame(video), { once: true });
+          if (video.readyState >= 1) captureFirstVideoFrame(video);
+        }
         const playbackMessage = addText(
           gallery,
           "p",
