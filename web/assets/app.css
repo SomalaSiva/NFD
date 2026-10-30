@@ -3868,12 +3868,14 @@ textarea.control::placeholder {
 /* Keep the brand and account control on a compact row above primary navigation. */
 .topbar {
   height: auto;
-  position: relative;
-  z-index: 20;
-  background: rgba(255, 255, 255, 0.94);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: #fff;
+  box-shadow: 0 5px 18px rgba(23, 48, 39, 0.06);
 }
 .topbar-brand-row {
-  background: rgba(255, 255, 255, 0.9);
+  background: #fff;
 }
 .topbar-inner {
   height: 72px;
@@ -3886,6 +3888,7 @@ textarea.control::placeholder {
   display: none;
 }
 .topbar-navigation .top-actions {
+  max-width: 1220px;
   min-height: 54px;
   justify-content: flex-start;
   gap: clamp(22px, 4vw, 48px);
@@ -3895,6 +3898,10 @@ textarea.control::placeholder {
 }
 .topbar-navigation .messages-nav-link {
   margin-left: auto;
+}
+.topbar-navigation .nav-share-link {
+  flex: none;
+  white-space: nowrap;
 }
 .topbar-navigation .top-actions::-webkit-scrollbar {
   display: none;
@@ -3911,8 +3918,9 @@ textarea.control::placeholder {
     max-width: none;
     min-height: 52px;
     justify-content: flex-start;
-    gap: 17px;
+    gap: 12px;
     padding: 0 14px;
+    font-size: 12px;
   }
   .topbar-navigation .messages-nav-link {
     margin-left: 0;
@@ -3924,6 +3932,15 @@ textarea.control::placeholder {
   }
   .topbar-navigation .top-actions #admin-nav-link[hidden] {
     display: none;
+  }
+  .topbar-navigation .nav-share-link {
+    gap: 5px;
+    padding: 6px 9px;
+    font-size: 11px;
+  }
+  .topbar-navigation .nav-share-link img {
+    width: 21px;
+    height: 21px;
   }
   .account-menu {
     position: fixed;
