@@ -1,5 +1,5 @@
 export function createAdminRoutes(services) {
-  const { getCurrentUser, isOwner, ownerEmail, ensureIdentityTables, ensureGhostTables, recordActivity, ensureModerationTable, ensureExperienceOptionColumns, ensureEngagementTables, retryEvidenceCleanup, deleteEvidenceObjects, json, cleanSearchTerm } = services;
+  const { getCurrentUser, isOwner, ownerEmail, ensureIdentityTables, ensureGhostTables, recordActivity, ensureModerationTable, ensureExperienceOptionColumns, ensureEngagementTables, retryEvidenceCleanup, deleteEvidenceObjects, json, cleanSearchTerm, safeJsonParse } = services;
   let emailRestrictionTablesPromise;
 
 async function ensureAdminTable(env) {
@@ -141,7 +141,7 @@ async function listActivityAudit(request, env) {
       email: row.email || "", displayName: row.display_name || "",
     })) });
   } catch (error) {
-    console.error("NFD activity audit query failed", error);
+    console.error("NFD activity audit query failed", error instanceof Error ? error.message : String(error));
     return json({ error: "Account activity could not be loaded right now." }, 503);
   }
 }

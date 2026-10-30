@@ -29,7 +29,7 @@ let ghostTablesPromise;
 const adminRoutes = createAdminRoutes({
   getCurrentUser, isOwner, ownerEmail, ensureIdentityTables, ensureGhostTables, recordActivity,
   ensureModerationTable, ensureExperienceOptionColumns, ensureEngagementTables, retryEvidenceCleanup,
-  deleteEvidenceObjects, json, cleanSearchTerm,
+  deleteEvidenceObjects, json, cleanSearchTerm, safeJsonParse,
 });
 const socialRoutes = createSocialRoutes({
   getCurrentUser, ensureGhostTables, recordActivity, json, cleanSearchTerm,
