@@ -110,6 +110,62 @@ const ghostModeExit = document.getElementById("ghost-mode-exit");
 const messagesNavLink = document.getElementById("messages-nav-link");
 const navUnreadCount = document.getElementById("nav-unread-count");
 let messageNavRefreshTimer;
+const SESSION_IDLE_LIMIT_MS = 4 * 60 * 1000;
+const SESSION_ACTIVITY_STORAGE_KEY = "nfd:last-active-at";
+let inactivityLogoutTimer;
+let lastSessionActivityAt = 0;
+let lastSessionActivitySavedAt = 0;
+let sessionActivityTrackingStarted = false;
+function readSharedSessionActivity() {
+  try {
+    const value = Number(localStorage.getItem(SESSION_ACTIVITY_STORAGE_KEY));
+    return Number.isFinite(value) && value > 0 ? value : 0;
+  } catch {
+    return 0;
+  }
+}
+function scheduleInactivityLogout() {
+  clearTimeout(inactivityLogoutTimer);
+  const lastActivityAt = Math.max(lastSessionActivityAt, readSharedSessionActivity());
+  lastSessionActivityAt = lastActivityAt;
+  const remaining = SESSION_IDLE_LIMIT_MS - (Date.now() - lastActivityAt);
+  if (remaining <= 0) {
+    if (Date.now() - Math.max(lastSessionActivityAt, readSharedSessionActivity()) >= SESSION_IDLE_LIMIT_MS)
+      location.replace("/auth/signout?idle=1&return_to=%2Flogin%3Fidle%3D1");
+    else scheduleInactivityLogout();
+    return;
+  }
+  inactivityLogoutTimer = setTimeout(scheduleInactivityLogout, remaining + 25);
+}
+function markSessionActivity() {
+  const now = Date.now();
+  lastSessionActivityAt = now;
+  if (now - lastSessionActivitySavedAt >= 5000) {
+    lastSessionActivitySavedAt = now;
+    try {
+      localStorage.setItem(SESSION_ACTIVITY_STORAGE_KEY, String(now));
+    } catch {
+      // In-memory activity tracking still works when browser storage is unavailable.
+    }
+  }
+  scheduleInactivityLogout();
+}
+function startSessionActivityTracking() {
+  if (sessionActivityTrackingStarted || location.pathname === "/login") return;
+  sessionActivityTrackingStarted = true;
+  markSessionActivity();
+  ["pointerdown", "keydown", "touchstart", "scroll", "mousemove"].forEach((eventName) =>
+    document.addEventListener(eventName, markSessionActivity, { passive: true }),
+  );
+  window.addEventListener("storage", (event) => {
+    if (event.key !== SESSION_ACTIVITY_STORAGE_KEY) return;
+    const sharedActivity = Number(event.newValue);
+    if (Number.isFinite(sharedActivity) && sharedActivity > lastSessionActivityAt) {
+      lastSessionActivityAt = sharedActivity;
+      scheduleInactivityLogout();
+    }
+  });
+}
 const accountMenuButton = document.getElementById("account-menu-button");
 const accountMenu = document.getElementById("account-menu");
 function closeAccountMenu() {
@@ -2662,9 +2718,11 @@ async function updateNavigation() {
     });
     if (!response.ok) {
       mainNav.hidden = true;
+      if (response.status === 401) location.replace("/auth/signout?idle=1&return_to=%2Flogin%3Fidle%3D1");
       return;
     }
     const result = await response.json().catch(() => ({}));
+    startSessionActivityTracking();
     currentUserId = result.userId || currentUserId;
     adminNavLink.hidden = !result.isAdmin;
     accountAdminLink.hidden = !result.isAdmin;
@@ -2819,7 +2877,12 @@ if (location.pathname === "/login") {
   mainNav.hidden = true;
   document.title = "Sign in — NFD";
   const params = new URLSearchParams(location.search);
-  document.getElementById("user-signin").href = "/signin-with-chatgpt?return_to=%2Ffeed";
+  document.getElementById("user-signin").href = "/auth/chatgpt-resume?return_to=%2Ffeed";
+  if (params.get("idle") === "1") {
+    const feedback = document.getElementById("google-feedback");
+    feedback.style.display = "block";
+    feedback.textContent = "You were signed out after 4 minutes without activity. Sign in again to continue.";
+  }
   if (params.get("access") === "denied") document.getElementById("auth-denied").style.display = "block";
   const googleStatus = params.get("google");
   if (googleStatus) {

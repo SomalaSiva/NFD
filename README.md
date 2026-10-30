@@ -10,6 +10,7 @@ NFD is a story-sharing web app. Its pages are plain HTML, CSS, and JavaScript. A
 - **Database:** Cloudflare D1 (SQLite), with Drizzle ORM/Drizzle Kit schema and migration tooling. Runtime queries use D1 prepared SQL statements.
 - **File storage:** Cloudflare R2.
 - **Sign-in:** Google OAuth and the ChatGPT identity header provided by the hosted environment.
+- **Session security:** Signed-in users are returned to the sign-in screen after four minutes without activity. Google sessions also expire server-side after four idle minutes; ChatGPT-hosted sessions use an NFD app sign-out marker until the person signs in again.
 - **Optional story review:** Google Gemini API.
 - **Source/deploy:** GitHub plus OpenAI Sites.
 

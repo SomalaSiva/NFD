@@ -36,6 +36,7 @@ export const nfdSessions = sqliteTable(
       .references(() => nfdUsers.id, { onDelete: "cascade" }),
     expiresAt: text("expires_at").notNull(),
     createdAt: text("created_at").notNull(),
+    lastActivityAt: text("last_activity_at").notNull().default(""),
   },
   (table) => [index("nfd_sessions_user_id_idx").on(table.userId)],
 );

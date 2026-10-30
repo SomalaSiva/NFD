@@ -202,10 +202,28 @@ export async function ensureIdentityTables(env) {
         user_id TEXT NOT NULL,
         expires_at TEXT NOT NULL,
         created_at TEXT NOT NULL,
+        last_activity_at TEXT NOT NULL DEFAULT '',
         FOREIGN KEY (user_id) REFERENCES nfd_users(id) ON DELETE CASCADE
       )
     `,
     ).run();
+    const sessionColumns = await env.DB.prepare("PRAGMA table_info(nfd_sessions)").all();
+    if (!(sessionColumns.results || []).some((column) => column.name === "last_activity_at")) {
+      try {
+        await env.DB.prepare(
+          "ALTER TABLE nfd_sessions ADD COLUMN last_activity_at TEXT NOT NULL DEFAULT ''",
+        ).run();
+      } catch (error) {
+        const refreshedColumns = await env.DB.prepare("PRAGMA table_info(nfd_sessions)").all();
+        if (!(refreshedColumns.results || []).some((column) => column.name === "last_activity_at"))
+          throw error;
+      }
+    }
+    await env.DB.prepare(
+      "UPDATE nfd_sessions SET last_activity_at = ? WHERE last_activity_at IS NULL OR last_activity_at = ''",
+    )
+      .bind(new Date().toISOString())
+      .run();
     await env.DB.prepare(
       "CREATE INDEX IF NOT EXISTS nfd_sessions_user_id_idx ON nfd_sessions (user_id)",
     ).run();

@@ -2,6 +2,7 @@ import { createAdminRoutes } from "./routes/admin.js";
 import { createSocialRoutes } from "./routes/social.js";
 import { createExperienceRoutes } from "./routes/experiences.js";
 import { ADMIN_PAGE_SIZE, getPageMetadata, getPageOffset } from "./lib/pagination.js";
+import { isSessionIdle } from "./lib/session.js";
 import {
   ensureEngagementTables,
   ensureEvidenceCleanupTable,
@@ -17,6 +18,7 @@ const GOOGLE_JWKS_URL = "https://www.googleapis.com/oauth2/v3/certs";
 const GOOGLE_SESSION_COOKIE = "__Host-nfd_session";
 const GOOGLE_OAUTH_COOKIE = "__Host-nfd_google_oauth";
 const GHOST_MODE_COOKIE = "__Host-nfd_ghost";
+const CHATGPT_IDLE_COOKIE = "__Host-nfd_idle";
 const GOOGLE_SESSION_SECONDS = 60 * 60 * 24 * 30;
 const OWNER_ADMIN_PAGES = new Set(["/admin/admins", "/admin/members", "/admin/activity"]);
 const AVAILABLE_IDENTITY_SQL = `u.active = 1 AND (
@@ -98,6 +100,12 @@ export default {
     }
     if (request.method === "GET" && url.pathname === "/auth/google") {
       return startGoogleSignIn(request, env);
+    }
+    if (request.method === "GET" && url.pathname === "/auth/chatgpt-resume") {
+      const returnTo = safeReturnTo(url.searchParams.get("return_to"));
+      return redirect(`/signin-with-chatgpt?return_to=${encodeURIComponent(returnTo)}`, 302, [
+        cookie(CHATGPT_IDLE_COOKIE, "", 0),
+      ]);
     }
     if (request.method === "GET" && url.pathname === "/auth/google/callback") {
       return finishGoogleSignIn(request, env);
@@ -304,7 +312,10 @@ async function startGoogleSignIn(request, env) {
     prompt: "select_account",
   }).toString();
   const oauthState = base64UrlEncode(JSON.stringify({ state, nonce, verifier, returnTo }));
-  return redirect(authorization.toString(), 302, [cookie(GOOGLE_OAUTH_COOKIE, oauthState, 600)]);
+  return redirect(authorization.toString(), 302, [
+    cookie(GOOGLE_OAUTH_COOKIE, oauthState, 600),
+    cookie(CHATGPT_IDLE_COOKIE, "", 0),
+  ]);
 }
 
 async function finishGoogleSignIn(request, env) {
@@ -361,9 +372,9 @@ async function finishGoogleSignIn(request, env) {
     const sessionHash = await sha256Base64Url(sessionToken);
     const expiresAt = new Date(Date.now() + GOOGLE_SESSION_SECONDS * 1000).toISOString();
     await env.DB.prepare(
-      "INSERT INTO nfd_sessions (session_hash, user_id, expires_at, created_at) VALUES (?, ?, ?, ?)",
+      "INSERT INTO nfd_sessions (session_hash, user_id, expires_at, created_at, last_activity_at) VALUES (?, ?, ?, ?, ?)",
     )
-      .bind(sessionHash, userId, expiresAt, now)
+      .bind(sessionHash, userId, expiresAt, now, now)
       .run();
     await recordActivity(env, userId, "sign_in", "account", userId, { provider: "google" });
     return redirect(safeReturnTo(oauthState.returnTo), 302, [
@@ -377,6 +388,8 @@ async function finishGoogleSignIn(request, env) {
 }
 
 async function signOut(request, env) {
+  const url = new URL(request.url);
+  const idleSignOut = url.searchParams.get("idle") === "1";
   const token = getCookie(request, GOOGLE_SESSION_COOKIE);
   if (token && env.DB) {
     try {
@@ -393,12 +406,17 @@ async function signOut(request, env) {
       console.error("Google session cleanup failed", error);
     }
   }
-  const returnTo = safeReturnTo(new URL(request.url).searchParams.get("return_to"));
+  const returnTo = safeReturnTo(url.searchParams.get("return_to"));
   const hasChatGptSession = Boolean(request.headers.get("oai-authenticated-user-id")?.trim());
-  const destination = hasChatGptSession
-    ? `/signout-with-chatgpt?return_to=${encodeURIComponent(returnTo)}`
-    : returnTo;
-  return redirect(destination, 302, [cookie(GOOGLE_SESSION_COOKIE, "", 0), cookie(GHOST_MODE_COOKIE, "", 0)]);
+  const destination =
+    hasChatGptSession && !idleSignOut
+      ? `/signout-with-chatgpt?return_to=${encodeURIComponent(returnTo)}`
+      : idleSignOut
+        ? "/login?idle=1"
+        : returnTo;
+  const setCookies = [cookie(GOOGLE_SESSION_COOKIE, "", 0), cookie(GHOST_MODE_COOKIE, "", 0)];
+  if (idleSignOut && hasChatGptSession) setCookies.push(cookie(CHATGPT_IDLE_COOKIE, "1", 60 * 60 * 24 * 30));
+  return redirect(destination, 302, setCookies);
 }
 
 async function getAuthenticatedUser(request, env) {
@@ -409,15 +427,26 @@ async function getAuthenticatedUser(request, env) {
       const sessionHash = await sha256Base64Url(token);
       const session = await env.DB.prepare(
         `
-        SELECT u.id, u.provider, u.provider_subject AS subject, u.email, u.display_name AS name, u.active, s.expires_at
+        SELECT u.id, u.provider, u.provider_subject AS subject, u.email, u.display_name AS name, u.active,
+          s.expires_at, s.created_at, s.last_activity_at
         FROM nfd_sessions s INNER JOIN nfd_users u ON u.id = s.user_id
         WHERE s.session_hash = ? LIMIT 1
       `,
       )
         .bind(sessionHash)
         .first();
-      if (session && Number(session.active) === 1 && Date.parse(session.expires_at) > Date.now())
+      const now = Date.now();
+      if (
+        session &&
+        Number(session.active) === 1 &&
+        Date.parse(session.expires_at) > now &&
+        !isSessionIdle(session.last_activity_at || session.created_at, now)
+      ) {
+        await env.DB.prepare("UPDATE nfd_sessions SET last_activity_at = ? WHERE session_hash = ?")
+          .bind(new Date(now).toISOString(), sessionHash)
+          .run();
         return session;
+      }
       if (session)
         await env.DB.prepare("DELETE FROM nfd_sessions WHERE session_hash = ?").bind(sessionHash).run();
     } catch (error) {
@@ -427,6 +456,7 @@ async function getAuthenticatedUser(request, env) {
 
   const chatGptId = request.headers.get("oai-authenticated-user-id")?.trim();
   if (chatGptId) {
+    if (getCookie(request, CHATGPT_IDLE_COOKIE) === "1") return null;
     const user = {
       id: chatGptId.slice(0, 200),
       provider: "chatgpt",
