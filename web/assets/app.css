@@ -876,6 +876,8 @@ textarea.control::placeholder {
 .feed-incident {
   display: inline-flex;
   max-width: 46%;
+  min-width: 0;
+  flex: 0 1 auto;
   padding: 7px 10px;
   border-radius: 999px;
   background: #edf5ef;
@@ -884,6 +886,7 @@ textarea.control::placeholder {
   font-weight: 660;
   line-height: 1.35;
   text-align: right;
+  white-space: nowrap;
 }
 .feed-meta {
   display: flex;

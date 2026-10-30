@@ -83,6 +83,7 @@ const reviewNotice = document.getElementById("review-notice");
 const aiReviewConsent = document.getElementById("ai-review-consent");
 const aiReviewConsentCheckbox = document.getElementById("ai-review-consent-checkbox");
 const feedPage = document.getElementById("feed-page");
+const feedTagline = feedPage.querySelector(".feed-heading .eyebrow");
 const feedList = document.getElementById("feed-list");
 const feedState = document.getElementById("feed-state");
 const feedPlaceSearch = document.getElementById("feed-place-search");
@@ -113,6 +114,36 @@ const ghostModeHandle = document.getElementById("ghost-mode-handle");
 const ghostModeExit = document.getElementById("ghost-mode-exit");
 const messagesNavLink = document.getElementById("messages-nav-link");
 const navUnreadCount = document.getElementById("nav-unread-count");
+const FEED_TAGLINES = [
+  "Good days. Bad calls. Plot twists.",
+  "Small moments. Stories that stay.",
+  "Life happens. Share what matters.",
+  "Real moments, honestly told.",
+  "Every experience has a story.",
+  "The moments that bring us closer.",
+  "A little kindness goes a long way.",
+  "From awkward to unforgettable.",
+  "Good people. Better stories.",
+];
+const FEED_TAGLINE_LOGIN_PENDING_KEY = "nfd:feed-tagline-login-pending";
+function syncFeedTagline(userId) {
+  if (!feedTagline) return;
+  const taglineKey = `nfd:feed-tagline:${encodeURIComponent(userId || "member")}`;
+  try {
+    const previousIndex = Number(localStorage.getItem(taglineKey));
+    const isNewLogin = sessionStorage.getItem(FEED_TAGLINE_LOGIN_PENDING_KEY) === "1";
+    let index = previousIndex;
+    if (isNewLogin || !Number.isInteger(index) || index < 0 || index >= FEED_TAGLINES.length) {
+      const choices = FEED_TAGLINES.map((_, option) => option).filter((option) => option !== previousIndex);
+      index = choices[Math.floor(Math.random() * choices.length)];
+      localStorage.setItem(taglineKey, String(index));
+    }
+    if (isNewLogin) sessionStorage.removeItem(FEED_TAGLINE_LOGIN_PENDING_KEY);
+    feedTagline.textContent = FEED_TAGLINES[index];
+  } catch {
+    feedTagline.textContent = FEED_TAGLINES[Math.floor(Math.random() * FEED_TAGLINES.length)];
+  }
+}
 function setMainNavigationVisible(visible) {
   mainNav.hidden = !visible;
   mainNavRow.hidden = !visible;
@@ -679,6 +710,20 @@ function addText(parent, tag, className, value) {
   parent.append(element);
   return element;
 }
+function fitIncidentBadge(badge) {
+  badge.style.removeProperty("font-size");
+  const initialSize = Number.parseFloat(getComputedStyle(badge).fontSize);
+  if (!badge.clientWidth || !Number.isFinite(initialSize)) return;
+  let fontSize = initialSize;
+  while (badge.scrollWidth > badge.clientWidth + 1 && fontSize > 7) {
+    fontSize = Math.max(7, fontSize - 0.25);
+    badge.style.fontSize = `${fontSize}px`;
+  }
+}
+function fitAllIncidentBadges() {
+  feedList.querySelectorAll(".feed-incident").forEach(fitIncidentBadge);
+}
+window.addEventListener("resize", fitAllIncidentBadges);
 function renderDocumentLink(file) {
   const link = document.createElement("a");
   link.className = "feed-file-link";
@@ -958,6 +1003,7 @@ function renderFeed(experiences, total, { append = false, nextCursor = "" } = {}
     }
     renderEngagement(card, experience);
     feedList.append(card);
+    fitIncidentBadge(card.querySelector(".feed-incident"));
   });
   feedLoadedCount += experiences.length;
   feedResultCount.textContent = `${countLabel} · Showing ${Math.min(total, feedLoadedCount)} of ${total}`;
@@ -2893,6 +2939,11 @@ async function loadAdminPage() {
 }
 async function updateNavigation() {
   if (location.pathname === "/login") {
+    try {
+      sessionStorage.setItem(FEED_TAGLINE_LOGIN_PENDING_KEY, "1");
+    } catch {
+      // Rotation is best-effort when session storage is unavailable.
+    }
     setMainNavigationVisible(false);
     return;
   }
@@ -2909,6 +2960,7 @@ async function updateNavigation() {
     const result = await response.json().catch(() => ({}));
     startSessionActivityTracking();
     currentUserId = result.userId || currentUserId;
+    syncFeedTagline(currentUserId);
     adminNavLink.hidden = !result.isAdmin;
     accountAdminLink.hidden = !result.isAdmin;
     setMainNavigationVisible(true);
