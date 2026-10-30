@@ -361,18 +361,20 @@ const incidentTimeEndField = document.getElementById("incident-time-end-field");
 const incidentTimeEndInput = document.getElementById("incident-time-end");
 incidentTimeRangeToggle.addEventListener("change", () => {
   incidentTimeEndField.hidden = !incidentTimeRangeToggle.checked;
-  incidentTimeEndInput.required = incidentTimeRangeToggle.checked;
   document.getElementById("incident-time-label").innerHTML = incidentTimeRangeToggle.checked
-    ? 'When did it start? <span class="required">*</span>'
-    : 'When did it happen? <span class="required">*</span>';
+    ? 'When did it start? <span class="optional">Optional</span>'
+    : 'When did it happen? <span class="optional">Optional</span>';
   if (!incidentTimeRangeToggle.checked) incidentTimeEndInput.value = "";
 });
 function showReview() {
   const value = (id) => document.getElementById(id).value.trim();
-  const selected = (id) => document.getElementById(id).selectedOptions[0]?.textContent || "Not provided";
+  const selected = (id) =>
+    document.getElementById(id).value
+      ? document.getElementById(id).selectedOptions[0]?.textContent || "Not provided"
+      : "Not provided";
   document.getElementById("review-experience-category").textContent = selected("experience-category");
   document.getElementById("review-incident-category").textContent = selected("incident-category");
-  document.getElementById("review-place").textContent = value("place");
+  document.getElementById("review-place").textContent = value("place") || "Not provided";
   document.getElementById("review-place-category").textContent = selected("place-category");
   const when = value("incident-time");
   const end = value("incident-time-end");
@@ -383,14 +385,18 @@ function showReview() {
       : "";
   };
   const startLabel = formatDate(when);
+  const endLabel = formatDate(end);
   document.getElementById("review-time").textContent = startLabel
-    ? incidentTimeRangeToggle.checked
-      ? `${startLabel} – ${formatDate(end)}`
+    ? endLabel
+      ? `${startLabel} – ${endLabel}`
       : startLabel
-    : "Not provided";
+    : endLabel
+      ? `Ended ${endLabel}`
+      : "Not provided";
   document.getElementById("review-location-detail").textContent = value("location-detail") || "Not provided";
   document.getElementById("review-short-description").textContent = shortDescription.value.trim();
-  document.getElementById("review-full-description").textContent = fullDescription.value.trim();
+  document.getElementById("review-full-description").textContent =
+    fullDescription.value.trim() || "Not provided";
   const audience = document.querySelector('input[name="visibility"]:checked')?.value || "public";
   document.getElementById("review-audience").textContent = {
     public: "Public in NFD · your name is shown",
@@ -440,11 +446,11 @@ function showReview() {
   reviewNotice.classList.remove("show", "error");
   reviewNotice.replaceChildren();
   aiReviewConsentCheckbox.checked = false;
-  void loadReviewModerationStatus();
   document.getElementById("edit-experience").disabled = false;
   document.getElementById("confirm-review").disabled = false;
   document.getElementById("confirm-review").innerHTML =
     'Looks right — share <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m5 12 4.5 4.5L19 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  void loadReviewModerationStatus();
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 function validateStep(container) {
@@ -486,9 +492,10 @@ function updateIncidentCategoryOptions() {
   incidentCategoryInput.replaceChildren();
   const placeholder = document.createElement("option");
   placeholder.value = "";
-  placeholder.disabled = true;
   placeholder.selected = true;
-  placeholder.textContent = options.length ? "Choose an incident" : "Choose an experience type first";
+  placeholder.textContent = options.length
+    ? "Optional — choose an incident"
+    : "Optional — choose an experience category first";
   incidentCategoryInput.append(placeholder);
   options.forEach((label) => {
     const option = document.createElement("option");
@@ -499,7 +506,7 @@ function updateIncidentCategoryOptions() {
   incidentCategoryInput.disabled = !options.length;
   incidentCategoryHelper.textContent = options.length
     ? `${options.length - 1} matching options, plus “Other or not sure.”`
-    : "Options will match the experience category you choose.";
+    : "Optional. Choose an experience category to see incident options.";
 }
 function backToEdit() {
   reviewPage.hidden = true;
@@ -508,6 +515,7 @@ function backToEdit() {
 }
 function prettyDate(value, timeZone) {
   const date = new Date(value);
+  if (!value) return "Not provided";
   if (Number.isNaN(date.getTime())) return "Date unavailable";
   try {
     return date.toLocaleString(undefined, {
@@ -518,6 +526,18 @@ function prettyDate(value, timeZone) {
   } catch {
     return date.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
   }
+}
+function experienceTimeText(experience) {
+  const start = experience.incidentTime
+    ? prettyDate(experience.incidentTime, experience.incidentTimeZone)
+    : "";
+  const end = experience.incidentTimeEnd
+    ? prettyDate(experience.incidentTimeEnd, experience.incidentTimeZone)
+    : "";
+  if (start && end) return `${start} – ${end}`;
+  if (start) return start;
+  if (end) return `Ended ${end}`;
+  return "Not provided";
 }
 async function createFeedPreview(file) {
   if (
@@ -651,9 +671,9 @@ function renderFeed(experiences, total, { append = false, nextCursor = "" } = {}
     const titleGroup = document.createElement("div");
     titleGroup.className = "feed-title-group";
     addText(titleGroup, "h2", "feed-category", experience.shortDescription || experience.experienceCategory);
-    addText(titleGroup, "span", "feed-experience-type", experience.experienceCategory);
+    addText(titleGroup, "span", "feed-experience-type", experience.experienceCategory || "Not provided");
     header.append(titleGroup);
-    addText(header, "span", "feed-incident", experience.incidentCategory);
+    addText(header, "span", "feed-incident", experience.incidentCategory || "Not provided");
     main.append(header);
     const author = document.createElement("div");
     author.className = `feed-author${experience.visibility === "anonymous" ? " anonymous" : ""}`;
@@ -679,7 +699,8 @@ function renderFeed(experiences, total, { append = false, nextCursor = "" } = {}
     meta.className = "feed-meta";
     const place = document.createElement("span");
     place.innerHTML = "<strong>Where</strong> ";
-    place.append(document.createTextNode(`${experience.place} · ${experience.placeCategory}`));
+    const placeSummary = [experience.place, experience.placeCategory].filter(Boolean).join(" · ");
+    place.append(document.createTextNode(placeSummary || "Not provided"));
     meta.append(place);
     if (experience.locationDetails) {
       const area = document.createElement("span");
@@ -689,11 +710,7 @@ function renderFeed(experiences, total, { append = false, nextCursor = "" } = {}
     }
     const occurred = document.createElement("span");
     occurred.innerHTML = "<strong>When</strong> ";
-    occurred.append(
-      document.createTextNode(
-        `${prettyDate(experience.incidentTime, experience.incidentTimeZone)}${experience.incidentTimeEnd ? ` – ${prettyDate(experience.incidentTimeEnd, experience.incidentTimeZone)}` : ""}`,
-      ),
-    );
+    occurred.append(document.createTextNode(experienceTimeText(experience)));
     meta.append(occurred);
     const shared = document.createElement("span");
     shared.innerHTML = "<strong>Shared</strong> ";
@@ -818,7 +835,7 @@ function renderFeed(experiences, total, { append = false, nextCursor = "" } = {}
     const full = document.createElement("details");
     full.className = "feed-full";
     addText(full, "summary", "", "Read the full story");
-    addText(full, "p", "", experience.fullDescription);
+    addText(full, "p", "", experience.fullDescription || "No additional details were provided.");
     card.append(full);
     if (documents.length) {
       const evidence = document.createElement("div");
@@ -1240,7 +1257,7 @@ function renderProfile(data) {
       titleGroup,
       "span",
       "profile-post-category",
-      `${experience.experienceCategory} · ${experience.incidentCategory}`,
+      `${experience.experienceCategory || "Not provided"} · ${experience.incidentCategory || "Not provided"}`,
     );
     addText(
       titleGroup,
@@ -1259,7 +1276,8 @@ function renderProfile(data) {
     meta.className = "profile-post-meta";
     const where = document.createElement("span");
     where.innerHTML = "<strong>Where</strong> ";
-    where.append(document.createTextNode(`${experience.place} · ${experience.placeCategory}`));
+    const placeSummary = [experience.place, experience.placeCategory].filter(Boolean).join(" · ");
+    where.append(document.createTextNode(placeSummary || "Not provided"));
     meta.append(where);
     if (experience.locationDetails) {
       const area = document.createElement("span");
@@ -1270,17 +1288,13 @@ function renderProfile(data) {
     where.append(document.createTextNode(""));
     const when = document.createElement("span");
     when.innerHTML = "<strong>When</strong> ";
-    when.append(
-      document.createTextNode(
-        `${prettyDate(experience.incidentTime, experience.incidentTimeZone)}${experience.incidentTimeEnd ? ` – ${prettyDate(experience.incidentTimeEnd, experience.incidentTimeZone)}` : ""}`,
-      ),
-    );
+    when.append(document.createTextNode(experienceTimeText(experience)));
     meta.append(when);
     card.append(meta);
     const full = document.createElement("details");
     full.className = "profile-post-full";
     addText(full, "summary", "", "Read the full story");
-    addText(full, "p", "", experience.fullDescription);
+    addText(full, "p", "", experience.fullDescription || "No additional details were provided.");
     card.append(full);
     const evidence = experience.evidence || [];
     if (evidence.length) {
@@ -2306,12 +2320,12 @@ function renderAdminExperiences() {
     copy.append(note);
     const category = document.createElement("span");
     category.className = "admin-user-added";
-    category.textContent = `${post.experienceCategory} · ${post.incidentCategory} · ${post.place}`;
+    category.textContent = `${post.experienceCategory || "Not provided"} · ${post.incidentCategory || "Not provided"} · ${post.place || "Not provided"}`;
     copy.append(category);
     const story = document.createElement("details");
     story.className = "member-identifiers";
     addText(story, "summary", "", "Read full post");
-    addText(story, "p", "", "" + (post.fullDescription || post.shortDescription || ""));
+    addText(story, "p", "", post.fullDescription || "No additional details were provided.");
     copy.append(story);
     const remove = document.createElement("button");
     remove.type = "button";
@@ -2641,14 +2655,27 @@ async function loadModerationSettings() {
 async function loadReviewModerationStatus() {
   aiReviewConsent.hidden = true;
   aiReviewConsentCheckbox.checked = false;
+  aiReviewConsentCheckbox.required = false;
+  const confirmButton = document.getElementById("confirm-review");
+  confirmButton.disabled = true;
   try {
     const response = await fetch("/api/moderation/settings", {
       headers: { accept: "application/json" },
       cache: "no-store",
     });
     const result = await response.json().catch(() => ({}));
-    if (response.ok && result.enabled) aiReviewConsent.hidden = false;
-  } catch {}
+    if (!response.ok) throw new Error(result.error || "Automatic review settings could not be checked.");
+    if (result.enabled) {
+      aiReviewConsent.hidden = false;
+      aiReviewConsentCheckbox.required = true;
+    }
+    confirmButton.disabled = false;
+  } catch {
+    reviewNotice.textContent =
+      "NFD could not check the automatic review requirement. Refresh the page and try again.";
+    reviewNotice.classList.add("show", "error");
+    reviewNotice.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
 }
 async function loadAdminUsers() {
   setAdminFeedback("Checking administrator permissions…");
@@ -2999,17 +3026,25 @@ form.addEventListener("submit", (event) => {
 document.getElementById("edit-experience").addEventListener("click", backToEdit);
 document.getElementById("confirm-review").addEventListener("click", async (event) => {
   const button = event.currentTarget;
+  if (!aiReviewConsent.hidden && !aiReviewConsentCheckbox.checked) {
+    reviewNotice.textContent = "Check the Automatic review box to share while automatic review is enabled.";
+    reviewNotice.classList.add("show", "error");
+    aiReviewConsentCheckbox.focus();
+    aiReviewConsent.scrollIntoView({ behavior: "smooth", block: "center" });
+    return;
+  }
   button.disabled = true;
   button.textContent = "Sharing…";
   reviewNotice.classList.remove("show", "error");
   reviewNotice.replaceChildren();
   const payload = new FormData();
-  payload.append("experienceCategory", document.getElementById("experience-category").value);
-  payload.append("incidentCategory", document.getElementById("incident-category").value);
+  payload.append("experienceCategory", experienceCategoryInput.value);
+  payload.append("incidentCategory", incidentCategoryInput.value);
   payload.append("place", document.getElementById("place").value.trim());
   payload.append("placeCategory", document.getElementById("place-category").value);
-  payload.append("incidentTimeUtc", new Date(document.getElementById("incident-time").value).toISOString());
-  if (incidentTimeRangeToggle.checked)
+  if (document.getElementById("incident-time").value)
+    payload.append("incidentTimeUtc", new Date(document.getElementById("incident-time").value).toISOString());
+  if (incidentTimeRangeToggle.checked && incidentTimeEndInput.value)
     payload.append("incidentTimeEndUtc", new Date(incidentTimeEndInput.value).toISOString());
   payload.append("incidentTimeZone", Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC");
   payload.append("locationDetail", document.getElementById("location-detail").value.trim());

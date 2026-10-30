@@ -563,7 +563,7 @@
                   </div>
                 </div>
                 <div class="field full">
-                  <label for="full-description">The full story <span class="required">*</span></label
+                  <label for="full-description">The full story <span class="optional">Optional</span></label
                   ><textarea
                     class="control"
                     style="height: 170px; resize: vertical; padding: 11px 12px; line-height: 1.55"
@@ -571,7 +571,6 @@
                     name="fullDescription"
                     maxlength="4000"
                     placeholder="Walk through what happened, when it happened, who was involved (roles or aliases are fine), what you expected, and what happened next. Include the impact or outcome if you’re comfortable. Share only what you know firsthand."
-                    required
                   ></textarea>
                   <div class="char-row">
                     <span
@@ -689,10 +688,12 @@
               </div>
               <div class="grid">
                 <div class="field">
-                  <label for="experience-category">Experience category <span class="required">*</span></label>
+                  <label for="experience-category"
+                    >Experience category <span class="optional">Optional</span></label
+                  >
                   <div class="select-wrap">
-                    <select class="control" id="experience-category" name="experienceCategory" required>
-                      <option value="" selected disabled>Choose a category</option>
+                    <select class="control" id="experience-category" name="experienceCategory">
+                      <option value="" selected>Optional — choose a category</option>
                       <option>Personal relationships</option>
                       <option>Work and school</option>
                       <option>Community and social life</option>
@@ -704,10 +705,12 @@
                   </div>
                 </div>
                 <div class="field">
-                  <label for="incident-category">Incident category <span class="required">*</span></label>
+                  <label for="incident-category"
+                    >Incident category <span class="optional">Optional</span></label
+                  >
                   <div class="select-wrap">
-                    <select class="control" id="incident-category" name="incidentCategory" required disabled>
-                      <option value="" selected disabled>Choose an experience type first</option>
+                    <select class="control" id="incident-category" name="incidentCategory" disabled>
+                      <option value="" selected>Optional — choose an experience type first</option>
                     </select>
                   </div>
                   <p class="helper" id="incident-category-helper">
@@ -716,7 +719,7 @@
                 </div>
                 <div class="field full">
                   <label for="place"
-                    >Person, username, business, or place <span class="required">*</span></label
+                    >Person, username, business, or place <span class="optional">Optional</span></label
                   >
                   <div class="search-wrap">
                     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -733,7 +736,6 @@
                       name="place"
                       placeholder="Enter the exact public name, username, business, or place"
                       autocomplete="off"
-                      required
                     />
                   </div>
                   <p class="helper">
@@ -743,10 +745,12 @@
                   </p>
                 </div>
                 <div class="field">
-                  <label for="place-category">Where did it happen? <span class="required">*</span></label>
+                  <label for="place-category"
+                    >Where did it happen? <span class="optional">Optional</span></label
+                  >
                   <div class="select-wrap">
-                    <select class="control" id="place-category" name="placeCategory" required>
-                      <option value="" selected disabled>Choose a place type</option>
+                    <select class="control" id="place-category" name="placeCategory">
+                      <option value="" selected>Optional — choose a place type</option>
                       <option>At work or school</option>
                       <option>At home or a private residence</option>
                       <option>In person at a public place</option>
@@ -760,16 +764,10 @@
                 </div>
                 <div class="field">
                   <label for="incident-time" id="incident-time-label"
-                    >When did it start? <span class="required">*</span></label
+                    >When did it happen? <span class="optional">Optional</span></label
                   >
                   <div class="date-wrap">
-                    <input
-                      class="control"
-                      type="datetime-local"
-                      id="incident-time"
-                      name="incidentTime"
-                      required
-                    />
+                    <input class="control" type="datetime-local" id="incident-time" name="incidentTime" />
                   </div>
                 </div>
                 <div class="field full">
@@ -781,7 +779,9 @@
                   <p class="helper">Turn this on to add when it ended.</p>
                 </div>
                 <div class="field" id="incident-time-end-field" hidden>
-                  <label for="incident-time-end">When did it end? <span class="required">*</span></label>
+                  <label for="incident-time-end"
+                    >When did it end? <span class="optional">Optional</span></label
+                  >
                   <div class="date-wrap">
                     <input
                       class="control"
@@ -916,12 +916,12 @@
                   id="ai-review-consent-checkbox"
                   style="margin-top: 2px; accent-color: #0d7054"
                 /><span
-                  >Automatic review sends your story text and attached photos or videos to Google Gemini;
-                  documents and your NFD account ID/email are not sent. Google may use free-tier inputs to
-                  improve products, and human reviewers may process them. Google advises against sending
-                  sensitive, confidential, or personal information to the unpaid service. Your post’s
-                  anonymous setting does not make identifying details in its text or media anonymous to
-                  Google. Continue only if you accept this.
+                  ><strong>Automatic review (required when enabled):</strong> this sends your story text and
+                  attached photos or videos to Google Gemini; documents and your NFD account ID/email are not
+                  sent. Google may use free-tier inputs to improve products, and human reviewers may process
+                  them. Google advises against sending sensitive, confidential, or personal information to the
+                  unpaid service. Your post’s anonymous setting does not make identifying details in its text
+                  or media anonymous to Google. Continue only if you accept this.
                   <a href="/privacy" target="_blank" rel="noopener">Privacy details</a>.</span
                 ></label
               >

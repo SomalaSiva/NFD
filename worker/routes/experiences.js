@@ -749,35 +749,37 @@ export function createExperienceRoutes(services) {
     }
 
     const fields = {
-      experienceCategory: textField(form, "experienceCategory", 100),
-      incidentCategory: textField(form, "incidentCategory", 120),
-      place: textField(form, "place", 240),
-      placeCategory: textField(form, "placeCategory", 100),
+      experienceCategory: textField(form, "experienceCategory", 100) || "Not provided",
+      incidentCategory: textField(form, "incidentCategory", 120) || "Not provided",
+      place: textField(form, "place", 240) || "Not provided",
+      placeCategory: textField(form, "placeCategory", 100) || "Not provided",
       incidentTime: textField(form, "incidentTimeUtc", 40),
       incidentTimeEnd: textField(form, "incidentTimeEndUtc", 40),
-      incidentTimeZone: textField(form, "incidentTimeZone", 80),
+      incidentTimeZone: textField(form, "incidentTimeZone", 80) || "UTC",
       locationDetails: textField(form, "locationDetail", 300),
       shortDescription: textField(form, "shortDescription", 240),
       fullDescription: textField(form, "fullDescription", 4000),
-      visibility: textField(form, "visibility", 20),
+      visibility: textField(form, "visibility", 20) || "public",
     };
-    const missing = Object.entries(fields).some(
-      ([key, value]) => !["locationDetails", "incidentTimeEnd"].includes(key) && !value,
-    );
-    if (missing) return json({ error: "Complete the required experience details before sharing." }, 400);
-    if (!INCIDENT_CATEGORIES_BY_EXPERIENCE[fields.experienceCategory]?.includes(fields.incidentCategory)) {
+    if (!fields.shortDescription)
+      return json({ error: "Add a quick version before sharing your story." }, 400);
+    if (
+      fields.experienceCategory !== "Not provided" &&
+      fields.incidentCategory !== "Not provided" &&
+      !INCIDENT_CATEGORIES_BY_EXPERIENCE[fields.experienceCategory]?.includes(fields.incidentCategory)
+    ) {
       return json({ error: "Choose an incident that matches the experience category." }, 400);
     }
     if (!["public", "friends", "anonymous"].includes(fields.visibility)) {
       return json({ error: "Choose who can see this experience before sharing." }, 400);
     }
-    if (!Number.isFinite(Date.parse(fields.incidentTime))) {
+    if (fields.incidentTime && !Number.isFinite(Date.parse(fields.incidentTime))) {
       return json({ error: "Choose a valid date and time for the experience." }, 400);
     }
     if (
       fields.incidentTimeEnd &&
       (!Number.isFinite(Date.parse(fields.incidentTimeEnd)) ||
-        Date.parse(fields.incidentTimeEnd) <= Date.parse(fields.incidentTime))
+        (fields.incidentTime && Date.parse(fields.incidentTimeEnd) <= Date.parse(fields.incidentTime)))
     ) {
       return json({ error: "The end of the time range must be later than its start." }, 400);
     }
@@ -922,7 +924,7 @@ export function createExperienceRoutes(services) {
           fields.incidentCategory,
           fields.place,
           fields.placeCategory,
-          new Date(fields.incidentTime).toISOString(),
+          fields.incidentTime ? new Date(fields.incidentTime).toISOString() : "",
           fields.incidentTimeEnd ? new Date(fields.incidentTimeEnd).toISOString() : null,
           fields.incidentTimeZone,
           fields.locationDetails || null,
