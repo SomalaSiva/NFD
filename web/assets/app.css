@@ -3900,6 +3900,7 @@ textarea.control::placeholder {
   margin-left: auto;
 }
 .topbar-navigation .nav-share-link {
+  margin-left: auto;
   flex: none;
   white-space: nowrap;
 }
