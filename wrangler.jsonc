@@ -12,6 +12,7 @@
     },
   ],
   "r2_buckets": [{ "binding": "BUCKET", "bucket_name": "nfd-local-uploads" }],
+  "triggers": { "crons": ["*/15 * * * *"] },
   "dev": { "port": 8787 },
   "workers_dev": false,
 }

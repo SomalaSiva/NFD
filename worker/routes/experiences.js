@@ -2,6 +2,7 @@ export function createExperienceRoutes(services) {
   const {
     getCurrentUser,
     ensureGhostTables,
+    ensureStoryTables,
     ensureExperienceOptionColumns,
     ensureEngagementTables,
     recordActivity,
@@ -327,6 +328,10 @@ export function createExperienceRoutes(services) {
     if (!env.DB) return json({ error: "Your NFD profile is not available right now." }, 503);
     try {
       await ensureExperienceOptionColumns(env);
+      await ensureStoryTables(env);
+      const profilePhoto = await env.DB.prepare("SELECT profile_photo_key FROM nfd_users WHERE id = ?")
+        .bind(user.id)
+        .first();
       const result = await env.DB.prepare(
         `
       SELECT id, experience_category, incident_category, place, place_category,
@@ -372,6 +377,9 @@ export function createExperienceRoutes(services) {
           email: user.email || "",
           provider: user.provider,
           ghostHandle: user.ghostHandle || "",
+          photoUrl: profilePhoto?.profile_photo_key
+            ? `/api/profile-photo/${encodeURIComponent(user.id)}?v=${Date.now()}`
+            : "",
         },
         total: experiences.length,
         experiences: experiences.map((experience) => ({

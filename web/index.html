@@ -24,6 +24,31 @@
               ><span class="brand-name">NFD</span><span class="brand-subtitle">No Face Docs</span></span
             ></a
           >
+          <div class="stories-tray" id="stories-tray" aria-label="Friends’ stories" hidden>
+            <div class="story-own-shell">
+              <button
+                class="story-bubble story-own-bubble"
+                type="button"
+                id="my-story-button"
+                aria-label="Your story"
+              >
+                <span class="story-avatar" id="my-story-avatar">
+                  <img id="my-story-photo" alt="" hidden />
+                  <span id="my-story-initials">N</span>
+                </span>
+                <span class="story-name">Your story</span>
+              </button>
+              <button
+                class="story-add-button"
+                type="button"
+                id="story-create-button"
+                aria-label="Add to your story"
+              >
+                +
+              </button>
+            </div>
+            <div class="story-friends" id="story-friends" aria-live="polite"></div>
+          </div>
           <div class="account-menu-wrap" id="account-menu-wrap" hidden>
             <button
               class="account-menu-button"
@@ -33,6 +58,7 @@
               aria-expanded="false"
               aria-controls="account-menu"
             >
+              <img class="account-profile-photo" id="account-profile-photo" alt="" hidden />
               <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <circle cx="12" cy="8" r="3.5" stroke="currentColor" stroke-width="1.7" />
                 <path
@@ -1087,6 +1113,29 @@
               </p>
             </div>
           </div>
+          <section class="profile-photo-panel" aria-labelledby="profile-photo-heading">
+            <div class="profile-photo-preview" id="profile-photo-preview" aria-hidden="true">N</div>
+            <div class="profile-photo-content">
+              <h2 id="profile-photo-heading">Profile photo</h2>
+              <p>Choose a photo for your NFD profile. Only you and your accepted NFD friends can see it.</p>
+              <form id="profile-photo-form" class="profile-photo-form">
+                <label class="secondary-button profile-photo-choose" for="profile-photo-file"
+                  >Choose photo</label
+                >
+                <input id="profile-photo-file" type="file" accept="image/jpeg,image/png,image/webp" hidden />
+                <button class="submit" type="submit" id="profile-photo-save" disabled>Save photo</button>
+                <button class="secondary-button" type="button" id="profile-photo-remove" hidden>
+                  Remove photo
+                </button>
+              </form>
+              <p
+                class="profile-photo-feedback"
+                id="profile-photo-feedback"
+                role="status"
+                aria-live="polite"
+              ></p>
+            </div>
+          </section>
           <section class="ghost-panel" id="ghost-settings" aria-labelledby="ghost-settings-heading" hidden>
             <h2 id="ghost-settings-heading">Ghost mode</h2>
             <p class="ghost-settings-copy" id="ghost-settings-copy">
@@ -1283,6 +1332,70 @@
         </div>
       </section>
     </main>
+    <dialog class="story-composer" id="story-composer" aria-labelledby="story-composer-heading">
+      <form id="story-form" method="dialog">
+        <div class="story-dialog-heading">
+          <div>
+            <div class="eyebrow">Visible to accepted friends</div>
+            <h2 id="story-composer-heading">Add to your story</h2>
+          </div>
+          <button class="story-dialog-close" type="button" data-close-story-dialog aria-label="Close">
+            ×
+          </button>
+        </div>
+        <p class="helper">
+          Share one photo or video. It disappears from NFD after 24 hours. Viewers may still save or capture
+          what they see.
+        </p>
+        <div class="story-media-preview" id="story-media-preview" hidden></div>
+        <div class="story-picker-actions">
+          <label class="secondary-button" for="story-media-file">Choose photo or video</label>
+          <button class="secondary-button" type="button" id="story-camera-button">Use camera</button>
+        </div>
+        <input
+          id="story-media-file"
+          type="file"
+          accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime"
+          hidden
+        />
+        <input id="story-camera-file" type="file" accept="image/*,video/*" capture="environment" hidden />
+        <label for="story-caption">Caption <span class="optional">Optional</span></label>
+        <textarea
+          class="control"
+          id="story-caption"
+          maxlength="180"
+          rows="2"
+          placeholder="Add a short caption"
+        ></textarea>
+        <p class="story-compose-feedback" id="story-compose-feedback" role="status" aria-live="polite"></p>
+        <div class="story-dialog-actions">
+          <button class="secondary-button" type="button" data-close-story-dialog>Cancel</button>
+          <button class="submit" type="submit" id="story-share-button" disabled>Share story</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog class="story-viewer" id="story-viewer" aria-label="Story viewer">
+      <div class="story-viewer-progress" id="story-viewer-progress"></div>
+      <div class="story-viewer-header">
+        <div class="story-viewer-author">
+          <span class="story-viewer-avatar" id="story-viewer-avatar">N</span>
+          <span><strong id="story-viewer-name"></strong><small id="story-viewer-time"></small></span>
+        </div>
+        <button class="story-dialog-close" type="button" data-close-story-dialog aria-label="Close story">
+          ×
+        </button>
+      </div>
+      <div class="story-viewer-stage" id="story-viewer-stage"></div>
+      <p class="story-viewer-caption" id="story-viewer-caption"></p>
+      <div class="story-viewer-controls">
+        <button class="secondary-button" type="button" id="story-previous-button">Previous</button>
+        <button class="secondary-button" type="button" id="story-next-button">Next</button>
+        <button class="secondary-button" type="button" id="story-sound-button" hidden>Turn sound on</button>
+        <button class="secondary-button story-delete-button" type="button" id="story-delete-button" hidden>
+          Delete
+        </button>
+      </div>
+    </dialog>
     <script src="/assets/app.js" defer></script>
   </body>
 </html>

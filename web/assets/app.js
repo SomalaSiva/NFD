@@ -85,6 +85,38 @@ const aiReviewConsentCheckbox = document.getElementById("ai-review-consent-check
 const feedPage = document.getElementById("feed-page");
 const feedTagline = feedPage.querySelector(".feed-heading .eyebrow");
 const feedList = document.getElementById("feed-list");
+const storiesTray = document.getElementById("stories-tray");
+const storyFriends = document.getElementById("story-friends");
+const myStoryButton = document.getElementById("my-story-button");
+const myStoryPhoto = document.getElementById("my-story-photo");
+const myStoryInitials = document.getElementById("my-story-initials");
+const storyCreateButton = document.getElementById("story-create-button");
+const storyComposer = document.getElementById("story-composer");
+const storyForm = document.getElementById("story-form");
+const storyMediaPreview = document.getElementById("story-media-preview");
+const storyMediaFile = document.getElementById("story-media-file");
+const storyCameraFile = document.getElementById("story-camera-file");
+const storyCaption = document.getElementById("story-caption");
+const storyComposeFeedback = document.getElementById("story-compose-feedback");
+const storyShareButton = document.getElementById("story-share-button");
+const storyViewer = document.getElementById("story-viewer");
+const storyViewerProgress = document.getElementById("story-viewer-progress");
+const storyViewerName = document.getElementById("story-viewer-name");
+const storyViewerTime = document.getElementById("story-viewer-time");
+const storyViewerAvatar = document.getElementById("story-viewer-avatar");
+const storyViewerStage = document.getElementById("story-viewer-stage");
+const storyViewerCaption = document.getElementById("story-viewer-caption");
+const storyPreviousButton = document.getElementById("story-previous-button");
+const storyNextButton = document.getElementById("story-next-button");
+const storyDeleteButton = document.getElementById("story-delete-button");
+const storySoundButton = document.getElementById("story-sound-button");
+const profilePhotoForm = document.getElementById("profile-photo-form");
+const profilePhotoFile = document.getElementById("profile-photo-file");
+const profilePhotoSave = document.getElementById("profile-photo-save");
+const profilePhotoRemove = document.getElementById("profile-photo-remove");
+const profilePhotoFeedback = document.getElementById("profile-photo-feedback");
+const profilePhotoPreview = document.getElementById("profile-photo-preview");
+const accountProfilePhoto = document.getElementById("account-profile-photo");
 const feedState = document.getElementById("feed-state");
 const feedPlaceSearch = document.getElementById("feed-place-search");
 const feedLocationSearch = document.getElementById("feed-location-search");
@@ -148,6 +180,7 @@ function setMainNavigationVisible(visible) {
   mainNav.hidden = !visible;
   mainNavRow.hidden = !visible;
   accountMenuWrap.hidden = !visible;
+  storiesTray.hidden = !visible;
 }
 let messageNavRefreshTimer;
 const SESSION_IDLE_LIMIT_MS = 4 * 60 * 1000;
@@ -156,6 +189,83 @@ let inactivityLogoutTimer;
 let lastSessionActivityAt = 0;
 let lastSessionActivitySavedAt = 0;
 let sessionActivityTrackingStarted = false;
+let storyGroups = [];
+let activeStoryGroupIndex = -1;
+let activeStoryIndex = 0;
+let storyAdvanceTimer;
+let storyPreviewUrl = "";
+let selectedStoryFile = null;
+let storyTrayRefreshTimer;
+function setAvatarPhoto(image, photoUrl, fallbackElement) {
+  if (!image || !fallbackElement) return;
+  if (!photoUrl) {
+    image.hidden = true;
+    image.removeAttribute("src");
+    fallbackElement.hidden = false;
+    return;
+  }
+  image.onload = () => {
+    image.hidden = false;
+    fallbackElement.hidden = true;
+  };
+  image.onerror = () => {
+    image.hidden = true;
+    fallbackElement.hidden = false;
+  };
+  image.src = photoUrl;
+}
+function setProfilePhotoEverywhere(photoUrl, displayName = "NFD member") {
+  const initials =
+    displayName
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0])
+      .join("")
+      .toUpperCase() || "N";
+  if (accountProfilePhoto) {
+    if (photoUrl) {
+      accountProfilePhoto.onload = () => {
+        accountProfilePhoto.hidden = false;
+      };
+      accountProfilePhoto.onerror = () => {
+        accountProfilePhoto.hidden = true;
+        accountMenuButton.classList.remove("has-profile-photo");
+      };
+      accountProfilePhoto.src = photoUrl;
+    } else {
+      accountProfilePhoto.hidden = true;
+      accountProfilePhoto.removeAttribute("src");
+    }
+    accountMenuButton.classList.toggle("has-profile-photo", Boolean(photoUrl));
+  }
+  profilePhotoPreview.replaceChildren();
+  if (photoUrl) {
+    const image = document.createElement("img");
+    image.alt = "";
+    image.src = photoUrl;
+    image.onerror = () => {
+      profilePhotoPreview.textContent = initials;
+    };
+    profilePhotoPreview.append(image);
+    profilePhotoRemove.hidden = false;
+  } else {
+    profilePhotoPreview.textContent = initials;
+    profilePhotoRemove.hidden = true;
+  }
+  const avatar = profileSummary.querySelector(".profile-avatar");
+  if (avatar) {
+    avatar.replaceChildren();
+    if (photoUrl) {
+      const image = document.createElement("img");
+      image.alt = "";
+      image.src = photoUrl;
+      avatar.append(image);
+    } else avatar.textContent = initials;
+  }
+  myStoryInitials.textContent = initials.slice(0, 1) || "N";
+  setAvatarPhoto(myStoryPhoto, photoUrl, myStoryInitials);
+}
 function readSharedSessionActivity() {
   try {
     const value = Number(localStorage.getItem(SESSION_ACTIVITY_STORAGE_KEY));
@@ -1359,6 +1469,7 @@ function renderProfile(data) {
       .toUpperCase() || "N";
   profileSummary.replaceChildren();
   addText(profileSummary, "div", "profile-avatar", initials);
+  setProfilePhotoEverywhere(user.photoUrl || "", displayName);
   const identity = addText(profileSummary, "div", "profile-identity", "");
   addText(identity, "h2", "", displayName);
   addText(
@@ -1561,7 +1672,29 @@ function renderFriendList(listId, emptyId, entries, kind) {
     const item = document.createElement("li");
     item.className = "friend-item";
     const person = document.createElement("div");
-    person.className = "friend-person";
+    person.className = "friend-person friend-person-with-avatar";
+    const avatar = document.createElement("span");
+    avatar.className = "friend-avatar";
+    const initials =
+      (friend.name || "NFD member")
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0])
+        .join("")
+        .toUpperCase() || "N";
+    avatar.textContent = initials;
+    if (friend.photoUrl) {
+      avatar.textContent = "";
+      const image = document.createElement("img");
+      image.alt = "";
+      image.src = friend.photoUrl;
+      image.onerror = () => {
+        avatar.textContent = initials;
+      };
+      avatar.append(image);
+    }
+    person.append(avatar);
     addText(person, "strong", "", friend.name || "NFD member");
     addText(person, "span", "", friend.email || "");
     item.append(person);
@@ -1741,6 +1874,332 @@ async function refreshMessageNavBadge() {
     messagesNavLink.setAttribute("aria-label", unread ? `Notifications, ${unread} unread` : "Notifications");
   } catch {}
 }
+function personInitials(name) {
+  return (
+    (name || "NFD member")
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0])
+      .join("")
+      .toUpperCase() || "N"
+  );
+}
+function renderStoryTray(result) {
+  const own = result.own || null;
+  myStoryButton.classList.toggle("has-unseen", Boolean(own?.stories?.some((story) => !story.viewed)));
+  myStoryButton.classList.toggle("story-seen", Boolean(own));
+  myStoryInitials.textContent = personInitials(own?.name || "NFD member").slice(0, 1);
+  setAvatarPhoto(myStoryPhoto, own?.photoUrl || "", myStoryInitials);
+  myStoryButton.setAttribute(
+    "aria-label",
+    own?.stories?.length
+      ? `View your ${own.stories.length} active ${own.stories.length === 1 ? "story" : "stories"}`
+      : "Add your first story",
+  );
+  storyFriends.replaceChildren();
+  (result.friends || []).forEach((friend) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `story-bubble${friend.hasUnseen ? " has-unseen" : " story-seen"}`;
+    button.setAttribute(
+      "aria-label",
+      `${friend.name}’s ${friend.stories.length} active ${friend.stories.length === 1 ? "story" : "stories"}`,
+    );
+    const avatar = document.createElement("span");
+    avatar.className = "story-avatar";
+    const initials = document.createElement("span");
+    initials.textContent = personInitials(friend.name).slice(0, 1);
+    if (friend.photoUrl) {
+      const image = document.createElement("img");
+      image.alt = "";
+      setAvatarPhoto(image, friend.photoUrl, initials);
+      avatar.append(image, initials);
+    } else avatar.append(initials);
+    addText(button, "span", "story-name", friend.name);
+    button.prepend(avatar);
+    button.addEventListener("click", () => openStoryViewer(friend.userId, 0));
+    storyFriends.append(button);
+  });
+}
+async function loadStories() {
+  try {
+    const activeUserId = currentStoryGroup()?.userId;
+    const response = await fetch("/api/stories", {
+      headers: { accept: "application/json" },
+      cache: "no-store",
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || "Stories could not be loaded.");
+    storyGroups = [...(result.own ? [result.own] : []), ...(result.friends || [])];
+    if (storyViewer.open && activeUserId) {
+      activeStoryGroupIndex = storyGroups.findIndex((group) => group.userId === activeUserId);
+      if (activeStoryGroupIndex < 0) closeStoryViewer();
+      else
+        activeStoryIndex = Math.min(activeStoryIndex, storyGroups[activeStoryGroupIndex].stories.length - 1);
+    }
+    renderStoryTray(result);
+  } catch (error) {
+    console.warn("NFD story tray could not be refreshed", error.message);
+  }
+}
+function currentStoryGroup() {
+  return storyGroups[activeStoryGroupIndex] || null;
+}
+function closeStoryViewer() {
+  clearTimeout(storyAdvanceTimer);
+  storyViewerStage.replaceChildren();
+  if (storyViewer.open) storyViewer.close();
+}
+function showStoryAtCurrentIndex() {
+  clearTimeout(storyAdvanceTimer);
+  const group = currentStoryGroup();
+  const story = group?.stories?.[activeStoryIndex];
+  if (!group || !story) return closeStoryViewer();
+  storyViewerName.textContent = group.name;
+  storyViewerTime.textContent = new Date(story.createdAt).toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  storyViewerAvatar.replaceChildren();
+  if (group.photoUrl) {
+    const image = document.createElement("img");
+    image.alt = "";
+    image.src = group.photoUrl;
+    image.onerror = () => {
+      storyViewerAvatar.textContent = personInitials(group.name).slice(0, 1);
+    };
+    storyViewerAvatar.append(image);
+  } else storyViewerAvatar.textContent = personInitials(group.name).slice(0, 1);
+  storyViewerCaption.textContent = story.caption || "";
+  storyViewerProgress.replaceChildren();
+  group.stories.forEach((_, index) => {
+    const segment = document.createElement("span");
+    if (index <= activeStoryIndex) segment.classList.add("active");
+    storyViewerProgress.append(segment);
+  });
+  storyViewerStage.replaceChildren();
+  storyDeleteButton.hidden = !group.own;
+  storySoundButton.hidden = !story.contentType.startsWith("video/");
+  storySoundButton.textContent = "Turn sound on";
+  storyPreviousButton.disabled = activeStoryGroupIndex === 0 && activeStoryIndex === 0;
+  storyNextButton.textContent =
+    activeStoryIndex < group.stories.length - 1 || activeStoryGroupIndex < storyGroups.length - 1
+      ? "Next"
+      : "Close";
+  let media;
+  if (story.contentType.startsWith("video/")) {
+    media = document.createElement("video");
+    media.autoplay = true;
+    media.muted = true;
+    media.playsInline = true;
+    media.controls = true;
+    media.addEventListener("ended", nextStory);
+  } else {
+    media = document.createElement("img");
+    media.alt = `Story shared by ${group.name}`;
+    storyAdvanceTimer = setTimeout(nextStory, 5000);
+  }
+  media.src = story.mediaUrl;
+  storyViewerStage.append(media);
+  if (!group.own && !story.viewed) {
+    story.viewed = true;
+    renderStoryTray({
+      own: storyGroups.find((item) => item.own) || null,
+      friends: storyGroups
+        .filter((item) => !item.own)
+        .map((item) => ({
+          ...item,
+          hasUnseen: item.stories.some((entry) => !entry.viewed),
+        })),
+    });
+    void fetch(`/api/stories/${encodeURIComponent(story.id)}/view`, { method: "POST" });
+  }
+}
+function openStoryViewer(userId, storyIndex = 0) {
+  activeStoryGroupIndex = storyGroups.findIndex((group) => group.userId === userId);
+  if (activeStoryGroupIndex < 0) return;
+  activeStoryIndex = Math.max(0, Math.min(storyIndex, storyGroups[activeStoryGroupIndex].stories.length - 1));
+  showStoryAtCurrentIndex();
+  if (!storyViewer.open) storyViewer.showModal();
+}
+function nextStory() {
+  clearTimeout(storyAdvanceTimer);
+  const group = currentStoryGroup();
+  if (!group) return closeStoryViewer();
+  if (activeStoryIndex < group.stories.length - 1) activeStoryIndex++;
+  else if (activeStoryGroupIndex < storyGroups.length - 1) {
+    activeStoryGroupIndex++;
+    activeStoryIndex = 0;
+  } else return closeStoryViewer();
+  showStoryAtCurrentIndex();
+}
+function previousStory() {
+  clearTimeout(storyAdvanceTimer);
+  if (activeStoryIndex > 0) activeStoryIndex--;
+  else if (activeStoryGroupIndex > 0) {
+    activeStoryGroupIndex--;
+    activeStoryIndex = storyGroups[activeStoryGroupIndex].stories.length - 1;
+  } else return;
+  showStoryAtCurrentIndex();
+}
+function openStoryComposer() {
+  storyComposeFeedback.textContent = "";
+  storyForm.reset();
+  storyShareButton.disabled = true;
+  selectedStoryFile = null;
+  storyMediaPreview.replaceChildren();
+  storyMediaPreview.hidden = true;
+  if (storyPreviewUrl) URL.revokeObjectURL(storyPreviewUrl);
+  storyPreviewUrl = "";
+  storyComposer.showModal();
+}
+function previewStoryFile(file) {
+  selectedStoryFile = file || null;
+  storyComposeFeedback.textContent = "";
+  storyMediaPreview.replaceChildren();
+  storyMediaPreview.hidden = !file;
+  storyShareButton.disabled = !file;
+  if (storyPreviewUrl) URL.revokeObjectURL(storyPreviewUrl);
+  storyPreviewUrl = "";
+  if (!file) return;
+  if (file.size > 25 * 1024 * 1024 || !(file.type.startsWith("image/") || file.type.startsWith("video/"))) {
+    storyComposeFeedback.textContent = "Choose one image or video no larger than 25 MB.";
+    storyShareButton.disabled = true;
+    selectedStoryFile = null;
+    storyMediaPreview.hidden = true;
+    return;
+  }
+  storyPreviewUrl = URL.createObjectURL(file);
+  const media = document.createElement(file.type.startsWith("video/") ? "video" : "img");
+  media.src = storyPreviewUrl;
+  if (media instanceof HTMLVideoElement) {
+    media.controls = true;
+    media.muted = true;
+    media.playsInline = true;
+  } else media.alt = "Preview of your story";
+  storyMediaPreview.append(media);
+}
+myStoryButton.addEventListener("click", () => {
+  const own = storyGroups.find((group) => group.own);
+  if (own?.stories.length) openStoryViewer(own.userId, 0);
+  else openStoryComposer();
+});
+storyCreateButton.addEventListener("click", openStoryComposer);
+storyMediaFile.addEventListener("change", () => previewStoryFile(storyMediaFile.files?.[0]));
+storyCameraFile.addEventListener("change", () => previewStoryFile(storyCameraFile.files?.[0]));
+document.getElementById("story-camera-button").addEventListener("click", () => storyCameraFile.click());
+storyForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!selectedStoryFile) return;
+  storyShareButton.disabled = true;
+  storyComposeFeedback.textContent = "Sharing your story…";
+  const body = new FormData();
+  body.append("media", selectedStoryFile, selectedStoryFile.name);
+  body.append("caption", storyCaption.value.trim());
+  try {
+    const response = await fetch("/api/stories", { method: "POST", body });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || "Your story could not be shared.");
+    if (storyPreviewUrl) URL.revokeObjectURL(storyPreviewUrl);
+    storyPreviewUrl = "";
+    storyComposer.close();
+    await loadStories();
+    const own = storyGroups.find((group) => group.own);
+    if (own?.stories.length) openStoryViewer(own.userId, own.stories.length - 1);
+  } catch (error) {
+    storyComposeFeedback.textContent = error.message;
+    storyShareButton.disabled = false;
+  }
+});
+document.querySelectorAll("[data-close-story-dialog]").forEach((button) => {
+  button.addEventListener("click", () => {
+    if (storyComposer.open) storyComposer.close();
+    if (storyViewer.open) closeStoryViewer();
+  });
+});
+storyComposer.addEventListener("close", () => {
+  if (storyPreviewUrl) URL.revokeObjectURL(storyPreviewUrl);
+  storyPreviewUrl = "";
+});
+storyViewer.addEventListener("close", () => {
+  clearTimeout(storyAdvanceTimer);
+  storyViewerStage.replaceChildren();
+});
+storyNextButton.addEventListener("click", nextStory);
+storyPreviousButton.addEventListener("click", previousStory);
+storySoundButton.addEventListener("click", () => {
+  const video = storyViewerStage.querySelector("video");
+  if (!video) return;
+  video.muted = !video.muted;
+  storySoundButton.textContent = video.muted ? "Turn sound on" : "Mute sound";
+});
+storyDeleteButton.addEventListener("click", async () => {
+  const story = currentStoryGroup()?.stories?.[activeStoryIndex];
+  if (!story || !window.confirm("Delete this story now? It will disappear for your friends too.")) return;
+  storyDeleteButton.disabled = true;
+  try {
+    const response = await fetch(`/api/stories/${encodeURIComponent(story.id)}`, { method: "DELETE" });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || "The story could not be deleted.");
+    await loadStories();
+    const own = storyGroups.find((group) => group.own);
+    if (own?.stories.length) openStoryViewer(own.userId, Math.min(activeStoryIndex, own.stories.length - 1));
+    else closeStoryViewer();
+  } catch (error) {
+    storyViewerCaption.textContent = error.message;
+  } finally {
+    storyDeleteButton.disabled = false;
+  }
+});
+profilePhotoFile.addEventListener("change", () => {
+  const file = profilePhotoFile.files?.[0];
+  profilePhotoFeedback.textContent = "";
+  profilePhotoSave.disabled = !file;
+});
+profilePhotoForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const file = profilePhotoFile.files?.[0];
+  if (!file) return;
+  profilePhotoSave.disabled = true;
+  profilePhotoFeedback.textContent = "Saving photo…";
+  const body = new FormData();
+  body.append("photo", file, file.name);
+  try {
+    const response = await fetch("/api/profile/photo", { method: "PUT", body });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || "Your profile photo could not be saved.");
+    setProfilePhotoEverywhere(
+      result.photoUrl,
+      profileSummary.querySelector(".profile-identity h2")?.textContent,
+    );
+    profilePhotoFeedback.textContent = "Profile photo updated.";
+    profilePhotoFile.value = "";
+    await loadStories();
+  } catch (error) {
+    profilePhotoFeedback.textContent = error.message;
+    profilePhotoSave.disabled = false;
+  }
+});
+profilePhotoRemove.addEventListener("click", async () => {
+  profilePhotoRemove.disabled = true;
+  profilePhotoFeedback.textContent = "Removing photo…";
+  try {
+    const response = await fetch("/api/profile/photo", { method: "DELETE" });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || "Your profile photo could not be removed.");
+    setProfilePhotoEverywhere("", profileSummary.querySelector(".profile-identity h2")?.textContent);
+    profilePhotoFeedback.textContent = "Profile photo removed.";
+    await loadStories();
+  } catch (error) {
+    profilePhotoFeedback.textContent = error.message;
+  } finally {
+    profilePhotoRemove.disabled = false;
+  }
+});
 function formatMessageTime(value) {
   if (!value) return "";
   return new Date(value).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
@@ -2961,6 +3420,7 @@ async function updateNavigation() {
     startSessionActivityTracking();
     currentUserId = result.userId || currentUserId;
     syncFeedTagline(currentUserId);
+    setProfilePhotoEverywhere(result.profilePhotoUrl || "", result.displayName || "NFD member");
     adminNavLink.hidden = !result.isAdmin;
     accountAdminLink.hidden = !result.isAdmin;
     setMainNavigationVisible(true);
@@ -2973,6 +3433,11 @@ async function updateNavigation() {
     ghostModeHandle.textContent = currentGhostMode.profile?.handle
       ? `@${currentGhostMode.profile.handle}`
       : "";
+    void loadStories();
+    clearInterval(storyTrayRefreshTimer);
+    storyTrayRefreshTimer = setInterval(() => {
+      if (document.visibilityState === "visible") loadStories();
+    }, 60000);
     await refreshMessageNavBadge();
     clearInterval(messageNavRefreshTimer);
     messageNavRefreshTimer = setInterval(() => {

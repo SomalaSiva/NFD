@@ -1,5 +1,6 @@
 import { createAdminRoutes } from "./routes/admin.js";
 import { createSocialRoutes } from "./routes/social.js";
+import { createStoryRoutes } from "./routes/stories.js";
 import { createExperienceRoutes } from "./routes/experiences.js";
 import { ADMIN_PAGE_SIZE, getPageMetadata, getPageOffset } from "./lib/pagination.js";
 import { isSessionIdle } from "./lib/session.js";
@@ -10,6 +11,7 @@ import {
   ensureGhostTables,
   ensureIdentityTables,
   ensureModerationTable,
+  ensureStoryTables,
 } from "./db/ensure.js";
 
 const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
@@ -49,14 +51,22 @@ const adminRoutes = createAdminRoutes({
 const socialRoutes = createSocialRoutes({
   getCurrentUser,
   ensureGhostTables,
+  ensureStoryTables,
   recordActivity,
   json,
   cleanSearchTerm,
   availableIdentitySql: AVAILABLE_IDENTITY_SQL,
 });
+const storyRoutes = createStoryRoutes({
+  getCurrentUser,
+  recordActivity,
+  json,
+  availableIdentitySql: AVAILABLE_IDENTITY_SQL,
+});
 const experienceRoutes = createExperienceRoutes({
   getCurrentUser,
   ensureGhostTables,
+  ensureStoryTables,
   ensureExperienceOptionColumns,
   ensureEngagementTables,
   recordActivity,
@@ -166,8 +176,24 @@ export default {
         return json({ error: "Sign in to use NFD." }, 401);
       }
       await recordAppSession(env, user.isGhost ? await getAuthenticatedUser(request, env) : user);
+      let profilePhotoUrl = "";
+      try {
+        await ensureStoryTables(env);
+        const photo = await env.DB.prepare("SELECT profile_photo_key FROM nfd_users WHERE id = ?")
+          .bind(user.id)
+          .first();
+        if (photo?.profile_photo_key)
+          profilePhotoUrl = `/api/profile-photo/${encodeURIComponent(user.id)}?v=${Date.now()}`;
+      } catch (error) {
+        console.error(
+          "NFD profile photo status could not be loaded",
+          error instanceof Error ? error.name : "unknown",
+        );
+      }
       return json({
         userId: user.id,
+        displayName: user.name || "NFD member",
+        profilePhotoUrl,
         isAdmin: !user.isGhost && (await adminRoutes.isAdmin(request, env)),
         provider: user.provider,
         ghostMode: await getGhostModeState(request, env, user),
@@ -211,6 +237,29 @@ export default {
     }
     if (request.method === "GET" && url.pathname === "/api/friends/suggestions") {
       return socialRoutes.suggestNfdFriends(request, env);
+    }
+    if (url.pathname === "/api/profile/photo" && ["PUT", "DELETE"].includes(request.method)) {
+      return storyRoutes.manageProfilePhoto(request, env);
+    }
+    const profilePhotoMatch = url.pathname.match(/^\/api\/profile-photo\/([^/]+)$/);
+    if (request.method === "GET" && profilePhotoMatch) {
+      return storyRoutes.serveProfilePhoto(request, env, decodeURIComponent(profilePhotoMatch[1]));
+    }
+    if (url.pathname === "/api/stories" && request.method === "GET") {
+      return storyRoutes.listStories(request, env);
+    }
+    if (url.pathname === "/api/stories" && request.method === "POST") {
+      return storyRoutes.createStory(request, env);
+    }
+    const storyMatch = url.pathname.match(/^\/api\/stories\/([0-9a-f-]{36})(?:\/(media|view))?$/i);
+    if (storyMatch && request.method === "GET" && storyMatch[2] === "media") {
+      return storyRoutes.serveStoryMedia(request, env, storyMatch[1]);
+    }
+    if (storyMatch && request.method === "POST" && storyMatch[2] === "view") {
+      return storyRoutes.markStoryViewed(request, env, storyMatch[1]);
+    }
+    if (storyMatch && request.method === "DELETE" && !storyMatch[2]) {
+      return storyRoutes.deleteStory(request, env, storyMatch[1]);
     }
     if (url.pathname === "/api/friends" && ["GET", "POST"].includes(request.method)) {
       return socialRoutes.manageFriends(request, env);
@@ -275,6 +324,9 @@ export default {
     }
 
     return new Response("Not found", { status: 404 });
+  },
+  async scheduled(_event, env, ctx) {
+    ctx.waitUntil(storyRoutes.cleanupExpiredStories(env));
   },
 };
 

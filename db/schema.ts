@@ -9,6 +9,7 @@ export const nfdUsers = sqliteTable(
     providerSubject: text("provider_subject").notNull(),
     email: text("email").notNull(),
     displayName: text("display_name"),
+    profilePhotoKey: text("profile_photo_key"),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
     active: integer("active").notNull().default(1),
@@ -194,6 +195,44 @@ export const nfdMessages = sqliteTable(
     index("nfd_messages_sender_recipient_created_idx").on(table.senderId, table.recipientId, table.createdAt),
     index("nfd_messages_recipient_sender_created_idx").on(table.recipientId, table.senderId, table.createdAt),
     index("nfd_messages_expires_idx").on(table.expiresAt),
+  ],
+);
+
+export const nfdStories = sqliteTable(
+  "nfd_stories",
+  {
+    id: text("id").primaryKey(),
+    authorId: text("author_id")
+      .notNull()
+      .references(() => nfdUsers.id, { onDelete: "cascade" }),
+    objectKey: text("object_key").notNull().unique(),
+    contentType: text("content_type").notNull(),
+    originalFilename: text("original_filename").notNull(),
+    sizeBytes: integer("size_bytes").notNull(),
+    caption: text("caption").notNull().default(""),
+    createdAt: text("created_at").notNull(),
+    expiresAt: text("expires_at").notNull(),
+  },
+  (table) => [
+    index("nfd_stories_author_expires_idx").on(table.authorId, table.expiresAt),
+    index("nfd_stories_expires_idx").on(table.expiresAt),
+  ],
+);
+
+export const nfdStoryViews = sqliteTable(
+  "nfd_story_views",
+  {
+    storyId: text("story_id")
+      .notNull()
+      .references(() => nfdStories.id, { onDelete: "cascade" }),
+    viewerId: text("viewer_id")
+      .notNull()
+      .references(() => nfdUsers.id, { onDelete: "cascade" }),
+    viewedAt: text("viewed_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("nfd_story_views_story_viewer_unique").on(table.storyId, table.viewerId),
+    index("nfd_story_views_viewer_idx").on(table.viewerId, table.viewedAt),
   ],
 );
 

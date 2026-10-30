@@ -8,6 +8,7 @@ let ghostTablesPromise;
 let adminTablesPromise;
 let emailRestrictionTablesPromise;
 let messagingTablesPromise;
+let storyTablesPromise;
 
 export async function ensureAdminTable(env) {
   if (!env.DB) throw new Error("The NFD database is unavailable.");
@@ -255,6 +256,61 @@ export async function ensureIdentityTables(env) {
     throw error;
   });
   await identityTablesPromise;
+}
+
+export async function ensureStoryTables(env) {
+  if (!env.DB) throw new Error("The NFD database is unavailable.");
+  await ensureIdentityTables(env);
+  storyTablesPromise ||= (async () => {
+    const userColumns = await env.DB.prepare("PRAGMA table_info(nfd_users)").all();
+    if (!(userColumns.results || []).some((column) => column.name === "profile_photo_key")) {
+      try {
+        await env.DB.prepare("ALTER TABLE nfd_users ADD COLUMN profile_photo_key TEXT").run();
+      } catch (error) {
+        const refreshedColumns = await env.DB.prepare("PRAGMA table_info(nfd_users)").all();
+        if (!(refreshedColumns.results || []).some((column) => column.name === "profile_photo_key"))
+          throw error;
+      }
+    }
+    await env.DB.prepare(
+      `
+      CREATE TABLE IF NOT EXISTS nfd_stories (
+        id TEXT PRIMARY KEY NOT NULL,
+        author_id TEXT NOT NULL REFERENCES nfd_users(id) ON DELETE CASCADE,
+        object_key TEXT NOT NULL UNIQUE,
+        content_type TEXT NOT NULL,
+        original_filename TEXT NOT NULL,
+        size_bytes INTEGER NOT NULL,
+        caption TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL,
+        expires_at TEXT NOT NULL
+      )
+    `,
+    ).run();
+    await env.DB.prepare(
+      "CREATE INDEX IF NOT EXISTS nfd_stories_author_expires_idx ON nfd_stories (author_id, expires_at)",
+    ).run();
+    await env.DB.prepare(
+      "CREATE INDEX IF NOT EXISTS nfd_stories_expires_idx ON nfd_stories (expires_at)",
+    ).run();
+    await env.DB.prepare(
+      `
+      CREATE TABLE IF NOT EXISTS nfd_story_views (
+        story_id TEXT NOT NULL REFERENCES nfd_stories(id) ON DELETE CASCADE,
+        viewer_id TEXT NOT NULL REFERENCES nfd_users(id) ON DELETE CASCADE,
+        viewed_at TEXT NOT NULL,
+        PRIMARY KEY (story_id, viewer_id)
+      )
+    `,
+    ).run();
+    await env.DB.prepare(
+      "CREATE INDEX IF NOT EXISTS nfd_story_views_viewer_idx ON nfd_story_views (viewer_id, viewed_at)",
+    ).run();
+  })().catch((error) => {
+    storyTablesPromise = undefined;
+    throw error;
+  });
+  await storyTablesPromise;
 }
 
 export async function ensureEngagementTables(env) {

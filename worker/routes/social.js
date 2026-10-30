@@ -1,4 +1,4 @@
-import { ensureMessagingTables } from "../db/ensure.js";
+import { ensureMessagingTables, ensureStoryTables } from "../db/ensure.js";
 
 export function createSocialRoutes(services) {
   const { getCurrentUser, ensureGhostTables, recordActivity, json, cleanSearchTerm, availableIdentitySql } =
@@ -8,12 +8,13 @@ export function createSocialRoutes(services) {
     if (!user) return json({ error: "Sign in to manage your NFD friends." }, 401);
     if (!env.DB) return json({ error: "NFD friends are unavailable right now." }, 503);
     try {
+      await ensureStoryTables(env);
       await ensureGhostTables(env);
       if (request.method === "GET") {
         const [friends, incoming, outgoing] = await Promise.all([
           env.DB.prepare(
             `
-          SELECT f.id, u.id AS user_id, u.display_name, u.email, f.created_at
+          SELECT f.id, u.id AS user_id, u.display_name, u.email, u.profile_photo_key, f.created_at
           FROM nfd_friend_requests f
           INNER JOIN nfd_users u ON u.id = CASE WHEN f.from_user_id = ? THEN f.to_user_id ELSE f.from_user_id END
           WHERE f.status = 'accepted' AND (f.from_user_id = ? OR f.to_user_id = ?) AND ${availableIdentitySql}
@@ -24,7 +25,7 @@ export function createSocialRoutes(services) {
             .all(),
           env.DB.prepare(
             `
-          SELECT f.id, u.display_name, u.email, f.created_at
+          SELECT f.id, u.display_name, u.email, NULL AS profile_photo_key, f.created_at
           FROM nfd_friend_requests f INNER JOIN nfd_users u ON u.id = f.from_user_id
           WHERE f.to_user_id = ? AND f.status = 'pending' AND ${availableIdentitySql} ORDER BY f.created_at DESC
         `,
@@ -33,7 +34,7 @@ export function createSocialRoutes(services) {
             .all(),
           env.DB.prepare(
             `
-          SELECT f.id, u.display_name, u.email, f.created_at
+          SELECT f.id, u.display_name, u.email, NULL AS profile_photo_key, f.created_at
           FROM nfd_friend_requests f INNER JOIN nfd_users u ON u.id = f.to_user_id
           WHERE f.from_user_id = ? AND f.status = 'pending' AND ${availableIdentitySql} ORDER BY f.created_at DESC
         `,
@@ -47,6 +48,9 @@ export function createSocialRoutes(services) {
             userId: row.user_id || "",
             name: row.display_name || "NFD member",
             email: row.email || "",
+            photoUrl: row.profile_photo_key
+              ? `/api/profile-photo/${encodeURIComponent(row.user_id || "")}?v=${Date.now()}`
+              : "",
             createdAt: row.created_at,
           }));
         return json({
