@@ -19,6 +19,4 @@ CREATE TABLE IF NOT EXISTS `nfd_ghost_profiles` (
 --> statement-breakpoint
 CREATE UNIQUE INDEX IF NOT EXISTS `nfd_ghost_profiles_owner_user_id_unique` ON `nfd_ghost_profiles` (`owner_user_id`);
 --> statement-breakpoint
-CREATE UNIQUE INDEX IF NOT EXISTS `nfd_ghost_profiles_handle_unique` ON `nfd_ghost_profiles` (`handle`);
---> statement-breakpoint
 CREATE INDEX IF NOT EXISTS `nfd_ghost_profiles_owner_idx` ON `nfd_ghost_profiles` (`owner_user_id`);

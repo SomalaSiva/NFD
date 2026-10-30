@@ -417,6 +417,21 @@ async function ensureGhostTables(env) {
         updated_at TEXT NOT NULL
       )
     `).run();
+    let profileColumns = await env.DB.prepare("PRAGMA table_info(nfd_ghost_profiles)").all();
+    if (!(profileColumns.results || []).some((column) => column.name === "handle")) {
+      try {
+        await env.DB.prepare("ALTER TABLE nfd_ghost_profiles ADD COLUMN handle TEXT").run();
+      } catch (error) {
+        profileColumns = await env.DB.prepare("PRAGMA table_info(nfd_ghost_profiles)").all();
+        if (!(profileColumns.results || []).some((column) => column.name === "handle")) throw error;
+      }
+    }
+    await env.DB.prepare(`
+      UPDATE nfd_ghost_profiles
+      SET handle = 'ghost-' || lower(substr(replace(ghost_user_id, '-', ''), -12))
+      WHERE handle IS NULL OR trim(handle) = ''
+    `).run();
+    await env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS nfd_ghost_profiles_handle_unique ON nfd_ghost_profiles (handle COLLATE NOCASE)").run();
     await env.DB.prepare("CREATE INDEX IF NOT EXISTS nfd_ghost_profiles_owner_idx ON nfd_ghost_profiles (owner_user_id)").run();
   })().catch((error) => {
     ghostTablesPromise = undefined;
