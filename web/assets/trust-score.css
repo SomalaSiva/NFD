@@ -198,6 +198,58 @@
   gap: 12px;
 }
 
+#trust-score-nfd-search {
+  grid-template-columns: minmax(0, 1fr) auto;
+  max-width: 680px;
+}
+
+.trust-score-nfd-results,
+.trust-score-selected-list,
+.trust-score-candidate-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.trust-score-nfd-result {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 13px 15px;
+  border: 1px solid #e2eae4;
+  border-radius: 11px;
+  background: #fbfcfb;
+}
+
+.trust-score-nfd-result > div,
+.trust-score-selected-person span,
+.trust-score-candidate-person span {
+  display: grid;
+  gap: 5px;
+}
+
+.trust-score-nfd-result small,
+.trust-score-selected-person small,
+.trust-score-candidate-person small {
+  color: #71817b;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.trust-score-candidate-person,
+.trust-score-selected-person {
+  padding: 12px;
+  border: 1px solid #e2eae4;
+  border-radius: 10px;
+  background: #fbfcfb;
+}
+
+.trust-score-selected-person textarea {
+  min-width: 0;
+  margin-top: 7px;
+}
+
 .trust-score-form {
   display: grid;
   gap: 15px;
@@ -362,8 +414,14 @@
 
   .trust-score-grid,
   .trust-score-form-grid,
-  .trust-score-filters {
+  .trust-score-filters,
+  #trust-score-nfd-search {
     grid-template-columns: 1fr;
+  }
+
+  .trust-score-nfd-result {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .trust-score-metrics {

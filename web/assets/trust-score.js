@@ -17,6 +17,11 @@
     profile: null,
     summary: null,
     people: [],
+    nfdSearch: "",
+    nfdPeople: [],
+    agreementSearch: "",
+    agreementCandidates: [],
+    agreementSelection: new Map(),
     commitments: [],
     agreements: [],
     search: "",
@@ -82,13 +87,56 @@
       ${metric("On time", summary?.onTime)}${metric("Late", summary?.late)}${metric("Disputed", summary?.disputed)}${metric("In progress", summary?.inProgress)}${metric("Fulfilled agreements", summary?.agreementsFulfilled)}${showTotal ? metric("Recorded outcomes", summary?.total) : ""}
     </div>`;
   }
-  function peopleOptions(selectedIds = []) {
-    return state.people
-      .map((person) => {
-        const checked = selectedIds.includes(person.id) ? "checked" : "";
-        return `<label class="trust-score-check"><input class="trust-score-agree-person" type="checkbox" value="${esc(person.id)}" ${checked}><span><strong>${esc(person.name)}</strong>${person.role ? ` · ${esc(person.role)}` : ""}<input class="trust-score-responsibility" aria-label="${esc(person.name)} responsibility" maxlength="3000" placeholder="Their responsibility" value="${checked ? "Fulfill the responsibilities described in this agreement." : ""}" ${checked ? "" : "disabled"}></span></label>`;
-      })
-      .join("");
+  async function loadNfdPeople(query) {
+    if (query.length < 2) {
+      state.nfdPeople = [];
+      return;
+    }
+    const result = await api(`/nfd-members?q=${encodeURIComponent(query)}`);
+    state.nfdPeople = result.people || [];
+  }
+  let agreementSearchRequest = 0;
+  async function loadAgreementCandidates(query) {
+    const request = ++agreementSearchRequest;
+    state.agreementSearch = query;
+    if (query.length < 2) {
+      state.agreementCandidates = [];
+      renderAgreementParticipantPicker();
+    } else {
+      const result = await api(`/nfd-members?q=${encodeURIComponent(query)}`);
+      if (request !== agreementSearchRequest) return;
+      state.agreementCandidates = result.people || [];
+      renderAgreementParticipantPicker();
+    }
+  }
+  function renderAgreementParticipantPicker() {
+    const selected = document.getElementById("trust-score-agreement-selected");
+    const candidates = document.getElementById("trust-score-agreement-candidates");
+    if (!selected || !candidates) return;
+    selected.innerHTML =
+      [...state.agreementSelection.entries()]
+        .map(
+          ([id, person]) => `<label class="trust-score-check trust-score-selected-person">
+          <input class="trust-score-agree-person" type="checkbox" value="${esc(id)}" checked>
+          <span><strong>${esc(person.name)}</strong><small>Selected participant</small>
+          <textarea class="trust-score-responsibility" data-user-id="${esc(id)}" maxlength="3000" required aria-label="${esc(person.name)} responsibility">${esc(person.responsibility)}</textarea></span>
+        </label>`,
+        )
+        .join("") ||
+      `<p class="trust-score-note">Search NFD members by display name, then select one or more participants.</p>`;
+    const choices = state.agreementCandidates.filter((person) => !state.agreementSelection.has(person.id));
+    candidates.innerHTML = choices.length
+      ? choices
+          .map(
+            (person) => `<label class="trust-score-check trust-score-candidate-person">
+              <input class="trust-score-agree-person" type="checkbox" value="${esc(person.id)}">
+              <span><strong>${esc(person.name)}</strong><small>NFD member · agreement invitations appear in Trust Score</small></span>
+            </label>`,
+          )
+          .join("")
+      : state.agreementSearch.length < 2
+        ? `<p class="trust-score-note">Enter at least two characters to find active NFD members.</p>`
+        : `<p class="trust-score-note">No matching active NFD members found.</p>`;
   }
   async function loadPeople() {
     const params = new URLSearchParams();
@@ -130,6 +178,24 @@
         <select name="category" aria-label="Filter by category"><option value="">All categories</option>${["Services", "Business", "Everyday commitments", "Other"].map((category) => `<option value="${category}" ${state.category === category ? "selected" : ""}>${category}</option>`).join("")}</select><button class="primary" type="submit">Search</button>
       </form>
       <p class="trust-score-note">Trust Score shows participant-confirmed outcomes. Disputed commitments stay separate until everyone agrees on a resolution. There is no single rating number.</p>
+    </section>
+    <section class="trust-score-panel">
+      <div class="trust-score-panel-head"><div><h2>Find NFD members for an agreement</h2><p>Search active NFD accounts, including members who keep their Trust Score profile private.</p></div></div>
+      <form class="trust-score-filters" id="trust-score-nfd-search">
+        <input id="trust-score-nfd-query" type="search" name="q" value="${esc(state.nfdSearch)}" minlength="2" placeholder="Search by NFD display name" aria-label="Search active NFD members">
+        <button class="primary" type="submit">Search NFD</button>
+      </form>
+      <p class="trust-score-note">Only active NFD member names are shown. Email addresses and private Trust Score details stay hidden. Agreement invitations appear in each person’s Trust Score page, where they can review and respond.</p>
+      <div class="trust-score-nfd-results" aria-live="polite">${
+        state.nfdPeople.length
+          ? state.nfdPeople
+              .map(
+                (person) =>
+                  `<article class="trust-score-nfd-result"><div><strong>${esc(person.name)}</strong><small>NFD member</small></div><button class="primary" type="button" data-trust-action="invite-agreement" data-user="${esc(person.id)}" data-name="${esc(person.name)}">Draft agreement</button></article>`,
+              )
+              .join("")
+          : `<p class="trust-score-note">Enter at least two characters to search NFD members.</p>`
+      }</div>
     </section>
     <section class="trust-score-grid" aria-label="Discoverable NFD members">
       ${
@@ -262,17 +328,11 @@
       </article>`,
               )
               .join("")
-          : `<div class="trust-score-empty"><h2>No agreements yet</h2><p>Draft an agreement with public Trust Score members. Everyone can review each version before it is approved.</p><button type="button" class="primary" data-trust-action="new-agreement">Create an agreement</button></div>`
+          : `<div class="trust-score-empty"><h2>No agreements yet</h2><p>Draft an agreement with any active NFD member. Everyone can review each version before it is approved.</p><button type="button" class="primary" data-trust-action="new-agreement">Create an agreement</button></div>`
       }</section>`;
   }
   function agreementForm(existing = null) {
     const currentContent = existing?.history.find((entry) => entry.version === existing.version)?.content;
-    const currentParticipants =
-      currentContent?.participants ||
-      existing?.participants.map((x) => ({ userId: x.id, responsibility: x.responsibility })) ||
-      [];
-    const selected = currentParticipants.map((x) => x.userId).filter((id) => id !== state.userId);
-    const choices = peopleOptions(selected);
     const terms = currentContent?.terms || existing?.terms || {};
     const fields = Object.entries(labels)
       .map(
@@ -282,7 +342,7 @@
       .join("");
     return `<form id="trust-score-agreement-editor" data-id="${existing?.id || ""}" data-version="${existing?.version || 1}" class="trust-score-form">
       <div class="trust-score-form-grid"><label>Agreement title<input name="title" required maxlength="160" value="${esc(currentContent?.title || existing?.title || "")}"></label><label>Summary<input name="description" required maxlength="4000" value="${esc(currentContent?.description || existing?.description || "")}"></label></div>
-      <fieldset class="trust-score-form"><legend>Participants and responsibilities</legend><label class="trust-score-check"><input type="checkbox" checked disabled><span><strong>You</strong><input value="Coordinate and uphold the agreed terms." disabled aria-label="Your responsibility"></span></label>${choices || `<p>No other discoverable members are available. Ask participants to enable their Trust Score profile first.</p>`}</fieldset>
+      <fieldset class="trust-score-form trust-score-participant-picker"><legend>Participants and responsibilities</legend><label class="trust-score-check"><input type="checkbox" checked disabled><span><strong>You</strong><input value="Coordinate and uphold the agreed terms." disabled aria-label="Your responsibility"></span></label><label>Find an active NFD member<input id="trust-score-agreement-search" type="search" value="${esc(state.agreementSearch)}" minlength="2" placeholder="Type at least two characters" autocomplete="off"></label><div id="trust-score-agreement-selected" class="trust-score-selected-list"></div><div id="trust-score-agreement-candidates" class="trust-score-candidate-list"></div></fieldset>
       ${fields}${existing ? `<label>Reason for this revision<input name="reason" required maxlength="2000" placeholder="Explain what changed"></label>` : ""}
       <div class="trust-score-actions"><button class="primary">${existing ? "Save new version" : "Save agreement draft"}</button><button type="button" data-trust-action="close-form">Cancel</button></div>
     </form>`;
@@ -294,7 +354,7 @@
         <div class="trust-score-form-grid"><label>Display name<input value="${esc(profile.name || "NFD member")}" disabled></label><label>Role<input name="role" maxlength="80" value="${esc(profile.role)}" placeholder="e.g. Independent designer"></label></div>
         <div class="trust-score-form-grid"><label>City<input name="city" maxlength="80" value="${esc(profile.city)}" placeholder="City or region"></label><label>Category<select name="category">${["Services", "Business", "Everyday commitments", "Other"].map((category) => `<option ${profile.category === category ? "selected" : ""}>${category}</option>`).join("")}</select></label></div>
         <label>About<textarea name="bio" maxlength="500" placeholder="A short description for your Trust Score profile">${esc(profile.bio)}</textarea></label>
-        <label class="trust-score-check"><input type="checkbox" name="directoryVisible" ${profile.directoryVisible ? "checked" : ""}><span>Show my profile in Find people and allow other discoverable members to invite me to commitments and agreements.</span></label>
+        <label class="trust-score-check"><input type="checkbox" name="directoryVisible" ${profile.directoryVisible ? "checked" : ""}><span>Show my role, city, about text, and Trust Score outcomes in the public Trust Score directory. This also lets discoverable members invite me to commitments. Agreement invitations can be sent to any active NFD account.</span></label>
         <p class="trust-score-note">Only your display name, role, city, category, about text, and participant-confirmed commitment summary are shown in the public directory. Your NFD email address is never included.</p>
         <div class="trust-score-actions"><button class="primary">Save profile</button></div>
       </form></section>`;
@@ -332,13 +392,40 @@
       <form id="trust-score-create-commitment" class="trust-score-form"><div class="trust-score-form-grid"><label>Title<input name="title" required maxlength="160" placeholder="What are you agreeing to do?"></label><label>Category<select name="category">${["Services", "Business", "Everyday commitments", "Other"].map((x) => `<option>${x}</option>`).join("")}</select></label></div><label>Description<textarea name="description" required maxlength="4000" placeholder="Describe the promise and expectations."></textarea></label><div class="trust-score-form-grid"><label>Due date<input type="datetime-local" name="dueAt" required></label><label>Invite NFD people<select name="participantIds" multiple required size="6">${selects}</select><small>Only public Trust Score profiles can be invited.</small></label></div><div class="trust-score-actions"><button class="primary">Save and invite</button><button type="button" data-trust-action="close-form">Cancel</button></div></form>`;
     form.scrollIntoView({ behavior: "smooth", block: "start" });
   }
-  function openAgreement(existing = null) {
+  function openAgreement(existing = null, initialPerson = null) {
+    state.agreementSelection = new Map();
+    state.agreementSearch = "";
+    state.agreementCandidates = [];
+    if (existing) {
+      const currentContent = existing.history.find((entry) => entry.version === existing.version)?.content;
+      const participants =
+        currentContent?.participants ||
+        existing.participants.map((person) => ({
+          userId: person.id,
+          name: person.name,
+          responsibility: person.responsibility,
+        }));
+      participants.forEach((person) => {
+        if (person.userId !== state.userId)
+          state.agreementSelection.set(person.userId, {
+            name: person.name || "NFD member",
+            responsibility:
+              person.responsibility || "Fulfill the responsibilities described in this agreement.",
+          });
+      });
+    }
+    if (initialPerson?.id && initialPerson.id !== state.userId)
+      state.agreementSelection.set(initialPerson.id, {
+        name: initialPerson.name || "NFD member",
+        responsibility: "Fulfill the responsibilities described in this agreement.",
+      });
     state.view = "agreements";
     state.editingAgreementId = existing?.id || "";
     render();
     const form = document.getElementById("trust-score-agreement-form");
     form.hidden = false;
     form.innerHTML = `<h2>${existing ? "Revise agreement · all participants review again" : "Draft an agreement"}</h2><p>Use concrete terms. Replace each [To agree: …] prompt before requesting approval. Each revision is saved as a new version.</p>${agreementForm(existing)}`;
+    renderAgreementParticipantPicker();
     form.scrollIntoView({ behavior: "smooth", block: "start" });
   }
   tabs.forEach((tab) => tab.addEventListener("click", () => setView(tab.dataset.trustView)));
@@ -354,6 +441,11 @@
         state.search = String(values.get("q") || "").trim();
         state.category = String(values.get("category") || "");
         await loadPeople();
+        render();
+      } else if (form.id === "trust-score-nfd-search") {
+        const values = new FormData(form);
+        state.nfdSearch = String(values.get("q") || "").trim();
+        await loadNfdPeople(state.nfdSearch);
         render();
       } else if (form.id === "trust-score-profile-form") {
         const values = new FormData(form);
@@ -389,9 +481,9 @@
         render();
       } else if (form.id === "trust-score-agreement-editor") {
         const values = new FormData(form);
-        const selected = [...form.querySelectorAll(".trust-score-agree-person:checked")].map((checkbox) => ({
-          userId: checkbox.value,
-          responsibility: checkbox.closest("label").querySelector(".trust-score-responsibility").value.trim(),
+        const selected = [...state.agreementSelection.entries()].map(([userId, person]) => ({
+          userId,
+          responsibility: person.responsibility.trim(),
         }));
         const body = {
           title: values.get("title"),
@@ -447,8 +539,31 @@
   });
   content.addEventListener("change", (event) => {
     const checkbox = event.target.closest(".trust-score-agree-person");
-    if (checkbox)
-      checkbox.closest("label").querySelector(".trust-score-responsibility").disabled = !checkbox.checked;
+    if (!checkbox) return;
+    if (checkbox.checked) {
+      const person = state.agreementCandidates.find((candidate) => candidate.id === checkbox.value);
+      if (person)
+        state.agreementSelection.set(person.id, {
+          name: person.name,
+          responsibility: "Fulfill the responsibilities described in this agreement.",
+        });
+    } else state.agreementSelection.delete(checkbox.value);
+    renderAgreementParticipantPicker();
+  });
+  let agreementSearchTimer;
+  content.addEventListener("input", (event) => {
+    if (event.target.id === "trust-score-agreement-search") {
+      const query = event.target.value.trim();
+      clearTimeout(agreementSearchTimer);
+      agreementSearchTimer = setTimeout(() => {
+        loadAgreementCandidates(query).catch((error) => setStatus(error.message, true));
+      }, 220);
+    }
+    const responsibility = event.target.closest(".trust-score-responsibility[data-user-id]");
+    if (responsibility) {
+      const selected = state.agreementSelection.get(responsibility.dataset.userId);
+      if (selected) selected.responsibility = responsibility.value;
+    }
   });
   content.addEventListener("click", async (event) => {
     const tab = event.target.closest("[data-trust-view-button]");
@@ -472,11 +587,11 @@
             form.replaceChildren();
           });
       } else if (action === "new-agreement") {
-        if (!state.people.length) await loadPeople();
         openAgreement();
+      } else if (action === "invite-agreement") {
+        openAgreement(null, { id: button.dataset.user, name: button.dataset.name });
       } else if (action === "edit-agreement") {
         const agreement = state.agreements.find((item) => item.id === button.dataset.id);
-        if (!state.people.length) await loadPeople();
         openAgreement(agreement);
       } else if (action === "commitment") {
         await api(`/commitments/${button.dataset.id}/${button.dataset.action}`, send({}));

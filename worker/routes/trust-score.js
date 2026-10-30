@@ -245,6 +245,32 @@ export function createTrustScoreRoutes(services) {
     }
   }
 
+  async function listNfdMembers(request, env) {
+    const auth = await authenticated(request, env, "Sign in to find NFD members.");
+    if (auth.response) return auth.response;
+    const query = cleanSearchTerm(new URL(request.url).searchParams.get("q")).slice(0, 80);
+    if (query.length < 2) return json({ people: [], minimumCharacters: 2 });
+    try {
+      const result = await env.DB.prepare(
+        `SELECT u.id, CASE WHEN u.provider = 'ghost' THEN COALESCE(gp.handle, 'NFD member')
+          ELSE COALESCE(NULLIF(trim(u.display_name), ''), 'NFD member') END AS name
+         FROM nfd_users u
+         LEFT JOIN nfd_ghost_profiles gp ON gp.ghost_user_id = u.id AND gp.active = 1
+         WHERE u.id != ? AND ${availableIdentitySql}
+           AND (instr(lower(CASE WHEN u.provider = 'ghost' THEN COALESCE(gp.handle, '')
+             ELSE COALESCE(u.display_name, '') END), lower(?)) > 0)
+         ORDER BY lower(CASE WHEN u.provider = 'ghost' THEN COALESCE(gp.handle, 'NFD member')
+           ELSE COALESCE(NULLIF(trim(u.display_name), ''), 'NFD member') END), u.id LIMIT 20`,
+      )
+        .bind(auth.user.id, query)
+        .all();
+      return json({ people: result.results || [], minimumCharacters: 2 });
+    } catch (error) {
+      console.error("Trust Score NFD member lookup failed", error);
+      return json({ error: "NFD members could not be loaded right now." }, 503);
+    }
+  }
+
   async function commitmentDetails(env, commitmentId) {
     const commitment = await env.DB.prepare("SELECT * FROM nfd_trust_commitments WHERE id = ? LIMIT 1")
       .bind(commitmentId)
@@ -596,15 +622,13 @@ export function createTrustScoreRoutes(services) {
     if (distinctIds.length !== participantIds.length) throw new Error("Each participant must be different.");
     const result = await env.DB.prepare(
       `SELECT u.id FROM nfd_users u
-       LEFT JOIN nfd_trust_profiles p ON p.user_id = u.id
        WHERE u.id IN (${placeholders(distinctIds)}) AND ${availableIdentitySql}
-         AND (p.directory_visible = 1 OR u.id = ?)
        ORDER BY u.id`,
     )
-      .bind(...distinctIds, userId)
+      .bind(...distinctIds)
       .all();
     if ((result.results || []).length !== distinctIds.length)
-      throw new Error("Only active NFD members with a public Trust Score profile can be added.");
+      throw new Error("Only active NFD members can be added.");
   }
 
   async function addAgreementEvent(env, id, version, userId, action, details = {}) {
@@ -1019,6 +1043,7 @@ export function createTrustScoreRoutes(services) {
     getProfile,
     saveProfile,
     listPeople,
+    listNfdMembers,
     listCommitments,
     createCommitment,
     commitmentAction,

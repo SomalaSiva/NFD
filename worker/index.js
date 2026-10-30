@@ -216,6 +216,8 @@ export default {
       return trustScoreRoutes.saveProfile(request, env);
     if (request.method === "GET" && url.pathname === "/api/trust-score/people")
       return trustScoreRoutes.listPeople(request, env);
+    if (request.method === "GET" && url.pathname === "/api/trust-score/nfd-members")
+      return trustScoreRoutes.listNfdMembers(request, env);
     if (url.pathname === "/api/trust-score/commitments" && request.method === "GET")
       return trustScoreRoutes.listCommitments(request, env);
     if (url.pathname === "/api/trust-score/commitments" && request.method === "POST")
