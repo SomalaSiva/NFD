@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 export const nfdUsers = sqliteTable("nfd_users", {
@@ -26,11 +27,15 @@ export const nfdGhostAccess = sqliteTable("nfd_ghost_access", {
 
 export const nfdGhostProfiles = sqliteTable("nfd_ghost_profiles", {
   ghostUserId: text("ghost_user_id").primaryKey().references(() => nfdUsers.id, { onDelete: "cascade" }),
-  ownerUserId: text("owner_user_id").notNull().unique().references(() => nfdUsers.id, { onDelete: "cascade" }),
+  ownerUserId: text("owner_user_id").notNull().references(() => nfdUsers.id, { onDelete: "cascade" }),
   handle: text("handle").notNull().unique(),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
-}, (table) => [index("nfd_ghost_profiles_owner_idx").on(table.ownerUserId)]);
+  active: integer("active").notNull().default(1),
+}, (table) => [
+  index("nfd_ghost_profiles_owner_idx").on(table.ownerUserId),
+  uniqueIndex("nfd_ghost_profiles_active_owner_unique").on(table.ownerUserId).where(sql`active = 1`),
+]);
 
 export const experiences = sqliteTable("experiences", {
   id: text("id").primaryKey(),

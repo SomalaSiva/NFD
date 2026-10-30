@@ -60,8 +60,8 @@
   <style>
     .account-menu button{display:block;width:100%;padding:10px 12px;border:0;border-radius:8px;background:transparent;color:#405249;text-align:left;font:inherit;font-size:12px;font-weight:650;cursor:pointer}.account-menu button:hover{background:#edf5ef;color:var(--green)}
     .ghost-mode-banner{display:flex;justify-content:center;align-items:center;gap:15px;padding:9px 16px;background:#eaf4ed;color:#315c43;border-bottom:1px solid #d6e8da;font-size:12px}.ghost-mode-banner[hidden]{display:none}.ghost-mode-banner button{border:0;background:transparent;color:#176a4e;font:inherit;font-weight:750;text-decoration:underline;cursor:pointer}
-    .ghost-panel{margin:18px 0;padding:18px 20px;background:#f4f8f4;border:1px solid #dce8de;border-radius:14px}.ghost-panel[hidden],.ghost-profile-ready[hidden],.ghost-create-form[hidden]{display:none!important}.ghost-panel h2{margin:0;color:#284a38;font-size:17px}.ghost-settings-copy{max-width:680px;margin:8px 0 13px;color:#66776d;font-size:12px;line-height:1.6}.ghost-settings-feedback{margin:0 0 10px;color:#64756b;font-size:11px}.ghost-profile-ready{display:grid;grid-template-columns:1fr auto;align-items:center;gap:5px 14px}.ghost-profile-ready strong{color:#294735;font-size:14px}.ghost-profile-ready span{color:#738078;font-size:11px}.ghost-profile-ready button{grid-column:2;grid-row:1/3}.ghost-create-form{display:grid;grid-template-columns:1fr;gap:7px;max-width:520px}.ghost-create-form label{margin-top:5px;color:#41564a;font-size:11px;font-weight:700}.ghost-create-form .helper{margin:0 0 5px}.ghost-create-form .submit{justify-self:start}.ghost-access-toggle{min-width:135px}.ghost-access-toggle[aria-pressed="true"]{border-color:#a9c9b2;background:#edf6ef;color:#28613d}
-    @media(max-width:560px){.ghost-mode-banner{justify-content:space-between}.ghost-profile-ready{grid-template-columns:1fr}.ghost-profile-ready button{grid-column:1;grid-row:auto;justify-self:start}}
+    .ghost-panel{margin:18px 0;padding:18px 20px;background:#f4f8f4;border:1px solid #dce8de;border-radius:14px}.ghost-panel[hidden],.ghost-profile-ready[hidden],.ghost-create-form[hidden]{display:none!important}.ghost-panel h2{margin:0;color:#284a38;font-size:17px}.ghost-settings-copy{max-width:680px;margin:8px 0 13px;color:#66776d;font-size:12px;line-height:1.6}.ghost-settings-feedback{margin:0 0 10px;color:#64756b;font-size:11px}.ghost-profile-ready{display:grid;grid-template-columns:1fr auto;align-items:center;gap:5px 14px}.ghost-profile-ready strong{color:#294735;font-size:14px}.ghost-profile-ready span{color:#738078;font-size:11px}.ghost-profile-state{grid-column:1;color:#738078;font-size:11px}.ghost-profile-actions{grid-column:2;grid-row:1/4;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px}.ghost-profile-actions button{white-space:nowrap}.ghost-deactivate-button{border-color:#e6c8c4;color:#9a3f36}.ghost-create-form{display:grid;grid-template-columns:1fr;gap:7px;max-width:520px}.ghost-create-form label{margin-top:5px;color:#41564a;font-size:11px;font-weight:700}.ghost-create-form .helper{margin:0 0 5px}.ghost-create-form .submit{justify-self:start}.ghost-access-toggle{min-width:135px}.ghost-access-toggle[aria-pressed="true"]{border-color:#a9c9b2;background:#edf6ef;color:#28613d}
+    @media(max-width:560px){.ghost-mode-banner{justify-content:space-between}.ghost-profile-ready{grid-template-columns:1fr}.ghost-profile-actions{grid-column:1;grid-row:auto;justify-content:flex-start}.ghost-profile-state{grid-column:1}}
   </style>
 </head>
 <body>
@@ -217,9 +217,9 @@
         <div class="profile-heading"><div><div class="eyebrow">Your NFD account</div><h1 id="profile-heading">Your profile</h1><p class="intro" id="profile-intro">Your account details and the experiences you’ve shared. Your profile details are visible only to you.</p></div></div>
         <section class="ghost-panel" id="ghost-settings" aria-labelledby="ghost-settings-heading" hidden>
           <h2 id="ghost-settings-heading">Ghost mode</h2>
-          <p class="ghost-settings-copy" id="ghost-settings-copy">Use a separate NFD identity for friends, posts, and messages. Other people see your Ghost name and ID. Choose details that do not identify you.</p>
+          <p class="ghost-settings-copy" id="ghost-settings-copy">Use a separate NFD identity for friends, posts, and messages. Turn Ghost mode on or off whenever you like. Deactivate this Ghost ID before creating another one.</p>
           <p class="ghost-settings-feedback" id="ghost-settings-feedback" role="status" aria-live="polite"></p>
-          <div class="ghost-profile-ready" id="ghost-profile-ready" hidden><strong id="ghost-profile-name"></strong><span id="ghost-profile-handle"></span><button class="secondary-button" type="button" id="ghost-profile-toggle">Turn on Ghost mode</button></div>
+          <div class="ghost-profile-ready" id="ghost-profile-ready" hidden><strong id="ghost-profile-name"></strong><span id="ghost-profile-handle"></span><span class="ghost-profile-state" id="ghost-profile-state"></span><div class="ghost-profile-actions"><button class="secondary-button" type="button" id="ghost-profile-toggle">Turn on Ghost mode</button><button class="secondary-button ghost-deactivate-button" type="button" id="ghost-profile-deactivate">Deactivate Ghost ID</button></div></div>
           <form class="ghost-create-form" id="ghost-create-form" hidden>
             <label for="ghost-name">Ghost name <span class="optional">Optional</span></label><input class="control" id="ghost-name" name="name" maxlength="64" placeholder="A name people will recognize" autocomplete="off">
             <label for="ghost-handle">Ghost ID <span class="optional">Optional</span></label><input class="control" id="ghost-handle" name="handle" maxlength="32" placeholder="Generated for you if left blank" autocomplete="off"><p class="helper">Share this ID so people can find your Ghost profile.</p>
@@ -325,7 +325,9 @@
     const ghostProfileReady=document.getElementById('ghost-profile-ready');
     const ghostProfileName=document.getElementById('ghost-profile-name');
     const ghostProfileHandle=document.getElementById('ghost-profile-handle');
+    const ghostProfileState=document.getElementById('ghost-profile-state');
     const ghostProfileToggle=document.getElementById('ghost-profile-toggle');
+    const ghostProfileDeactivate=document.getElementById('ghost-profile-deactivate');
     const messagesPage=document.getElementById('messages-page');
     const messageThreadList=document.getElementById('message-thread-list');
     const messageInboxStatus=document.getElementById('message-inbox-status');
@@ -597,7 +599,7 @@
       const profile=currentGhostMode.profile;
       ghostProfileReady.hidden=!profile;
       ghostCreateForm.hidden=Boolean(profile);
-      if(profile){ghostProfileName.textContent=profile.name||'Ghost profile';ghostProfileHandle.textContent=`@${profile.handle}`;ghostProfileToggle.textContent=currentGhostMode.active?'Turn off Ghost mode':'Turn on Ghost mode';ghostSettingsFeedback.textContent=currentGhostMode.active?'You are using this identity for your profile, friends, messages, and posts.':'Your Ghost identity is separate from your personal account.'}
+      if(profile){ghostProfileName.textContent=profile.name||'Ghost profile';ghostProfileHandle.textContent=`@${profile.handle}`;ghostProfileToggle.textContent=currentGhostMode.active?'Turn off Ghost mode':'Turn on Ghost mode';ghostProfileState.textContent=currentGhostMode.active?'Ghost mode is on.':'Ghost mode is off.';ghostSettingsFeedback.textContent='Your Ghost identity is separate from your personal account.'}
       else ghostSettingsFeedback.textContent='Ghost mode is enabled for your account. Create one separate identity to get started.';
     }
     async function loadGhostSettings(){
@@ -616,6 +618,13 @@
       catch(error){ghostSettingsFeedback.textContent=error.message}finally{submit.disabled=false}
     });
     ghostProfileToggle.addEventListener('click',()=>changeGhostMode(!currentGhostMode.active,ghostProfileToggle));
+    ghostProfileDeactivate.addEventListener('click',async()=>{
+      const handle=currentGhostMode.profile?.handle||'this Ghost ID';
+      if(!window.confirm(`Deactivate @${handle}? Ghost mode will turn off. You can then create a new Ghost ID. This ID will no longer be available for new friend requests.`))return;
+      ghostProfileDeactivate.disabled=true;ghostSettingsFeedback.textContent='Deactivating your Ghost ID…';
+      try{const response=await fetch('/api/ghost-profile',{method:'DELETE',headers:{accept:'application/json'}});const result=await response.json().catch(()=>({}));if(!response.ok)throw new Error(result.error||'Your Ghost ID could not be deactivated.');window.location.assign('/profile')}
+      catch(error){ghostSettingsFeedback.textContent=error.message;ghostProfileDeactivate.disabled=false}
+    });
     ghostModeToggle.addEventListener('click',()=>changeGhostMode(!currentGhostMode.active,ghostModeToggle));
     ghostModeExit.addEventListener('click',()=>changeGhostMode(false,ghostModeExit));
     function renderProfile(data){

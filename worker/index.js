@@ -123,7 +123,7 @@ export default {
     if (url.pathname === "/api/ghost-mode" && ["GET", "PUT"].includes(request.method)) {
       return manageGhostMode(request, env);
     }
-    if (request.method === "POST" && url.pathname === "/api/ghost-profile") {
+    if (["POST", "DELETE"].includes(request.method) && url.pathname === "/api/ghost-profile") {
       return createGhostProfile(request, env);
     }
     if (url.pathname === "/api/admin/ghost-access" && ["GET", "PUT"].includes(request.method)) {
@@ -377,7 +377,7 @@ async function getCurrentUser(request, env) {
       FROM nfd_ghost_profiles p
       INNER JOIN nfd_users u ON u.id = p.ghost_user_id
       INNER JOIN nfd_ghost_access a ON a.user_id = p.owner_user_id AND a.enabled = 1
-      WHERE p.ghost_user_id = ? AND p.owner_user_id = ?
+      WHERE p.ghost_user_id = ? AND p.owner_user_id = ? AND p.active = 1
       LIMIT 1
     `).bind(ghostUserId, user.id).first();
     if (!ghost) return user;
@@ -411,10 +411,11 @@ async function ensureGhostTables(env) {
     await env.DB.prepare(`
       CREATE TABLE IF NOT EXISTS nfd_ghost_profiles (
         ghost_user_id TEXT PRIMARY KEY NOT NULL REFERENCES nfd_users(id) ON DELETE CASCADE,
-        owner_user_id TEXT NOT NULL UNIQUE REFERENCES nfd_users(id) ON DELETE CASCADE,
+        owner_user_id TEXT NOT NULL REFERENCES nfd_users(id) ON DELETE CASCADE,
         handle TEXT NOT NULL COLLATE NOCASE UNIQUE,
         created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
+        updated_at TEXT NOT NULL,
+        active INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0, 1))
       )
     `).run();
     let profileColumns = await env.DB.prepare("PRAGMA table_info(nfd_ghost_profiles)").all();
@@ -435,6 +436,15 @@ async function ensureGhostTables(env) {
         if (!(profileColumns.results || []).some((column) => column.name === "updated_at")) throw error;
       }
     }
+    profileColumns = await env.DB.prepare("PRAGMA table_info(nfd_ghost_profiles)").all();
+    if (!(profileColumns.results || []).some((column) => column.name === "active")) {
+      try {
+        await env.DB.prepare("ALTER TABLE nfd_ghost_profiles ADD COLUMN active INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0, 1))").run();
+      } catch (error) {
+        profileColumns = await env.DB.prepare("PRAGMA table_info(nfd_ghost_profiles)").all();
+        if (!(profileColumns.results || []).some((column) => column.name === "active")) throw error;
+      }
+    }
     await env.DB.prepare(`
       UPDATE nfd_ghost_profiles
       SET handle = 'ghost-' || lower(substr(replace(ghost_user_id, '-', ''), -12))
@@ -442,6 +452,8 @@ async function ensureGhostTables(env) {
     `).run();
     await env.DB.prepare("UPDATE nfd_ghost_profiles SET updated_at = COALESCE(NULLIF(updated_at, ''), created_at, CURRENT_TIMESTAMP) WHERE updated_at IS NULL OR trim(updated_at) = ''").run();
     await env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS nfd_ghost_profiles_handle_unique ON nfd_ghost_profiles (handle COLLATE NOCASE)").run();
+    await env.DB.prepare("DROP INDEX IF EXISTS nfd_ghost_profiles_owner_user_id_unique").run();
+    await env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS nfd_ghost_profiles_active_owner_unique ON nfd_ghost_profiles (owner_user_id) WHERE active = 1").run();
     await env.DB.prepare("CREATE INDEX IF NOT EXISTS nfd_ghost_profiles_owner_idx ON nfd_ghost_profiles (owner_user_id)").run();
   })().catch((error) => {
     ghostTablesPromise = undefined;
@@ -460,7 +472,7 @@ async function getGhostModeState(request, env, activeUser = null) {
       env.DB.prepare(`
         SELECT p.ghost_user_id AS id, p.handle, u.display_name AS name
         FROM nfd_ghost_profiles p INNER JOIN nfd_users u ON u.id = p.ghost_user_id
-        WHERE p.owner_user_id = ? LIMIT 1
+        WHERE p.owner_user_id = ? AND p.active = 1 LIMIT 1
       `).bind(owner.id).first(),
     ]);
     const allowed = Number(access?.enabled) === 1;
@@ -495,7 +507,7 @@ async function manageGhostMode(request, env) {
     }
     const access = await env.DB.prepare("SELECT enabled FROM nfd_ghost_access WHERE user_id = ? LIMIT 1").bind(owner.id).first();
     if (Number(access?.enabled) !== 1) return json({ error: "An NFD administrator must enable Ghost mode for your account first." }, 403);
-    const profile = await env.DB.prepare("SELECT ghost_user_id, handle FROM nfd_ghost_profiles WHERE owner_user_id = ? LIMIT 1").bind(owner.id).first();
+    const profile = await env.DB.prepare("SELECT ghost_user_id, handle FROM nfd_ghost_profiles WHERE owner_user_id = ? AND active = 1 LIMIT 1").bind(owner.id).first();
     if (!profile) return json({ error: "Create your Ghost profile before turning Ghost mode on." }, 409);
     return json({ active: true, handle: profile.handle }, 200, {
       "set-cookie": cookie(GHOST_MODE_COOKIE, profile.ghost_user_id, GOOGLE_SESSION_SECONDS),
@@ -510,14 +522,24 @@ async function createGhostProfile(request, env) {
   const owner = await getAuthenticatedUser(request, env);
   if (!owner) return json({ error: "Sign in to create a Ghost profile." }, 401);
   if (!env.DB) return json({ error: "Ghost profiles are unavailable right now." }, 503);
-  if (!request.headers.get("content-type")?.toLowerCase().includes("application/json")) {
-    return json({ error: "Send your Ghost name and ID as JSON." }, 415);
-  }
   try {
     await ensureGhostTables(env);
+    if (request.method === "DELETE") {
+      const profile = await env.DB.prepare("SELECT ghost_user_id, handle FROM nfd_ghost_profiles WHERE owner_user_id = ? AND active = 1 LIMIT 1").bind(owner.id).first();
+      if (!profile) return json({ error: "You do not have an active Ghost ID to deactivate." }, 404);
+      await env.DB.prepare("UPDATE nfd_ghost_profiles SET active = 0, updated_at = ? WHERE owner_user_id = ? AND ghost_user_id = ? AND active = 1")
+        .bind(new Date().toISOString(), owner.id, profile.ghost_user_id).run();
+      await recordActivity(env, owner.id, "ghost_profile_deactivated", "ghost_profile", profile.ghost_user_id);
+      return json({ deactivated: true, handle: profile.handle }, 200, {
+        "set-cookie": cookie(GHOST_MODE_COOKIE, "", 0),
+      });
+    }
+    if (!request.headers.get("content-type")?.toLowerCase().includes("application/json")) {
+      return json({ error: "Send your Ghost name and ID as JSON." }, 415);
+    }
     const access = await env.DB.prepare("SELECT enabled FROM nfd_ghost_access WHERE user_id = ? LIMIT 1").bind(owner.id).first();
     if (Number(access?.enabled) !== 1) return json({ error: "An NFD administrator must enable Ghost mode for your account first." }, 403);
-    const existing = await env.DB.prepare("SELECT ghost_user_id, handle FROM nfd_ghost_profiles WHERE owner_user_id = ? LIMIT 1").bind(owner.id).first();
+    const existing = await env.DB.prepare("SELECT ghost_user_id, handle FROM nfd_ghost_profiles WHERE owner_user_id = ? AND active = 1 LIMIT 1").bind(owner.id).first();
     if (existing) return json({ error: "You already have a Ghost profile." }, 409);
     const body = await request.json().catch(() => null);
     const displayName = typeof body?.name === "string" ? body.name.replace(/[\u0000-\u001f\u007f]/g, "").trim().replace(/\s+/g, " ").slice(0, 64) : "";
@@ -532,20 +554,28 @@ async function createGhostProfile(request, env) {
     const subject = crypto.randomUUID();
     const now = new Date().toISOString();
     const name = displayName || handle;
+    const profileColumns = await env.DB.prepare("PRAGMA table_info(nfd_ghost_profiles)").all();
+    const hasLegacyUsername = (profileColumns.results || []).some((column) => column.name === "username");
+    const profileInsert = hasLegacyUsername
+      ? env.DB.prepare(`
+          INSERT INTO nfd_ghost_profiles (ghost_user_id, owner_user_id, username, handle, created_at, updated_at, active)
+          VALUES (?, ?, ?, ?, ?, ?, 1)
+        `).bind(ghostUserId, owner.id, handle, handle, now, now)
+      : env.DB.prepare(`
+          INSERT INTO nfd_ghost_profiles (ghost_user_id, owner_user_id, handle, created_at, updated_at, active)
+          VALUES (?, ?, ?, ?, ?, 1)
+        `).bind(ghostUserId, owner.id, handle, now, now);
     await env.DB.batch([
       env.DB.prepare(`
         INSERT INTO nfd_users (id, provider, provider_subject, email, display_name, created_at, updated_at)
         VALUES (?, 'ghost', ?, '', ?, ?, ?)
       `).bind(ghostUserId, subject, name, now, now),
-      env.DB.prepare(`
-        INSERT INTO nfd_ghost_profiles (ghost_user_id, owner_user_id, handle, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?)
-      `).bind(ghostUserId, owner.id, handle, now, now),
+      profileInsert,
     ]);
     await recordActivity(env, owner.id, "ghost_profile_created", "ghost_profile", ghostUserId);
     return json({ profile: { id: ghostUserId, name, handle } }, 201);
   } catch (error) {
-    console.error("Ghost profile creation failed", error);
+    console.error("Ghost profile creation failed", error instanceof Error ? error.message : String(error));
     return json({ error: "Your Ghost profile could not be created right now." }, 503);
   }
 }
@@ -564,7 +594,7 @@ async function manageGhostAccess(request, env) {
           p.handle, g.display_name AS ghost_name
         FROM nfd_users u
         LEFT JOIN nfd_ghost_access a ON a.user_id = u.id
-        LEFT JOIN nfd_ghost_profiles p ON p.owner_user_id = u.id
+        LEFT JOIN nfd_ghost_profiles p ON p.owner_user_id = u.id AND p.active = 1
         LEFT JOIN nfd_users g ON g.id = p.ghost_user_id
         WHERE u.provider != 'ghost'
         ORDER BY lower(COALESCE(NULLIF(trim(u.display_name), ''), u.email)), u.created_at DESC
@@ -1420,8 +1450,8 @@ async function suggestNfdFriends(request, env) {
     const result = await env.DB.prepare(`
       SELECT u.id, COALESCE(NULLIF(trim(u.display_name), ''), 'NFD member') AS display_name, p.handle
       FROM nfd_users u
-      LEFT JOIN nfd_ghost_profiles p ON p.ghost_user_id = u.id
-      WHERE u.id != ?
+      LEFT JOIN nfd_ghost_profiles p ON p.ghost_user_id = u.id AND p.active = 1
+      WHERE u.id != ? AND (u.provider != 'ghost' OR p.ghost_user_id IS NOT NULL)
         AND (instr(lower(COALESCE(u.display_name, '')), lower(?)) > 0
           OR instr(lower(substr(u.email, 1, instr(u.email, '@') - 1)), lower(?)) = 1
           OR instr(lower(COALESCE(p.handle, '')), lower(?)) = 1)

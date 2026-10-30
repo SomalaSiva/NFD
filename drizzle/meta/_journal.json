@@ -29,6 +29,13 @@
       "when": 1793323263717,
       "tag": "0004_ghost_mode",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1793325013608,
+      "tag": "0005_ghost_lifecycle",
+      "breakpoints": true
     }
   ]
 }
