@@ -426,11 +426,21 @@ async function ensureGhostTables(env) {
         if (!(profileColumns.results || []).some((column) => column.name === "handle")) throw error;
       }
     }
+    profileColumns = await env.DB.prepare("PRAGMA table_info(nfd_ghost_profiles)").all();
+    if (!(profileColumns.results || []).some((column) => column.name === "updated_at")) {
+      try {
+        await env.DB.prepare("ALTER TABLE nfd_ghost_profiles ADD COLUMN updated_at TEXT").run();
+      } catch (error) {
+        profileColumns = await env.DB.prepare("PRAGMA table_info(nfd_ghost_profiles)").all();
+        if (!(profileColumns.results || []).some((column) => column.name === "updated_at")) throw error;
+      }
+    }
     await env.DB.prepare(`
       UPDATE nfd_ghost_profiles
       SET handle = 'ghost-' || lower(substr(replace(ghost_user_id, '-', ''), -12))
       WHERE handle IS NULL OR trim(handle) = ''
     `).run();
+    await env.DB.prepare("UPDATE nfd_ghost_profiles SET updated_at = COALESCE(NULLIF(updated_at, ''), created_at, CURRENT_TIMESTAMP) WHERE updated_at IS NULL OR trim(updated_at) = ''").run();
     await env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS nfd_ghost_profiles_handle_unique ON nfd_ghost_profiles (handle COLLATE NOCASE)").run();
     await env.DB.prepare("CREATE INDEX IF NOT EXISTS nfd_ghost_profiles_owner_idx ON nfd_ghost_profiles (owner_user_id)").run();
   })().catch((error) => {
