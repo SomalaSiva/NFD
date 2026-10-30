@@ -514,6 +514,15 @@ textarea.control::placeholder {
   font-size: 10px;
   font-weight: 650;
 }
+.camera-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+.camera-actions .secondary-button {
+  padding: 9px 12px;
+}
 .file-input {
   display: none;
 }
@@ -2113,17 +2122,18 @@ textarea.control::placeholder {
 }
 .audience-options {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 9px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
   padding: 0;
   margin: 0;
   border: 0;
 }
 .audience-option {
   display: flex;
-  align-items: flex-start;
-  gap: 11px;
-  padding: 13px 14px;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 11px 10px;
   margin: 0;
   border: 1px solid #e0e8e2;
   border-radius: 11px;
@@ -2141,11 +2151,10 @@ textarea.control::placeholder {
   accent-color: var(--green);
 }
 .audience-option span {
-  display: grid;
-  gap: 4px;
+  min-width: 0;
 }
 .audience-option strong {
-  font-size: 12px;
+  font-size: 11px;
   color: #30443a;
 }
 .audience-option small {
@@ -2159,6 +2168,23 @@ textarea.control::placeholder {
   color: #839087;
   font-size: 10px;
   line-height: 1.5;
+}
+@media (max-width: 680px) {
+  .audience-options {
+    gap: 6px;
+  }
+  .audience-option {
+    flex-direction: column;
+    gap: 6px;
+    padding: 9px 5px;
+    text-align: center;
+  }
+  .audience-option input {
+    margin: 0;
+  }
+  .audience-option strong {
+    font-size: 10px;
+  }
 }
 .friends-panel {
   margin-top: 24px;

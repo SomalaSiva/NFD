@@ -1,4 +1,6 @@
 const picker = document.getElementById("evidence-files");
+const cameraPhotoPicker = document.getElementById("camera-photo");
+const cameraVideoPicker = document.getElementById("camera-video");
 const list = document.getElementById("file-list");
 const zone = document.getElementById("upload-zone");
 const shortDescription = document.getElementById("short-description");
@@ -335,6 +337,16 @@ function addFiles(files) {
   picker.value = "";
 }
 picker.addEventListener("change", (event) => addFiles(event.target.files));
+cameraPhotoPicker.addEventListener("change", (event) => {
+  addFiles(event.target.files);
+  cameraPhotoPicker.value = "";
+});
+cameraVideoPicker.addEventListener("change", (event) => {
+  addFiles(event.target.files);
+  cameraVideoPicker.value = "";
+});
+document.getElementById("capture-photo-button").addEventListener("click", () => cameraPhotoPicker.click());
+document.getElementById("capture-video-button").addEventListener("click", () => cameraVideoPicker.click());
 ["dragenter", "dragover"].forEach((type) =>
   zone.addEventListener(type, (event) => {
     event.preventDefault();
