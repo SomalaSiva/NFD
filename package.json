@@ -2,15 +2,32 @@
   "name": "nfd-no-face-docs",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=22.13.0"
+  },
   "scripts": {
     "build": "node scripts/build-worker.mjs",
-    "db:generate": "drizzle-kit generate"
+    "dev": "npm run build && wrangler dev --local",
+    "dev:worker": "wrangler dev --local",
+    "db:generate": "drizzle-kit generate",
+    "db:local:init": "wrangler d1 migrations apply nfd-local --local",
+    "db:local:migrate": "wrangler d1 migrations apply nfd-local --local",
+    "test": "node --test",
+    "lint": "eslint worker web/assets scripts test eslint.config.js",
+    "format": "prettier --write \"worker/**/*.js\" \"web/**/*.js\" \"web/**/*.css\" \"web/**/*.html\" \"scripts/**/*.mjs\" \"db/**/*.ts\" \"test/**/*.js\" package.json eslint.config.js wrangler.jsonc README.md",
+    "format:check": "prettier --check \"worker/**/*.js\" \"web/**/*.js\" \"web/**/*.css\" \"web/**/*.html\" \"scripts/**/*.mjs\" \"db/**/*.ts\" \"test/**/*.js\" package.json eslint.config.js wrangler.jsonc README.md",
+    "check": "npm run lint && npm run format:check && npm test && npm run build"
   },
   "dependencies": {
     "drizzle-orm": "0.45.2"
   },
   "devDependencies": {
-    "drizzle-kit": "0.31.10",
-    "esbuild": "0.25.12"
+    "@eslint/js": "^10.0.1",
+    "drizzle-kit": "^0.31.11",
+    "esbuild": "0.25.12",
+    "eslint": "^10.13.0",
+    "globals": "^17.13.0",
+    "prettier": "^3.9.10",
+    "wrangler": "^4.156.0"
   }
 }

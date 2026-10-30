@@ -1,30 +1,74 @@
 # NFD — No Face Docs
 
-NFD is a Cloudflare Worker application backed by D1 and R2. Source stays organized by responsibility and is bundled for deployment.
+NFD is a story-sharing web app. Its pages are plain HTML, CSS, and JavaScript. A Cloudflare Worker serves the pages and API, D1 stores application data, and R2 stores uploaded files. OpenAI Sites publishes the production Worker at `https://nfd.nofacedocs.com`.
 
-## Project layout
+## Stack
 
-- `worker/index.js` is the Worker entry point and HTTP route table.
-- `worker/routes/admin.js` contains administrator authorization and admin operations.
-- `worker/routes/social.js` contains friend discovery, requests, and direct messages.
-- `worker/routes/experiences.js` contains feed, profile posts, comments, reactions, attachments, and submission workflows.
-- `web/` contains the shared page shell, privacy and community-guideline pages, and static assets.
-- `db/schema.ts` is the Drizzle schema; sequential SQL migrations and snapshots are in `drizzle/`.
-- `scripts/build-worker.mjs` bundles Worker modules with esbuild and packages the web shell into `dist/`.
+- **Browser UI:** HTML, CSS, vanilla JavaScript. No frontend framework.
+- **Server:** JavaScript ES modules and the Cloudflare Workers Fetch API.
+- **Build:** Node.js and esbuild.
+- **Database:** Cloudflare D1 (SQLite), with Drizzle ORM/Drizzle Kit schema and migration tooling. Runtime queries use D1 prepared SQL statements.
+- **File storage:** Cloudflare R2.
+- **Sign-in:** Google OAuth and the ChatGPT identity header provided by the hosted environment.
+- **Optional story review:** Google Gemini API.
+- **Source/deploy:** GitHub plus OpenAI Sites.
+
+## Project map
+
+- `worker/index.js` — Worker entry point, HTTP routing, Google sign-in, sessions, and Ghost mode.
+- `worker/routes/admin.js` — administrator operations and audit/member lists.
+- `worker/routes/social.js` — friends, requests, and messages.
+- `worker/routes/experiences.js` — feed, profiles, comments, reactions, attachments, and post submission.
+- `worker/lib/` — shared Worker utilities.
+- `web/index.html` — shared page markup and route-specific page sections.
+- `web/assets/app.css` and `web/assets/app.js` — shared styles and browser behavior.
+- `web/privacy.html`, `web/guidelines.html`, and `web/nfd-icon.png` — static pages and image.
+- `db/schema.ts` — Drizzle reference for all application tables.
+- `db/migrations/` — current D1 migration baseline and future forward migrations.
+- `drizzle/` — older migration history retained for reference; use `db/migrations/` for new work.
+- `scripts/build-worker.mjs` — bundles the Worker and its web assets into `dist/`.
+- `wrangler.jsonc` — local-only Worker, D1, and R2 configuration. Production publishing is handled by Sites.
+
+## Run locally
+
+Prerequisites: Node.js 22.13 or newer, npm, and a local Google OAuth client if you want to test sign-in. Local D1 and R2 are isolated emulators; they do not access production data.
+
+1. Install locked dependencies: `npm ci`.
+2. Copy `.dev.vars.example` to `.dev.vars` and enter a **local-only** Google OAuth client and secret. Add `http://localhost:8787/auth/google/callback` to that client's allowed redirect URLs. Never copy production secrets into this file.
+3. Initialize the local database: `npm run db:local:init`.
+4. Build and start the local Worker: `npm run dev`.
+5. Open `http://localhost:8787`.
+
+The ChatGPT identity header is supplied by the hosted environment and is not available in ordinary local browser sessions. Google OAuth is the local sign-in path. Wrangler keeps local D1/R2 state under `.wrangler/`; delete that directory only when you want to reset your local test data.
+
+## Database changes
+
+Update `db/schema.ts`, generate a migration with `npm run db:generate -- --name=short_description`, inspect the SQL, then test it against local D1. Keep the generated SQL in `db/migrations/` and run `npm run db:local:migrate` locally. The migration baseline is for new local databases. The live database already contains application tables created during the app's earlier runtime-bootstrap era; do not apply the baseline to production. Establish and review a production migration baseline before applying future production D1 migrations.
+
+The Worker still has idempotent schema checks for compatibility with older installations. Treat those as a transition aid; new schema changes belong in the Drizzle schema and reviewed migration files.
+
+## Quality checks
+
+- `npm run check` — lint, formatting check, unit tests, and production build.
+- `npm run format` — format project source.
+- `npm test` — run the Node built-in test suite.
+- `npm run build` — create the deployable Worker at `dist/server/index.js`.
+
+Run `npm run check` before handing off or publishing a change.
+
+## Production publishing
+
+NFD production is published through OpenAI Sites. Commit and push the exact source to GitHub first, build/package that commit, save a Sites version, then deploy the saved version. Do not use `wrangler deploy`; the Wrangler config is for local development only. Keep the production audience, secrets, D1, and R2 bindings unchanged unless a task specifically requires changing them.
 
 ## Admin pages
 
-- `/admin` — administration overview
+- `/admin` — overview
 - `/admin/ghost-access` — Ghost mode access
 - `/admin/restricted-emails` — sign-in and account-creation restrictions
 - `/admin/posts` — shared post search and moderation
-- `/admin/members` — member directory and account status (site owner)
-- `/admin/activity` — account activity (site owner)
+- `/admin/members` — member directory and account status (owner only)
+- `/admin/activity` — account activity (owner only)
 - `/admin/moderation` — automatic post review
-- `/admin/admins` — administrator access (site owner)
+- `/admin/admins` — administrator access (owner only)
 
-Every admin page is protected at the Worker route and again at its API endpoint. Owner-only pages are not available to other admins.
-
-## Build
-
-Install the locked dependencies with `npm ci`, then build with `npm run build` (or `node scripts/build-worker.mjs`). The deployable Worker entry is `dist/server/index.js`.
+Admin permissions are checked by the Worker APIs as well as by page navigation.

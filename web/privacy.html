@@ -1,53 +1,242 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="How NFD No Face Docs handles sign-in information and experiences shared in the app.">
-  <link rel="icon" type="image/png" href="/nfd-icon.png">
-  <link rel="apple-touch-icon" href="/nfd-icon.png">
-  <title>Privacy — NFD No Face Docs</title>
-  <style>
-    :root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;color:#17312b;background:#f4f7f4;font-synthesis:none;text-rendering:optimizeLegibility}
-    *{box-sizing:border-box}body{margin:0}header{height:78px;background:#fff;border-bottom:1px solid #e1e9e3;display:flex;align-items:center;padding:0 max(24px,calc((100% - 1040px)/2));gap:12px}
-    .mark{width:40px;height:40px;border-radius:12px;overflow:hidden;flex:none}.mark img{display:block;width:100%;height:100%;object-fit:cover;border-radius:inherit}header strong{font-size:19px;letter-spacing:-.6px}header strong:after{content:".";color:#0d7054}header small{display:block;color:#687970;font-size:8px;font-weight:650;letter-spacing:.75px;text-transform:uppercase;margin-top:3px}
-    main{max-width:850px;margin:46px auto;padding:0 22px 56px}.card{background:#fff;border:1px solid #e0e9e2;border-radius:24px;padding:clamp(24px,5vw,52px);box-shadow:0 18px 50px rgba(20,55,39,.05)}.eyebrow{color:#0d7054;text-transform:uppercase;letter-spacing:.12em;font-size:12px;font-weight:750}h1{font-size:clamp(34px,6vw,52px);line-height:1.08;letter-spacing:-.04em;margin:15px 0 12px}p,li{color:#52665d;font-size:16px;line-height:1.7}h2{font-size:20px;margin:30px 0 8px}ul{padding-left:22px}a{color:#0b6b50;text-underline-offset:3px}.updated{font-size:13px;color:#7b8982}.back{display:inline-flex;margin-top:28px;padding:12px 17px;border-radius:12px;background:#0d7054;color:#fff;text-decoration:none;font-weight:700}
-    @media(max-width:600px){header{height:68px}main{margin:22px auto}.card{border-radius:18px}}
-  </style>
-</head>
-<body>
-  <header><span class="mark" aria-hidden="true"><img src="/nfd-icon.png" alt=""></span><div><strong>NFD</strong><small>No Face Docs</small></div></header>
-  <main>
-    <article class="card">
-      <div class="eyebrow">NFD · The useful details</div>
-      <h1>Privacy</h1>
-      <p>NFD helps people share experiences and learn from one another. This page explains what information the app receives and how shared posts are shown.</p>
-      <p class="updated">Last updated October 29, 2026</p>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="How NFD No Face Docs handles sign-in information and experiences shared in the app."
+    />
+    <link rel="icon" type="image/png" href="/nfd-icon.png" />
+    <link rel="apple-touch-icon" href="/nfd-icon.png" />
+    <title>Privacy — NFD No Face Docs</title>
+    <style>
+      :root {
+        font-family:
+          Inter,
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          sans-serif;
+        color: #17312b;
+        background: #f4f7f4;
+        font-synthesis: none;
+        text-rendering: optimizeLegibility;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+      }
+      header {
+        height: 78px;
+        background: #fff;
+        border-bottom: 1px solid #e1e9e3;
+        display: flex;
+        align-items: center;
+        padding: 0 max(24px, calc((100% - 1040px) / 2));
+        gap: 12px;
+      }
+      .mark {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        overflow: hidden;
+        flex: none;
+      }
+      .mark img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: inherit;
+      }
+      header strong {
+        font-size: 19px;
+        letter-spacing: -0.6px;
+      }
+      header strong:after {
+        content: ".";
+        color: #0d7054;
+      }
+      header small {
+        display: block;
+        color: #687970;
+        font-size: 8px;
+        font-weight: 650;
+        letter-spacing: 0.75px;
+        text-transform: uppercase;
+        margin-top: 3px;
+      }
+      main {
+        max-width: 850px;
+        margin: 46px auto;
+        padding: 0 22px 56px;
+      }
+      .card {
+        background: #fff;
+        border: 1px solid #e0e9e2;
+        border-radius: 24px;
+        padding: clamp(24px, 5vw, 52px);
+        box-shadow: 0 18px 50px rgba(20, 55, 39, 0.05);
+      }
+      .eyebrow {
+        color: #0d7054;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        font-size: 12px;
+        font-weight: 750;
+      }
+      h1 {
+        font-size: clamp(34px, 6vw, 52px);
+        line-height: 1.08;
+        letter-spacing: -0.04em;
+        margin: 15px 0 12px;
+      }
+      p,
+      li {
+        color: #52665d;
+        font-size: 16px;
+        line-height: 1.7;
+      }
+      h2 {
+        font-size: 20px;
+        margin: 30px 0 8px;
+      }
+      ul {
+        padding-left: 22px;
+      }
+      a {
+        color: #0b6b50;
+        text-underline-offset: 3px;
+      }
+      .updated {
+        font-size: 13px;
+        color: #7b8982;
+      }
+      .back {
+        display: inline-flex;
+        margin-top: 28px;
+        padding: 12px 17px;
+        border-radius: 12px;
+        background: #0d7054;
+        color: #fff;
+        text-decoration: none;
+        font-weight: 700;
+      }
+      @media (max-width: 600px) {
+        header {
+          height: 68px;
+        }
+        main {
+          margin: 22px auto;
+        }
+        .card {
+          border-radius: 18px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <span class="mark" aria-hidden="true"><img src="/nfd-icon.png" alt="" /></span>
+      <div><strong>NFD</strong><small>No Face Docs</small></div>
+    </header>
+    <main>
+      <article class="card">
+        <div class="eyebrow">NFD · The useful details</div>
+        <h1>Privacy</h1>
+        <p>
+          NFD helps people share experiences and learn from one another. This page explains what information
+          the app receives and how shared posts are shown.
+        </p>
+        <p class="updated">Last updated October 29, 2026</p>
 
-      <h2>When you sign in with Google</h2>
-      <p>Google shares your account identifier, verified email address, and profile name with NFD when you choose Google sign-in. NFD stores those details to identify your account. NFD requests only basic sign-in information; it does not read your Gmail messages, contacts, or password.</p>
+        <h2>When you sign in with Google</h2>
+        <p>
+          Google shares your account identifier, verified email address, and profile name with NFD when you
+          choose Google sign-in. NFD stores those details to identify your account. NFD requests only basic
+          sign-in information; it does not read your Gmail messages, contacts, or password.
+        </p>
 
-      <h2>What NFD stores when you post</h2>
-      <p>NFD stores the experience details you submit, including the categories, place, time, short and full descriptions, your chosen audience, and any photos, videos, or documents you attach. NFD also stores comments and reactions, friend requests, and accepted connections so it can show engagement and apply friends-only access. Your account record is stored in NFD’s database, and attached files are stored with the post. For supported photos, NFD may create a smaller WebP display copy for the feed; the original remains available to you with your post.</p>
+        <h2>What NFD stores when you post</h2>
+        <p>
+          NFD stores the experience details you submit, including the categories, place, time, short and full
+          descriptions, your chosen audience, and any photos, videos, or documents you attach. NFD also stores
+          comments and reactions, friend requests, and accepted connections so it can show engagement and
+          apply friends-only access. Your account record is stored in NFD’s database, and attached files are
+          stored with the post. For supported photos, NFD may create a smaller WebP display copy for the feed;
+          the original remains available to you with your post.
+        </p>
 
-      <h2>Account activity records</h2>
-      <p>NFD keeps a limited activity log while your account exists. It records sign-in and app-session events (at most once per day), plus key actions such as sharing or deleting a post, reacting, commenting, friend-request or connection changes, and administrator access changes. Expired sign-in sessions are periodically removed when the app checks account status. The activity log may include a related post or account identifier, audience choice, attachment counts and types, or reaction type; it does not copy your story text or comment text into the activity log. The NFD owner can view the log in the administrator area. NFD does not collect IP addresses, device fingerprints, or precise location for this log.</p>
+        <h2>Account activity records</h2>
+        <p>
+          NFD keeps a limited activity log while your account exists. It records sign-in and app-session
+          events (at most once per day), plus key actions such as sharing or deleting a post, reacting,
+          commenting, friend-request or connection changes, and administrator access changes. Expired sign-in
+          sessions are periodically removed when the app checks account status. The activity log may include a
+          related post or account identifier, audience choice, attachment counts and types, or reaction type;
+          it does not copy your story text or comment text into the activity log. The NFD owner can view the
+          log in the administrator area. NFD does not collect IP addresses, device fingerprints, or precise
+          location for this log.
+        </p>
 
-      <h2>Who can see a shared experience</h2>
-      <p>When you share a story, you choose its audience. Public stories can be viewed by signed-in NFD members and show your NFD display name. Friends-only stories and their attached files are available only to people you have accepted as NFD friends. Anonymous stories can be viewed by signed-in NFD members, but NFD hides your name and profile in the feed. Anonymous stories and files may still identify you if you include identifying details.</p>
-      <p>Your own posts remain available on your private profile. Removing a friend ends their access to stories you shared with friends only.</p>
+        <h2>Who can see a shared experience</h2>
+        <p>
+          When you share a story, you choose its audience. Public stories can be viewed by signed-in NFD
+          members and show your NFD display name. Friends-only stories and their attached files are available
+          only to people you have accepted as NFD friends. Anonymous stories can be viewed by signed-in NFD
+          members, but NFD hides your name and profile in the feed. Anonymous stories and files may still
+          identify you if you include identifying details.
+        </p>
+        <p>
+          Your own posts remain available on your private profile. Removing a friend ends their access to
+          stories you shared with friends only.
+        </p>
 
-      <h2>Private messages between friends</h2>
-      <p>NFD stores text messages exchanged between accepted NFD friends so they can appear in the conversation; only the two participants can open it in NFD. When a recipient has a message visibly open on screen, NFD records when it was seen and sets it to expire one hour later. Expired messages are removed and no longer shown when the messaging service next checks for them. If nobody uses Messages after a message expires, its stored row may remain until the next messaging check. Messages that have not been seen do not start the one-hour timer. Message text is not copied into NFD’s account activity log.</p>
+        <h2>Private messages between friends</h2>
+        <p>
+          NFD stores text messages exchanged between accepted NFD friends so they can appear in the
+          conversation; only the two participants can open it in NFD. When a recipient has a message visibly
+          open on screen, NFD records when it was seen and sets it to expire one hour later. Expired messages
+          are removed and no longer shown when the messaging service next checks for them. If nobody uses
+          Messages after a message expires, its stored row may remain until the next messaging check. Messages
+          that have not been seen do not start the one-hour timer. Message text is not copied into NFD’s
+          account activity log.
+        </p>
 
-      <h2>Optional automatic post review</h2>
-      <p>If an NFD administrator enables automatic review, NFD sends the story’s experience and incident categories, short description, full description, and attached photos or videos to Google Gemini to check them against the <a href="/guidelines">NFD Community Guidelines</a>. Documents are not sent for this check. The review must approve a post before NFD shares it. If the check flags a draft, the author may see a suggested rewrite and flagged file names; the author chooses whether to use the wording or edit/remove files themselves.</p>
-      <p>Before sharing while this feature is enabled, you must acknowledge the Google processing. NFD sends the categories, short and full descriptions, and photos or videos, but not your NFD account ID or email. Google’s Gemini API unpaid-service terms say Google may use submitted content and responses to improve products, and human reviewers may read or process them. Google advises against submitting sensitive, confidential, or personal information to unpaid services. An anonymous NFD post may still identify you to Google if its text or media contains identifying details. Google’s terms and available quotas can change. NFD limits review requests to 50 per day, but that app limit does not guarantee Google usage will always be free. NFD administrators should keep the connected Google AI Studio project on the unpaid tier with no billing account if they want to avoid Gemini API charges. If Gemini is unavailable or NFD’s daily limit is reached, the post is not shared until review can run.</p>
+        <h2>Optional automatic post review</h2>
+        <p>
+          If an NFD administrator enables automatic review, NFD sends the story’s experience and incident
+          categories, short description, full description, and attached photos or videos to Google Gemini to
+          check them against the <a href="/guidelines">NFD Community Guidelines</a>. Documents are not sent
+          for this check. The review must approve a post before NFD shares it. If the check flags a draft, the
+          author may see a suggested rewrite and flagged file names; the author chooses whether to use the
+          wording or edit/remove files themselves.
+        </p>
+        <p>
+          Before sharing while this feature is enabled, you must acknowledge the Google processing. NFD sends
+          the categories, short and full descriptions, and photos or videos, but not your NFD account ID or
+          email. Google’s Gemini API unpaid-service terms say Google may use submitted content and responses
+          to improve products, and human reviewers may read or process them. Google advises against submitting
+          sensitive, confidential, or personal information to unpaid services. An anonymous NFD post may still
+          identify you to Google if its text or media contains identifying details. Google’s terms and
+          available quotas can change. NFD limits review requests to 50 per day, but that app limit does not
+          guarantee Google usage will always be free. NFD administrators should keep the connected Google AI
+          Studio project on the unpaid tier with no billing account if they want to avoid Gemini API charges.
+          If Gemini is unavailable or NFD’s daily limit is reached, the post is not shared until review can
+          run.
+        </p>
 
-      <h2>Questions about your information</h2>
-      <p>For privacy questions or a request about your information, use the support contact shown on NFD’s Google sign-in consent screen.</p>
-      <a class="back" href="/login">Back to sign in</a>
-    </article>
-  </main>
-</body>
+        <h2>Questions about your information</h2>
+        <p>
+          For privacy questions or a request about your information, use the support contact shown on NFD’s
+          Google sign-in consent screen.
+        </p>
+        <a class="back" href="/login">Back to sign in</a>
+      </article>
+    </main>
+  </body>
 </html>

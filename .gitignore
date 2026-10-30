@@ -3,3 +3,6 @@
 /.wrangler/
 /.sites-runtime/
 *.tar
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
