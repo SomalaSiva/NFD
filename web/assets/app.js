@@ -111,8 +111,6 @@ const ghostModeHandle = document.getElementById("ghost-mode-handle");
 const ghostModeExit = document.getElementById("ghost-mode-exit");
 const messagesNavLink = document.getElementById("messages-nav-link");
 const navUnreadCount = document.getElementById("nav-unread-count");
-const trustScorePendingCount = document.getElementById("trust-score-pending-count");
-const trustScorePage = document.getElementById("trust-score-page");
 function setMainNavigationVisible(visible) {
   mainNav.hidden = !visible;
   mainNavRow.hidden = !visible;
@@ -2746,9 +2744,6 @@ async function updateNavigation() {
       ? `@${currentGhostMode.profile.handle}`
       : "";
     await refreshMessageNavBadge();
-    const pendingTrustScore = Number(result.trustScorePendingCount) || 0;
-    trustScorePendingCount.hidden = pendingTrustScore < 1;
-    trustScorePendingCount.textContent = pendingTrustScore > 99 ? "99+" : String(pendingTrustScore);
     clearInterval(messageNavRefreshTimer);
     messageNavRefreshTimer = setInterval(() => {
       if (document.visibilityState === "visible") refreshMessageNavBadge();
@@ -2934,10 +2929,6 @@ if (location.pathname === "/login") {
   messagesPage.hidden = false;
   document.title = "Messages — NFD";
   loadMessagesPage();
-} else if (location.pathname === "/trust-score") {
-  appLayout.hidden = true;
-  trustScorePage.hidden = false;
-  document.title = "Trust Score — NFD";
 } else if (location.pathname === "/feed" || location.pathname === "/feed/") {
   appLayout.classList.add("feed-mode");
   form.hidden = true;

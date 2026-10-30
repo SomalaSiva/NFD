@@ -1,7 +1,6 @@
 import { createAdminRoutes } from "./routes/admin.js";
 import { createSocialRoutes } from "./routes/social.js";
 import { createExperienceRoutes } from "./routes/experiences.js";
-import { createTrustScoreRoutes } from "./routes/trust-score.js";
 import { ADMIN_PAGE_SIZE, getPageMetadata, getPageOffset } from "./lib/pagination.js";
 import { isSessionIdle } from "./lib/session.js";
 import {
@@ -11,7 +10,6 @@ import {
   ensureGhostTables,
   ensureIdentityTables,
   ensureModerationTable,
-  ensureTrustScoreTables,
 } from "./db/ensure.js";
 
 const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
@@ -69,16 +67,6 @@ const experienceRoutes = createExperienceRoutes({
   moderationEnabled,
   reviewWithGemini,
 });
-const trustScoreRoutes = createTrustScoreRoutes({
-  getCurrentUser,
-  ensureIdentityTables,
-  ensureGhostTables,
-  ensureTrustScoreTables,
-  recordActivity,
-  availableIdentitySql: AVAILABLE_IDENTITY_SQL,
-  json,
-  cleanSearchTerm,
-});
 
 export default {
   async fetch(request, env) {
@@ -94,24 +82,6 @@ export default {
     }
     if (request.method === "GET" && /^\/assets\/app\.[a-f0-9]{12}\.js$/.test(url.pathname)) {
       return new Response(APP_JS, {
-        headers: {
-          "content-type": "text/javascript; charset=utf-8",
-          "cache-control": "public, max-age=31536000, immutable",
-          "x-content-type-options": "nosniff",
-        },
-      });
-    }
-    if (request.method === "GET" && /^\/assets\/trust-score\.[a-f0-9]{12}\.css$/.test(url.pathname)) {
-      return new Response(TRUST_SCORE_CSS, {
-        headers: {
-          "content-type": "text/css; charset=utf-8",
-          "cache-control": "public, max-age=31536000, immutable",
-          "x-content-type-options": "nosniff",
-        },
-      });
-    }
-    if (request.method === "GET" && /^\/assets\/trust-score\.[a-f0-9]{12}\.js$/.test(url.pathname)) {
-      return new Response(TRUST_SCORE_JS, {
         headers: {
           "content-type": "text/javascript; charset=utf-8",
           "cache-control": "public, max-age=31536000, immutable",
@@ -152,12 +122,6 @@ export default {
     if (request.method === "GET" && url.pathname === "/messages") {
       if (!(await getCurrentUser(request, env))) {
         return Response.redirect(new URL("/login?return_to=%2Fmessages", url), 302);
-      }
-      return html(PAGE_HTML);
-    }
-    if (request.method === "GET" && url.pathname === "/trust-score") {
-      if (!(await getCurrentUser(request, env))) {
-        return Response.redirect(new URL("/login?return_to=%2Ftrust-score", url), 302);
       }
       return html(PAGE_HTML);
     }
@@ -207,40 +171,8 @@ export default {
         isAdmin: !user.isGhost && (await adminRoutes.isAdmin(request, env)),
         provider: user.provider,
         ghostMode: await getGhostModeState(request, env, user),
-        trustScorePendingCount: await trustScoreRoutes.getPendingCount(user.id, env),
       });
     }
-    if (url.pathname === "/api/trust-score/profile" && request.method === "GET")
-      return trustScoreRoutes.getProfile(request, env);
-    if (url.pathname === "/api/trust-score/profile" && request.method === "PUT")
-      return trustScoreRoutes.saveProfile(request, env);
-    if (request.method === "GET" && url.pathname === "/api/trust-score/people")
-      return trustScoreRoutes.listPeople(request, env);
-    if (request.method === "GET" && url.pathname === "/api/trust-score/nfd-members")
-      return trustScoreRoutes.listNfdMembers(request, env);
-    if (url.pathname === "/api/trust-score/commitments" && request.method === "GET")
-      return trustScoreRoutes.listCommitments(request, env);
-    if (url.pathname === "/api/trust-score/commitments" && request.method === "POST")
-      return trustScoreRoutes.createCommitment(request, env);
-    const trustCommitmentAction = url.pathname.match(
-      /^\/api\/trust-score\/commitments\/([0-9a-f-]{36})\/(accept|decline|report|confirm|dispute|resolve|cancel)$/i,
-    );
-    if (trustCommitmentAction && request.method === "POST")
-      return trustScoreRoutes.commitmentAction(
-        request,
-        env,
-        trustCommitmentAction[1],
-        trustCommitmentAction[2],
-      );
-    if (url.pathname === "/api/trust-score/agreements" && request.method === "GET")
-      return trustScoreRoutes.listAgreements(request, env);
-    if (url.pathname === "/api/trust-score/agreements" && request.method === "POST")
-      return trustScoreRoutes.createAgreement(request, env);
-    const trustAgreementAction = url.pathname.match(
-      /^\/api\/trust-score\/agreements\/([0-9a-f-]{36})\/(revise|request|respond|fulfillment|confirm)$/i,
-    );
-    if (trustAgreementAction && request.method === "POST")
-      return trustScoreRoutes.agreementAction(request, env, trustAgreementAction[1], trustAgreementAction[2]);
     if (url.pathname === "/api/ghost-mode" && ["GET", "PUT"].includes(request.method)) {
       return manageGhostMode(request, env);
     }

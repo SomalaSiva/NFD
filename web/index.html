@@ -13,7 +13,6 @@
     <title>NFD — No Face Docs</title>
 
     <link rel="stylesheet" href="/assets/app.css" />
-    <link rel="stylesheet" href="/assets/trust-score.css" />
   </head>
   <body>
     <header class="topbar">
@@ -57,13 +56,6 @@
       <div class="topbar-navigation" id="main-nav-row" hidden>
         <nav class="shell top-actions" id="main-nav" aria-label="Main navigation" hidden>
           <a class="feed-nav-link" href="/feed">Lore Feed</a
-          ><a href="/trust-score" id="trust-score-nav-link"
-            >Trust Score<span
-              class="nav-unread-count"
-              id="trust-score-pending-count"
-              aria-label="Pending Trust Score invitations"
-              hidden
-            ></span></a
           ><a class="messages-nav-link" id="messages-nav-link" href="/messages" aria-label="Notifications"
             >Notifications<span
               class="nav-unread-count"
@@ -1231,33 +1223,6 @@
         </div>
       </section>
     </main>
-    <main class="shell trust-score-page" id="trust-score-page" hidden>
-      <header class="trust-score-header">
-        <div>
-          <div class="eyebrow">TRUST SCORE · PEOPLE & COMMITMENTS</div>
-          <h1>Your word, over time</h1>
-          <p>
-            Make expectations clear, keep an agreed history, and see how commitments were resolved. Outcomes
-            are context—not a guarantee or a judgment of a person.
-          </p>
-        </div>
-      </header>
-      <nav class="trust-score-tabs" aria-label="Trust Score sections" role="tablist">
-        <button type="button" role="tab" data-trust-view="discover" aria-selected="true">Find people</button>
-        <button type="button" role="tab" data-trust-view="commitments" aria-selected="false">
-          Commitments
-        </button>
-        <button type="button" role="tab" data-trust-view="agreements" aria-selected="false">
-          Agreements
-        </button>
-        <button type="button" role="tab" data-trust-view="profile" aria-selected="false">My profile</button>
-      </nav>
-      <p class="trust-score-status" id="trust-score-status" role="status" aria-live="polite">
-        Loading your Trust Score…
-      </p>
-      <section class="trust-score-content" id="trust-score-content" aria-live="polite"></section>
-    </main>
     <script src="/assets/app.js" defer></script>
-    <script src="/assets/trust-score.js" defer></script>
   </body>
 </html>
