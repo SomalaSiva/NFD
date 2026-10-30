@@ -12,6 +12,13 @@ export const nfdUsers = sqliteTable("nfd_users", {
   active: integer("active").notNull().default(1),
 }, (table) => [uniqueIndex("nfd_users_provider_subject_unique").on(table.provider, table.providerSubject)]);
 
+export const nfdBlockedEmails = sqliteTable("nfd_blocked_emails", {
+  email: text("email").primaryKey(),
+  reason: text("reason").notNull().default(""),
+  createdBy: text("created_by").notNull(),
+  createdAt: text("created_at").notNull(),
+}, (table) => [index("nfd_blocked_emails_created_idx").on(table.createdAt)]);
+
 export const nfdSessions = sqliteTable("nfd_sessions", {
   sessionHash: text("session_hash").primaryKey(),
   userId: text("user_id").notNull().references(() => nfdUsers.id, { onDelete: "cascade" }),

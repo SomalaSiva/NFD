@@ -61,7 +61,8 @@
     .account-menu button{display:block;width:100%;padding:10px 12px;border:0;border-radius:8px;background:transparent;color:#405249;text-align:left;font:inherit;font-size:12px;font-weight:650;cursor:pointer}.account-menu button:hover{background:#edf5ef;color:var(--green)}
     .ghost-mode-banner{display:flex;justify-content:center;align-items:center;gap:15px;padding:9px 16px;background:#eaf4ed;color:#315c43;border-bottom:1px solid #d6e8da;font-size:12px}.ghost-mode-banner[hidden]{display:none}.ghost-mode-banner button{border:0;background:transparent;color:#176a4e;font:inherit;font-weight:750;text-decoration:underline;cursor:pointer}
     .ghost-panel{margin:18px 0;padding:18px 20px;background:#f4f8f4;border:1px solid #dce8de;border-radius:14px}.ghost-panel[hidden],.ghost-profile-ready[hidden],.ghost-create-form[hidden]{display:none!important}.ghost-panel h2{margin:0;color:#284a38;font-size:17px}.ghost-settings-copy{max-width:680px;margin:8px 0 13px;color:#66776d;font-size:12px;line-height:1.6}.ghost-settings-feedback{margin:0 0 10px;color:#64756b;font-size:11px}.ghost-profile-ready{display:grid;grid-template-columns:1fr auto;align-items:center;gap:5px 14px}.ghost-profile-ready strong{color:#294735;font-size:14px}.ghost-profile-ready span{color:#738078;font-size:11px}.ghost-profile-state{grid-column:1;color:#738078;font-size:11px}.ghost-profile-actions{grid-column:2;grid-row:1/4;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px}.ghost-profile-actions button{white-space:nowrap}.ghost-deactivate-button{border-color:#e6c8c4;color:#9a3f36}.ghost-create-form{display:grid;grid-template-columns:1fr;gap:7px;max-width:520px}.ghost-create-form label{margin-top:5px;color:#41564a;font-size:11px;font-weight:700}.ghost-create-form .helper{margin:0 0 5px}.ghost-create-form .submit{justify-self:start}.ghost-access-toggle{min-width:135px}.ghost-access-toggle[aria-pressed="true"]{border-color:#a9c9b2;background:#edf6ef;color:#28613d}
-    @media(max-width:560px){.ghost-mode-banner{justify-content:space-between}.ghost-profile-ready{grid-template-columns:1fr}.ghost-profile-actions{grid-column:1;grid-row:auto;justify-content:flex-start}.ghost-profile-state{grid-column:1}}
+    .post-search-row .control:first-child{flex:1}.restricted-email-row .control{max-width:none;min-width:0;flex:1}.admin-post-item{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start}.admin-post-copy{min-width:0}.admin-post-copy p{margin:6px 0 0;color:#64756c;font-size:11px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere}.admin-post-copy .admin-user-added{line-height:1.5}.admin-delete-post{align-self:start;white-space:nowrap}
+    @media(max-width:560px){.ghost-mode-banner{justify-content:space-between}.ghost-profile-ready{grid-template-columns:1fr}.ghost-profile-actions{grid-column:1;grid-row:auto;justify-content:flex-start}.ghost-profile-state{grid-column:1}.post-search-row,.restricted-email-row{align-items:stretch;flex-direction:column}.post-search-row .control,.restricted-email-row .control{max-width:none;width:100%}.admin-user-item.admin-post-item{grid-template-columns:1fr;align-items:stretch}.admin-post-item .admin-delete-post{width:100%}}
   </style>
 </head>
 <body>
@@ -107,6 +108,26 @@
         <p>Only you can view this list. Deactivated accounts cannot be found, receive friend requests, or send or receive messages. Their account data and shared-post history are retained.</p>
         <p class="admin-feedback" id="member-directory-feedback" role="status" aria-live="polite">Loading NFD members…</p>
         <ul class="admin-user-list" id="member-directory-list"></ul>
+      </section>
+      <section class="admin-user-management" id="admin-post-management" hidden aria-labelledby="admin-post-management-heading">
+        <h2 id="admin-post-management-heading">Manage shared posts</h2>
+        <p>Search posts by author, email, story text, or place. Deleting a post permanently removes its comments, reactions, and attached files.</p>
+        <form class="admin-add-form" id="admin-post-search-form">
+          <label for="admin-post-search-query">Find a post</label>
+          <div class="admin-add-row post-search-row"><input class="control" type="search" id="admin-post-search-query" placeholder="Search authors or story text"><button class="secondary-button" type="submit">Search posts</button></div>
+        </form>
+        <p class="admin-feedback" id="admin-post-feedback" role="status" aria-live="polite">Loading recent posts…</p>
+        <ul class="admin-user-list" id="admin-post-list"></ul>
+      </section>
+      <section class="admin-user-management" id="restricted-emails-panel" hidden aria-labelledby="restricted-emails-heading">
+        <h2 id="restricted-emails-heading">Restricted email accounts</h2>
+        <p>Blocking an email prevents Google or ChatGPT sign-in and new account creation for that address. Existing matching accounts are deactivated and signed out. Removing a block does not reactivate an account; the site owner can reactivate it from People using NFD.</p>
+        <form class="admin-add-form" id="restricted-email-form">
+          <label for="restricted-email-input">Block an email address</label>
+          <div class="admin-add-row restricted-email-row"><input class="control" type="email" id="restricted-email-input" placeholder="name@example.com" autocomplete="off" required><input class="control" type="text" id="restricted-email-reason" maxlength="240" placeholder="Reason (optional)"><button class="submit" type="submit">Block email</button></div>
+        </form>
+        <p class="admin-feedback" id="restricted-email-feedback" role="status" aria-live="polite">Loading restricted emails…</p>
+        <ul class="admin-user-list" id="restricted-email-list"></ul>
       </section>
       <section class="admin-user-management" id="ghost-access-panel" hidden aria-labelledby="ghost-access-heading">
         <h2 id="ghost-access-heading">Ghost mode access</h2>
@@ -905,6 +926,13 @@
     const moderationSettings=document.getElementById('moderation-settings');
     const moderationFeedback=document.getElementById('moderation-feedback');
     const moderationToggle=document.getElementById('moderation-toggle');
+    const adminPostManagement=document.getElementById('admin-post-management');
+    const adminPostFeedback=document.getElementById('admin-post-feedback');
+    const adminPostList=document.getElementById('admin-post-list');
+    const adminPostSearch=document.getElementById('admin-post-search-query');
+    const restrictedEmailsPanel=document.getElementById('restricted-emails-panel');
+    const restrictedEmailFeedback=document.getElementById('restricted-email-feedback');
+    const restrictedEmailList=document.getElementById('restricted-email-list');
     function setAdminFeedback(message,isError=false){adminFeedback.textContent=message;adminFeedback.classList.toggle('error',isError)}
     function renderAdminUsers(data){
       adminUserList.replaceChildren();
@@ -975,6 +1003,59 @@
         if(!response.ok)throw new Error(result.error||'The member list could not be loaded.');
         renderMemberDirectory(result);
       }catch(error){memberDirectoryFeedback.textContent=error.message;memberDirectoryFeedback.classList.add('error')}
+    }
+    async function loadAdminExperiences(query=adminPostSearch.value.trim()){
+      adminPostFeedback.textContent='Loading shared posts…';adminPostFeedback.classList.remove('error');
+      try{
+        const response=await fetch(`/api/admin/experiences${query?`?q=${encodeURIComponent(query)}`:''}`,{headers:{accept:'application/json'},cache:'no-store'});
+        const result=await response.json().catch(()=>({}));
+        if(!response.ok)throw new Error(result.error||'Shared posts could not be loaded.');
+        adminPostManagement.hidden=false;adminPostList.replaceChildren();
+        const posts=result.posts||[];adminPostFeedback.textContent=`Showing ${posts.length} ${posts.length===1?'post':'posts'}${posts.length===100?' (the most recent 100 matches)':''}.`;
+        if(!posts.length){adminPostFeedback.textContent=query?'No shared posts matched that search.':'There are no shared posts yet.';return}
+        posts.forEach(post=>{
+          const item=document.createElement('li');item.className='admin-user-item admin-post-item';
+          const copy=document.createElement('div');copy.className='admin-post-copy';
+          const title=document.createElement('strong');title.className='admin-user-email';title.textContent=post.shortDescription||'Shared post';copy.append(title);
+          const note=document.createElement('span');note.className='admin-user-added';note.textContent=`${post.authorName}${post.authorEmail?` · ${post.authorEmail}`:''} · ${post.provider==='ghost'?'Ghost profile':'NFD account'}${post.authorActive?'':' · Deactivated'} · ${post.visibility} · ${prettyDate(post.createdAt)}`;copy.append(note);
+          const category=document.createElement('span');category.className='admin-user-added';category.textContent=`${post.experienceCategory} · ${post.incidentCategory} · ${post.place}`;copy.append(category);
+          const story=document.createElement('details');story.className='member-identifiers';addText(story,'summary','','Read full post');addText(story,'p','',''+(post.fullDescription||post.shortDescription||''));copy.append(story);
+          const remove=document.createElement('button');remove.type='button';remove.className='admin-remove admin-delete-post';remove.textContent='Delete post';remove.setAttribute('aria-label',`Delete post by ${post.authorName}`);
+          remove.addEventListener('click',async()=>{
+            if(!window.confirm(`Permanently delete this post by ${post.authorName}, including its comments, reactions, and attachments?`))return;
+            remove.disabled=true;adminPostFeedback.textContent='Deleting post…';adminPostFeedback.classList.remove('error');
+            try{
+              const deletion=await fetch('/api/admin/experiences',{method:'DELETE',headers:{'content-type':'application/json',accept:'application/json'},body:JSON.stringify({experienceId:post.id})});
+              const saved=await deletion.json().catch(()=>({}));if(!deletion.ok)throw new Error(saved.error||'Post could not be deleted.');
+              await loadAdminExperiences();adminPostFeedback.textContent=saved.cleanupPending?'Post deleted; attachment cleanup is queued.':'Post and its attachments deleted.';
+            }catch(error){remove.disabled=false;adminPostFeedback.textContent=error.message;adminPostFeedback.classList.add('error')}
+          });
+          item.append(copy,remove);adminPostList.append(item);
+        });
+      }catch(error){adminPostManagement.hidden=error.message.includes('administrator');adminPostFeedback.textContent=error.message;adminPostFeedback.classList.add('error')}
+    }
+    async function loadRestrictedEmails(){
+      restrictedEmailFeedback.textContent='Loading restricted emails…';restrictedEmailFeedback.classList.remove('error');
+      try{
+        const response=await fetch('/api/admin/restricted-emails',{headers:{accept:'application/json'},cache:'no-store'});const result=await response.json().catch(()=>({}));
+        if(!response.ok)throw new Error(result.error||'Restricted emails could not be loaded.');
+        restrictedEmailsPanel.hidden=false;restrictedEmailList.replaceChildren();const emails=result.emails||[];
+        restrictedEmailFeedback.textContent=`${emails.length} ${emails.length===1?'email is':'emails are'} restricted.`;
+        if(!emails.length){restrictedEmailFeedback.textContent='No email addresses are restricted.';return}
+        emails.forEach(entry=>{
+          const item=document.createElement('li');item.className='admin-user-item';
+          const label=document.createElement('div');label.className='admin-user-email';label.textContent=entry.email;
+          const note=document.createElement('span');note.className='admin-user-added';note.textContent=`Blocked ${prettyDate(entry.createdAt)} by ${entry.createdBy}${entry.reason?` · ${entry.reason}`:''}`;label.append(note);
+          const unblock=document.createElement('button');unblock.type='button';unblock.className='admin-remove';unblock.textContent='Remove block';unblock.setAttribute('aria-label',`Remove email restriction for ${entry.email}`);
+          unblock.addEventListener('click',async()=>{
+            if(!window.confirm(`Remove the sign-in block for ${entry.email}? Any account disabled by this block will remain deactivated until the site owner reactivates it.`))return;
+            unblock.disabled=true;restrictedEmailFeedback.textContent='Removing email block…';
+            try{const response=await fetch(`/api/admin/restricted-emails?email=${encodeURIComponent(entry.email)}`,{method:'DELETE',headers:{accept:'application/json'}});const saved=await response.json().catch(()=>({}));if(!response.ok)throw new Error(saved.error||'Email block could not be removed.');await loadRestrictedEmails();restrictedEmailFeedback.textContent=saved.message||'Email block removed.'}
+            catch(error){unblock.disabled=false;restrictedEmailFeedback.textContent=error.message;restrictedEmailFeedback.classList.add('error')}
+          });
+          item.append(label,unblock);restrictedEmailList.append(item);
+        });
+      }catch(error){restrictedEmailsPanel.hidden=error.message.includes('administrator');restrictedEmailFeedback.textContent=error.message;restrictedEmailFeedback.classList.add('error')}
     }
     async function loadGhostAccess(){
       ghostAccessPanel.hidden=false;ghostAccessFeedback.textContent='Loading account access…';ghostAccessFeedback.classList.remove('error');
@@ -1058,6 +1139,18 @@
         input.value='';renderAdminUsers(result);setAdminFeedback(`Admin access granted to ${email}.`);
       }catch(error){setAdminFeedback(error.message,true)}finally{button.disabled=false}
     });
+    document.getElementById('admin-post-search-form').addEventListener('submit',event=>{event.preventDefault();loadAdminExperiences()});
+    document.getElementById('restricted-email-form').addEventListener('submit',async event=>{
+      event.preventDefault();const emailInput=document.getElementById('restricted-email-input');const reasonInput=document.getElementById('restricted-email-reason');const email=emailInput.value.trim().toLowerCase();if(!email)return;
+      if(!window.confirm(`Block ${email} from signing in or creating an NFD account? Any existing matching account will be deactivated and signed out.`))return;
+      const button=event.currentTarget.querySelector('button[type="submit"]');button.disabled=true;restrictedEmailFeedback.textContent='Blocking email and deactivating matching accounts…';restrictedEmailFeedback.classList.remove('error');
+      try{
+        const response=await fetch('/api/admin/restricted-emails',{method:'POST',headers:{'content-type':'application/json',accept:'application/json'},body:JSON.stringify({email,reason:reasonInput.value.trim()})});const result=await response.json().catch(()=>({}));
+        if(!response.ok)throw new Error(result.error||'Email could not be blocked.');
+        emailInput.value='';reasonInput.value='';await loadRestrictedEmails();restrictedEmailFeedback.textContent=`${email} is blocked. ${result.deactivatedAccounts||0} existing ${Number(result.deactivatedAccounts)===1?'account was':'accounts were'} deactivated.`;
+      }catch(error){restrictedEmailFeedback.textContent=error.message;restrictedEmailFeedback.classList.add('error')}
+      finally{button.disabled=false}
+    });
     if(location.pathname==='/login'){
       appLayout.hidden=true;loginPage.hidden=false;mainNav.hidden=true;document.title='Sign in — NFD';
       const params=new URLSearchParams(location.search);
@@ -1065,9 +1158,10 @@
       if(params.get('access')==='denied')document.getElementById('auth-denied').style.display='block';
       const googleStatus=params.get('google');
       if(googleStatus){const feedback=document.getElementById('google-feedback');feedback.style.display='block';feedback.textContent=googleStatus==='setup'?'Google sign-in is not set up yet. The NFD owner needs to finish connecting Google.':googleStatus==='cancelled'?'Google sign-in was cancelled. No account changes were made.':'Google sign-in could not be completed. Please try again.'}
+      if(params.get('account')==='restricted'||params.get('account')==='deactivated'){const feedback=document.getElementById('google-feedback');feedback.style.display='block';feedback.textContent=params.get('account')==='restricted'?'This email address is restricted from signing in to or creating an NFD account. Contact an NFD administrator if you think this is an error.':'This NFD account is deactivated. Contact an NFD administrator if you think this is an error.'}
     }else if(location.pathname==='/admin'){
       appLayout.hidden=true;adminPage.hidden=false;document.title='Administrator — NFD';
-      loadAdminUsers();loadGhostAccess();
+      loadAdminUsers();loadGhostAccess();loadAdminExperiences('');loadRestrictedEmails();
     }else if(location.pathname==='/profile'){
       appLayout.classList.add('profile-mode');form.hidden=true;reviewPage.hidden=true;feedPage.hidden=true;profilePage.hidden=false;
       document.title='Your profile — NFD';loadProfile();

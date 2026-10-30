@@ -43,6 +43,7 @@ const AVAILABLE_IDENTITY_SQL = `u.active = 1 AND (
 let googleJwksCache;
 let googleJwksExpiresAt = 0;
 let identityTablesPromise;
+let emailRestrictionTablesPromise;
 let engagementTablesPromise;
 let moderationTablesPromise;
 let experienceOptionColumnsPromise;
@@ -138,6 +139,12 @@ export default {
     }
     if (request.method === "PUT" && url.pathname === "/api/admin/account-status") {
       return updateAccountStatus(request, env);
+    }
+    if (url.pathname === "/api/admin/experiences" && ["GET", "DELETE"].includes(request.method)) {
+      return manageAdminExperiences(request, env);
+    }
+    if (url.pathname === "/api/admin/restricted-emails" && ["GET", "POST", "DELETE"].includes(request.method)) {
+      return manageRestrictedEmails(request, env);
     }
     if (url.pathname === "/api/admins" && ["GET", "POST"].includes(request.method)) {
       return manageAdmins(request, env);
@@ -285,6 +292,7 @@ async function finishGoogleSignIn(request, env) {
     if (!tokenResponse.ok || !tokens.id_token) throw new Error("Google did not return a sign-in token.");
     const claims = await verifyGoogleIdToken(tokens.id_token, env.GOOGLE_CLIENT_ID, oauthState.nonce);
     await ensureIdentityTables(env);
+    if (await isRestrictedEmail(env, claims.email)) return redirect("/login?account=restricted", 302, [clearOauthCookie]);
     const userId = `google:${claims.sub}`;
     const now = new Date().toISOString();
     await env.DB.prepare(`
@@ -362,6 +370,7 @@ async function getAuthenticatedUser(request, env) {
     if (env.DB) {
       try {
         await ensureIdentityTables(env);
+        if (await isRestrictedEmail(env, user.email)) return null;
         const now = new Date().toISOString();
         const knownAccount = await env.DB.prepare("SELECT id FROM nfd_users WHERE id = ? LIMIT 1").bind(user.id).first();
         await env.DB.prepare(`
@@ -374,6 +383,7 @@ async function getAuthenticatedUser(request, env) {
         if (!knownAccount) await recordActivity(env, user.id, "account_created", "account", user.id, { provider: "chatgpt" });
       } catch (error) {
         console.error("ChatGPT profile save failed", error);
+        return null;
       }
     }
     return user;
@@ -1005,6 +1015,88 @@ async function ensureAdminTable(env) {
   `).run();
 }
 
+async function ensureEmailRestrictionTable(env) {
+  if (!env.DB) throw new Error("The NFD database is unavailable.");
+  emailRestrictionTablesPromise ||= (async () => {
+    await env.DB.prepare(`
+      CREATE TABLE IF NOT EXISTS nfd_blocked_emails (
+        email TEXT PRIMARY KEY NOT NULL COLLATE NOCASE,
+        reason TEXT NOT NULL DEFAULT '',
+        created_by TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      )
+    `).run();
+    await env.DB.prepare("CREATE INDEX IF NOT EXISTS nfd_blocked_emails_created_idx ON nfd_blocked_emails (created_at)").run();
+  })().catch((error) => { emailRestrictionTablesPromise = undefined; throw error; });
+  await emailRestrictionTablesPromise;
+}
+
+async function isRestrictedEmail(env, email) {
+  const normalized = typeof email === "string" ? email.trim().toLowerCase() : "";
+  if (!normalized) return false;
+  await ensureEmailRestrictionTable(env);
+  return Boolean(await env.DB.prepare("SELECT 1 AS found FROM nfd_blocked_emails WHERE email = ? LIMIT 1").bind(normalized).first());
+}
+
+async function manageRestrictedEmails(request, env) {
+  const admin = await getCurrentUser(request, env);
+  if (!admin) return json({ error: "Sign in to manage restricted emails." }, 401);
+  if (!(await isAdmin(request, env))) return json({ error: "Only NFD administrators can restrict email accounts." }, 403);
+  if (!env.DB) return json({ error: "Email restrictions are unavailable right now." }, 503);
+  try {
+    await ensureIdentityTables(env);
+    await ensureGhostTables(env);
+    await ensureEmailRestrictionTable(env);
+    if (request.method === "GET") {
+      const result = await env.DB.prepare(`
+        SELECT b.email, b.reason, b.created_at, u.display_name AS created_by_name
+        FROM nfd_blocked_emails b LEFT JOIN nfd_users u ON u.id = b.created_by
+        ORDER BY b.created_at DESC LIMIT 500
+      `).all();
+      return json({ emails: (result.results || []).map((row) => ({
+        email: row.email, reason: row.reason || "", createdAt: row.created_at,
+        createdBy: row.created_by_name || "NFD administrator",
+      })) });
+    }
+    if (request.method === "POST") {
+      if (!request.headers.get("content-type")?.toLowerCase().includes("application/json")) return json({ error: "Send an email address as JSON." }, 415);
+      const body = await request.json().catch(() => null);
+      const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
+      const reason = typeof body?.reason === "string" ? body.reason.trim().replace(/[\u0000-\u001f\u007f]/g, "").slice(0, 240) : "";
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email) || email.length > 254) return json({ error: "Enter a valid email address." }, 400);
+      if (email === ownerEmail(env) || email === (admin.email || "").trim().toLowerCase()) return json({ error: "You cannot restrict your own or the site owner’s email address." }, 400);
+      const now = new Date().toISOString();
+      await env.DB.prepare(`
+        INSERT INTO nfd_blocked_emails (email, reason, created_by, created_at) VALUES (?, ?, ?, ?)
+        ON CONFLICT(email) DO UPDATE SET reason = excluded.reason, created_by = excluded.created_by, created_at = excluded.created_at
+      `).bind(email, reason, admin.id, now).run();
+      const disabled = await env.DB.prepare("UPDATE nfd_users SET active = 0, updated_at = ? WHERE lower(email) = ? AND active != 0")
+        .bind(now, email).run();
+      await env.DB.prepare("DELETE FROM nfd_sessions WHERE user_id IN (SELECT id FROM nfd_users WHERE lower(email) = ?)").bind(email).run();
+      await env.DB.prepare(`
+        UPDATE nfd_friend_requests SET status = 'rejected', updated_at = ?
+        WHERE status = 'pending' AND (
+          from_user_id IN (SELECT id FROM nfd_users WHERE lower(email) = ?)
+          OR to_user_id IN (SELECT id FROM nfd_users WHERE lower(email) = ?)
+          OR from_user_id IN (SELECT p.ghost_user_id FROM nfd_ghost_profiles p WHERE p.owner_user_id IN (SELECT id FROM nfd_users WHERE lower(email) = ?))
+          OR to_user_id IN (SELECT p.ghost_user_id FROM nfd_ghost_profiles p WHERE p.owner_user_id IN (SELECT id FROM nfd_users WHERE lower(email) = ?))
+        )
+      `).bind(now, email, email, email, email).run();
+      await recordActivity(env, admin.id, "email_restricted", "email", email, { reason });
+      return json({ ok: true, email, deactivatedAccounts: Number(disabled.meta?.changes) || 0 });
+    }
+    const email = new URL(request.url).searchParams.get("email")?.trim().toLowerCase() || "";
+    if (!email) return json({ error: "Choose the restricted email address to unblock." }, 400);
+    const removed = await env.DB.prepare("DELETE FROM nfd_blocked_emails WHERE email = ? COLLATE NOCASE").bind(email).run();
+    if (!(Number(removed.meta?.changes) > 0)) return json({ error: "That email address was not restricted." }, 404);
+    await recordActivity(env, admin.id, "email_unrestricted", "email", email);
+    return json({ ok: true, email, message: "Email restriction removed. Any deactivated NFD account must be reactivated separately." });
+  } catch (error) {
+    console.error("NFD restricted email update failed", error);
+    return json({ error: "Restricted email settings could not be loaded or updated right now." }, 503);
+  }
+}
+
 async function ensureModerationTable(env) {
   if (!env.DB) throw new Error("The NFD database is unavailable.");
   moderationTablesPromise ||= (async () => {
@@ -1274,6 +1366,60 @@ async function updateAccountStatus(request, env) {
   } catch (error) {
     console.error("NFD account status update failed", error instanceof Error ? error.message : String(error));
     return json({ error: "NFD account status could not be updated right now." }, 503);
+  }
+}
+
+async function manageAdminExperiences(request, env) {
+  const admin = await getCurrentUser(request, env);
+  if (!admin) return json({ error: "Sign in to manage shared posts." }, 401);
+  if (!(await isAdmin(request, env))) return json({ error: "Only NFD administrators can manage shared posts." }, 403);
+  if (!env.DB || !env.BUCKET) return json({ error: "Post storage is unavailable right now." }, 503);
+  try {
+    await ensureExperienceOptionColumns(env);
+    await ensureEngagementTables(env);
+    await retryEvidenceCleanup(env);
+    if (request.method === "GET") {
+      const query = cleanSearchTerm(new URL(request.url).searchParams.get("q"));
+      const result = await env.DB.prepare(`
+        SELECT e.id, e.author_id, e.short_description, e.full_description, e.experience_category,
+          e.incident_category, e.place, e.visibility, e.created_at, u.display_name, u.email,
+          u.provider, u.active
+        FROM experiences e LEFT JOIN nfd_users u ON u.id = e.author_id
+        WHERE e.status = 'shared' AND (? = '' OR instr(lower(COALESCE(u.display_name, '')), lower(?)) > 0
+          OR instr(lower(COALESCE(u.email, '')), lower(?)) > 0
+          OR instr(lower(e.short_description), lower(?)) > 0 OR instr(lower(e.full_description), lower(?)) > 0
+          OR instr(lower(e.place), lower(?)) > 0)
+        ORDER BY e.created_at DESC LIMIT 100
+      `).bind(query, query, query, query, query, query).all();
+      return json({ posts: (result.results || []).map((row) => ({
+        id: row.id, authorId: row.author_id, authorName: row.display_name || "NFD member",
+        authorEmail: row.email || "", provider: row.provider || "unknown", authorActive: Number(row.active) === 1,
+        shortDescription: row.short_description, fullDescription: row.full_description,
+        experienceCategory: row.experience_category, incidentCategory: row.incident_category,
+        place: row.place, visibility: row.visibility, createdAt: row.created_at,
+      })) });
+    }
+    if (!request.headers.get("content-type")?.toLowerCase().includes("application/json")) return json({ error: "Send the post ID as JSON." }, 415);
+    const body = await request.json().catch(() => null);
+    const experienceId = typeof body?.experienceId === "string" ? body.experienceId.trim() : "";
+    if (!/^[0-9a-f-]{36}$/i.test(experienceId)) return json({ error: "Choose a valid shared post." }, 400);
+    const post = await env.DB.prepare("SELECT id, author_id FROM experiences WHERE id = ? AND status = 'shared' LIMIT 1").bind(experienceId).first();
+    if (!post) return json({ error: "That shared post could not be found." }, 404);
+    const evidence = await env.DB.prepare("SELECT object_key, preview_object_key FROM experience_evidence WHERE experience_id = ?").bind(experienceId).all();
+    await recordActivity(env, admin.id, "admin_post_deleted", "experience", experienceId, { authorId: post.author_id });
+    const removed = await env.DB.batch([
+      env.DB.prepare("DELETE FROM experience_reactions WHERE experience_id = ?").bind(experienceId),
+      env.DB.prepare("DELETE FROM experience_comments WHERE experience_id = ?").bind(experienceId),
+      env.DB.prepare("DELETE FROM experience_evidence WHERE experience_id = ?").bind(experienceId),
+      env.DB.prepare("DELETE FROM experiences WHERE id = ? AND status = 'shared'").bind(experienceId),
+    ]);
+    if (!(Number(removed[3]?.meta?.changes) > 0)) return json({ error: "That shared post could not be found." }, 404);
+    const cleanupPending = await deleteEvidenceObjects(env, (evidence.results || []).flatMap((file) => [file.object_key, file.preview_object_key]));
+    if (cleanupPending) console.error("Some evidence could not be removed after admin post deletion", experienceId);
+    return json({ ok: true, cleanupPending });
+  } catch (error) {
+    console.error("Admin post management failed", error);
+    return json({ error: "Shared posts could not be loaded or deleted right now." }, 503);
   }
 }
 
