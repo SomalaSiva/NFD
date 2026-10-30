@@ -494,8 +494,10 @@ export function createExperienceRoutes(services) {
       if (!(await canViewExperience(env, user, record)))
         return new Response("Evidence not found.", { status: 404 });
       const requestedPreview = new URL(request.url).searchParams.get("variant") === "preview";
+      const imageEvidence = record.content_type.startsWith("image/");
       const wantsPreview =
-        Boolean(record.preview_object_key) && (requestedPreview || record.author_id !== user.id);
+        Boolean(record.preview_object_key) &&
+        (requestedPreview || (imageEvidence && record.author_id !== user.id));
       const objectKey = wantsPreview ? record.preview_object_key : record.object_key;
       const contentType = wantsPreview ? "image/webp" : record.content_type;
       const isVideo = contentType.startsWith("video/");
@@ -805,7 +807,7 @@ export function createExperienceRoutes(services) {
       const preview = form.get(`evidencePreview-${index}`);
       if (!(preview instanceof File) || preview.size === 0) return null;
       if (
-        !file.type.startsWith("image/") ||
+        (!file.type.startsWith("image/") && !file.type.startsWith("video/")) ||
         file.type === "image/gif" ||
         preview.type !== "image/webp" ||
         preview.size > 1024 * 1024
@@ -817,7 +819,7 @@ export function createExperienceRoutes(services) {
     });
     if (invalidPreview)
       return json(
-        { error: "A photo preview could not be processed. Please remove the photo and try again." },
+        { error: "A media preview could not be processed. Please remove the attachment and try again." },
         400,
       );
 

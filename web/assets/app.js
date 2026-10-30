@@ -552,6 +552,7 @@ function experienceTimeText(experience) {
   return "Not provided";
 }
 async function createFeedPreview(file) {
+  if (file.type.startsWith("video/")) return createVideoFeedPreview(file);
   if (
     !file.type.startsWith("image/") ||
     file.type === "image/gif" ||
@@ -579,6 +580,60 @@ async function createFeedPreview(file) {
     bitmap?.close?.();
   }
 }
+async function createVideoFeedPreview(file) {
+  const video = document.createElement("video");
+  const objectUrl = URL.createObjectURL(file);
+  video.muted = true;
+  video.playsInline = true;
+  video.preload = "metadata";
+  video.src = objectUrl;
+  try {
+    await new Promise((resolve, reject) => {
+      const timeout = window.setTimeout(() => reject(new Error("Video preview timed out")), 10000);
+      const finish = (error) => {
+        window.clearTimeout(timeout);
+        video.removeEventListener("seeked", onSeeked);
+        video.removeEventListener("loadedmetadata", onMetadata);
+        video.removeEventListener("error", onError);
+        error ? reject(error) : resolve();
+      };
+      const onError = () => finish(new Error("Video preview could not be decoded"));
+      const onSeeked = () => finish();
+      const onMetadata = () => {
+        if (!Number.isFinite(video.duration) || video.duration <= 0) {
+          finish(new Error("Video duration is unavailable"));
+          return;
+        }
+        video.addEventListener("seeked", onSeeked, { once: true });
+        video.currentTime = Math.min(1, video.duration * 0.1);
+      };
+      video.addEventListener("loadedmetadata", onMetadata, { once: true });
+      video.addEventListener("error", onError, { once: true });
+      video.load();
+    });
+    if (!video.videoWidth || !video.videoHeight) return null;
+    const scale = Math.min(1, 960 / Math.max(video.videoWidth, video.videoHeight));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
+    canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
+    const context = canvas.getContext("2d");
+    if (!context) return null;
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const preview = await new Promise((resolve) => canvas.toBlob(resolve, "image/webp", 0.78));
+    return preview?.type === "image/webp" && preview.size <= 1024 * 1024 ? preview : null;
+  } catch {
+    return null;
+  } finally {
+    video.removeAttribute("src");
+    video.load();
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+const videoFallbackPoster =
+  "data:image/svg+xml," +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 540"><rect width="960" height="540" fill="#e9f1ec"/><circle cx="480" cy="250" r="66" fill="#0d7058"/><path d="M462 210v80l68-40z" fill="#fff"/><text x="480" y="390" text-anchor="middle" fill="#155b49" font-family="Arial,sans-serif" font-size="34" font-weight="700">Video story</text></svg>',
+  );
 function addText(parent, tag, className, value) {
   const element = document.createElement(tag);
   if (className) element.className = className;
@@ -837,6 +892,9 @@ function renderFeed(experiences, total, { append = false, nextCursor = "" } = {}
         video.preload = "none";
         video.playsInline = true;
         video.title = file.originalFilename;
+        video.poster = file.hasPreview
+          ? `/api/evidence/${encodeURIComponent(file.id)}?variant=preview`
+          : videoFallbackPoster;
         video.dataset.src = `/api/evidence/${encodeURIComponent(file.id)}`;
         if (videoLoader) videoLoader.observe(video);
         else video.src = video.dataset.src;
@@ -3066,10 +3124,10 @@ document.getElementById("confirm-review").addEventListener("click", async (event
   if (!aiReviewConsent.hidden && aiReviewConsentCheckbox.checked) payload.append("aiReviewConsent", "yes");
   selectedFiles.forEach((file) => payload.append("evidence", file, file.name));
   try {
-    button.textContent = "Preparing photos…";
+    button.textContent = "Preparing media…";
     for (let index = 0; index < selectedFiles.length; index++) {
       const preview = await createFeedPreview(selectedFiles[index]);
-      if (preview) payload.append(`evidencePreview-${index}`, preview, `nfd-photo-${index}.webp`);
+      if (preview) payload.append(`evidencePreview-${index}`, preview, `nfd-preview-${index}.webp`);
     }
     button.textContent = "Sharing…";
     const response = await fetch("/api/experiences", { method: "POST", body: payload });
