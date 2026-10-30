@@ -62,7 +62,8 @@
     .ghost-mode-banner{display:flex;justify-content:center;align-items:center;gap:15px;padding:9px 16px;background:#eaf4ed;color:#315c43;border-bottom:1px solid #d6e8da;font-size:12px}.ghost-mode-banner[hidden]{display:none}.ghost-mode-banner button{border:0;background:transparent;color:#176a4e;font:inherit;font-weight:750;text-decoration:underline;cursor:pointer}
     .ghost-panel{margin:18px 0;padding:18px 20px;background:#f4f8f4;border:1px solid #dce8de;border-radius:14px}.ghost-panel[hidden],.ghost-profile-ready[hidden],.ghost-create-form[hidden]{display:none!important}.ghost-panel h2{margin:0;color:#284a38;font-size:17px}.ghost-settings-copy{max-width:680px;margin:8px 0 13px;color:#66776d;font-size:12px;line-height:1.6}.ghost-settings-feedback{margin:0 0 10px;color:#64756b;font-size:11px}.ghost-profile-ready{display:grid;grid-template-columns:1fr auto;align-items:center;gap:5px 14px}.ghost-profile-ready strong{color:#294735;font-size:14px}.ghost-profile-ready span{color:#738078;font-size:11px}.ghost-profile-state{grid-column:1;color:#738078;font-size:11px}.ghost-profile-actions{grid-column:2;grid-row:1/4;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px}.ghost-profile-actions button{white-space:nowrap}.ghost-deactivate-button{border-color:#e6c8c4;color:#9a3f36}.ghost-create-form{display:grid;grid-template-columns:1fr;gap:7px;max-width:520px}.ghost-create-form label{margin-top:5px;color:#41564a;font-size:11px;font-weight:700}.ghost-create-form .helper{margin:0 0 5px}.ghost-create-form .submit{justify-self:start}.ghost-access-toggle{min-width:135px}.ghost-access-toggle[aria-pressed="true"]{border-color:#a9c9b2;background:#edf6ef;color:#28613d}
     .post-search-row .control:first-child{flex:1}.restricted-email-row .control{max-width:none;min-width:0;flex:1}.admin-post-item{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start}.admin-post-copy{min-width:0}.admin-post-copy p{margin:6px 0 0;color:#64756c;font-size:11px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere}.admin-post-copy .admin-user-added{line-height:1.5}.admin-delete-post{align-self:start;white-space:nowrap}
-    @media(max-width:560px){.ghost-mode-banner{justify-content:space-between}.ghost-profile-ready{grid-template-columns:1fr}.ghost-profile-actions{grid-column:1;grid-row:auto;justify-content:flex-start}.ghost-profile-state{grid-column:1}.post-search-row,.restricted-email-row{align-items:stretch;flex-direction:column}.post-search-row .control,.restricted-email-row .control{max-width:none;width:100%}.admin-user-item.admin-post-item{grid-template-columns:1fr;align-items:stretch}.admin-post-item .admin-delete-post{width:100%}}
+    .admin-navigation{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:25px;padding-bottom:18px;border-bottom:1px solid var(--line)}.admin-navigation a{padding:8px 10px;border:1px solid #e1e9e3;border-radius:999px;background:#fff;color:#53645b;font-size:10px;font-weight:680}.admin-navigation a:hover,.admin-navigation a[aria-current="page"]{border-color:#b9d0bd;background:#edf5ef;color:var(--green)}.admin-overview{margin-top:20px;padding:19px;background:#f7faf7;border:1px solid #e4ece5;border-radius:12px}.admin-overview h2{margin:0;font-size:16px}.admin-overview p{margin:7px 0 0}
+    @media(max-width:560px){.ghost-mode-banner{justify-content:space-between}.ghost-profile-ready{grid-template-columns:1fr}.ghost-profile-actions{grid-column:1;grid-row:auto;justify-content:flex-start}.ghost-profile-state{grid-column:1}.post-search-row,.restricted-email-row{align-items:stretch;flex-direction:column}.post-search-row .control,.restricted-email-row .control{max-width:none;width:100%}.admin-user-item.admin-post-item{grid-template-columns:1fr;align-items:stretch}.admin-post-item .admin-delete-post{width:100%}.admin-navigation{gap:5px}.admin-navigation a{flex:1 1 auto;text-align:center}}
   </style>
 </head>
 <body>
@@ -89,9 +90,23 @@
   </main>
   <main id="admin-page" class="shell admin-panel" hidden>
     <section class="admin-card" aria-labelledby="admin-heading">
+      <nav class="admin-navigation" id="admin-navigation" aria-label="NFD administration">
+        <a href="/admin" data-admin-page="overview">Overview</a>
+        <a href="/admin/ghost-access" data-admin-page="ghost-access">Ghost mode access</a>
+        <a href="/admin/restricted-emails" data-admin-page="restricted-emails">Restricted email accounts</a>
+        <a href="/admin/posts" data-admin-page="posts">Manage shared posts</a>
+        <a href="/admin/members" data-admin-page="members" data-owner-only hidden>People using NFD</a>
+        <a href="/admin/activity" data-admin-page="activity" data-owner-only hidden>Account activity</a>
+        <a href="/admin/moderation" data-admin-page="moderation">Automatic post review</a>
+        <a href="/admin/admins" data-admin-page="admins" data-owner-only hidden>Manage admins</a>
+      </nav>
       <div class="eyebrow">NFD administration</div>
       <h1 id="admin-heading">Administrator access</h1>
-      <p id="admin-intro">Administrators can open the NFD admin area. Only the site owner can grant or remove this access.</p>
+      <p id="admin-intro">Manage the NFD community from these administrator pages.</p>
+      <section id="admin-overview" class="admin-overview" hidden aria-label="Administration overview">
+        <h2>Choose an admin page</h2>
+        <p>Use the navigation above to manage Ghost mode, account restrictions, shared posts, members, activity, or post review.</p>
+      </section>
       <p class="admin-feedback" id="admin-feedback" role="status" aria-live="polite">Checking administrator permissions…</p>
       <section class="admin-user-management" id="admin-user-management" hidden aria-labelledby="admin-manage-heading">
         <h2 id="admin-manage-heading">Manage admins</h2>
@@ -914,6 +929,7 @@
     const adminFeedback=document.getElementById('admin-feedback');
     const adminManagement=document.getElementById('admin-user-management');
     const adminUserList=document.getElementById('admin-user-list');
+    const adminOverview=document.getElementById('admin-overview');
     const memberDirectory=document.getElementById('member-directory');
     const memberDirectoryFeedback=document.getElementById('member-directory-feedback');
     const memberDirectoryList=document.getElementById('member-directory-list');
@@ -1095,14 +1111,36 @@
     }
     async function loadAdminUsers(){
       setAdminFeedback('Checking administrator permissions…');
-      await loadModerationSettings();
       try{
         const response=await fetch('/api/admins',{headers:{accept:'application/json'},cache:'no-store'});
         const result=await response.json().catch(()=>({}));
-        if(response.status===403){adminManagement.hidden=true;memberDirectory.hidden=true;activityAudit.hidden=true;setAdminFeedback('You have admin access. Only the site owner can manage admins or view account details.');return}
+        if(response.status===403){adminManagement.hidden=true;setAdminFeedback('Only the site owner can manage administrator access.',true);return}
         if(!response.ok)throw new Error(result.error||'Administrator settings could not be loaded.');
-        adminManagement.hidden=false;renderAdminUsers(result);await Promise.all([loadMemberDirectory(),loadActivityAudit()]);
+        adminManagement.hidden=false;renderAdminUsers(result);setAdminFeedback('Administrator access is up to date.');
       }catch(error){setAdminFeedback(error.message,true)}
+    }
+    async function loadAdminPage(){
+      adminPage.hidden=false;appLayout.hidden=true;document.title='Administrator — NFD';
+      const pageKey=location.pathname==='/admin'?'overview':location.pathname.split('/').filter(Boolean).at(-1);
+      const pageTitles={overview:'Administrator access','ghost-access':'Ghost mode access','restricted-emails':'Restricted email accounts',posts:'Manage shared posts',members:'People using NFD',activity:'Account activity',moderation:'Automatic post review',admins:'Manage administrators'};
+      const panels=[adminOverview,adminManagement,memberDirectory,ghostAccessPanel,activityAudit,moderationSettings,adminPostManagement,restrictedEmailsPanel];
+      panels.forEach(panel=>{if(panel)panel.hidden=true});adminFeedback.hidden=pageKey!=='admins';
+      document.getElementById('admin-heading').textContent=pageTitles[pageKey]||'Administrator access';
+      document.querySelectorAll('[data-admin-page]').forEach(link=>{const active=link.dataset.adminPage===pageKey;link.toggleAttribute('aria-current',active);if(active)link.setAttribute('aria-current','page')});
+      try{
+        const response=await fetch('/api/admins',{headers:{accept:'application/json'},cache:'no-store'});
+        const isOwner=response.ok;
+        document.querySelectorAll('[data-owner-only]').forEach(link=>{link.hidden=!isOwner});
+      }catch{document.querySelectorAll('[data-owner-only]').forEach(link=>{link.hidden=true})}
+      if(pageKey==='overview'){adminOverview.hidden=false;return}
+      if(pageKey==='ghost-access'){await loadGhostAccess();return}
+      if(pageKey==='restricted-emails'){await loadRestrictedEmails();return}
+      if(pageKey==='posts'){await loadAdminExperiences('');return}
+      if(pageKey==='members'){await loadMemberDirectory();return}
+      if(pageKey==='activity'){await loadActivityAudit();return}
+      if(pageKey==='moderation'){await loadModerationSettings();return}
+      if(pageKey==='admins'){await loadAdminUsers();return}
+      adminOverview.hidden=false;
     }
     async function updateNavigation(){
       if(location.pathname==='/login'){mainNav.hidden=true;return}
@@ -1159,9 +1197,8 @@
       const googleStatus=params.get('google');
       if(googleStatus){const feedback=document.getElementById('google-feedback');feedback.style.display='block';feedback.textContent=googleStatus==='setup'?'Google sign-in is not set up yet. The NFD owner needs to finish connecting Google.':googleStatus==='cancelled'?'Google sign-in was cancelled. No account changes were made.':'Google sign-in could not be completed. Please try again.'}
       if(params.get('account')==='restricted'||params.get('account')==='deactivated'){const feedback=document.getElementById('google-feedback');feedback.style.display='block';feedback.textContent=params.get('account')==='restricted'?'This email address is restricted from signing in to or creating an NFD account. Contact an NFD administrator if you think this is an error.':'This NFD account is deactivated. Contact an NFD administrator if you think this is an error.'}
-    }else if(location.pathname==='/admin'){
-      appLayout.hidden=true;adminPage.hidden=false;document.title='Administrator — NFD';
-      loadAdminUsers();loadGhostAccess();loadAdminExperiences('');loadRestrictedEmails();
+    }else if(location.pathname==='/admin'||location.pathname.startsWith('/admin/')){
+      void loadAdminPage();
     }else if(location.pathname==='/profile'){
       appLayout.classList.add('profile-mode');form.hidden=true;reviewPage.hidden=true;feedPage.hidden=true;profilePage.hidden=false;
       document.title='Your profile — NFD';loadProfile();

@@ -1,5 +1,6 @@
 import { copyFileSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { build } from "esbuild";
 
 const root = realpathSync(process.cwd());
 const dist = path.resolve(root, "dist");
@@ -16,7 +17,15 @@ const privacyPageBase64 = Buffer.from(privacyPage, "utf8").toString("base64");
 const guidelinesPage = readFileSync(path.join(root, "web/guidelines.html"), "utf8");
 const guidelinesPageBase64 = Buffer.from(guidelinesPage, "utf8").toString("base64");
 const iconBase64 = readFileSync(path.join(root, "web/nfd-icon.png")).toString("base64");
-const worker = readFileSync(path.join(root, "worker/index.js"), "utf8");
+const workerBuild = await build({
+  entryPoints: [path.join(root, "worker/index.js")],
+  bundle: true,
+  platform: "browser",
+  format: "esm",
+  target: "es2022",
+  write: false,
+});
+const worker = workerBuild.outputFiles[0].text;
 rmSync(dist, { recursive: true, force: true });
 mkdirSync(path.join(dist, "server"), { recursive: true });
 mkdirSync(path.join(dist, ".openai"), { recursive: true });
