@@ -359,6 +359,57 @@ export function createExperienceRoutes(services) {
     }
   }
 
+  async function getOwnExperience(request, env, experienceId) {
+    const user = await getCurrentUser(request, env);
+    if (!user) return json({ error: "Sign in to edit your post." }, 401);
+    if (!env.DB) return json({ error: "Your post is not available right now." }, 503);
+    try {
+      await ensureExperienceOptionColumns(env);
+      const experience = await env.DB.prepare(
+        `SELECT id, experience_category, incident_category, place, place_category,
+          location_details, incident_time, incident_time_end, incident_time_zone,
+          short_description, full_description, visibility
+        FROM experiences
+        WHERE id = ? AND author_id = ? AND status = ?
+        LIMIT 1`,
+      )
+        .bind(experienceId, user.id, "shared")
+        .first();
+      if (!experience) return json({ error: "That post was not found in your profile." }, 404);
+      const evidence = await env.DB.prepare(
+        `SELECT id, original_filename, content_type, size_bytes
+        FROM experience_evidence WHERE experience_id = ? ORDER BY created_at ASC`,
+      )
+        .bind(experienceId)
+        .all();
+      return json({
+        experience: {
+          id: experience.id,
+          experienceCategory: experience.experience_category,
+          incidentCategory: experience.incident_category,
+          place: experience.place,
+          placeCategory: experience.place_category,
+          locationDetails: experience.location_details || "",
+          incidentTime: experience.incident_time || "",
+          incidentTimeEnd: experience.incident_time_end || "",
+          incidentTimeZone: experience.incident_time_zone || "UTC",
+          shortDescription: experience.short_description,
+          fullDescription: experience.full_description || "",
+          visibility: experience.visibility,
+          evidence: (evidence.results || []).map((file) => ({
+            id: file.id,
+            originalFilename: file.original_filename,
+            contentType: file.content_type,
+            sizeBytes: file.size_bytes,
+          })),
+        },
+      });
+    } catch (error) {
+      console.error("Owned post lookup failed", error);
+      return json({ error: "Your post could not be loaded for editing right now." }, 503);
+    }
+  }
+
   async function deleteOwnExperience(request, env, experienceId) {
     const user = await getCurrentUser(request, env);
     if (!user) return json({ error: "Sign in to delete your post." }, 401);
@@ -411,6 +462,158 @@ export function createExperienceRoutes(services) {
     } catch (error) {
       console.error("Post deletion failed", error);
       return json({ error: "Your post could not be deleted right now. Please try again." }, 503);
+    }
+  }
+
+  async function updateOwnExperience(request, env, experienceId) {
+    const user = await getCurrentUser(request, env);
+    if (!user) return json({ error: "Sign in to edit your post." }, 401);
+    if (!env.DB) return json({ error: "Post storage is not available right now." }, 503);
+    if (!request.headers.get("content-type")?.toLowerCase().startsWith("multipart/form-data"))
+      return json({ error: "Submit the post edits using the form." }, 415);
+    let form;
+    try {
+      form = await request.formData();
+    } catch {
+      return json({ error: "The post edits could not be read. Please try again." }, 400);
+    }
+    const fields = {
+      experienceCategory: textField(form, "experienceCategory", 100) || "Not provided",
+      incidentCategory: textField(form, "incidentCategory", 120) || "Not provided",
+      place: textField(form, "place", 240) || "Not provided",
+      placeCategory: textField(form, "placeCategory", 100) || "Not provided",
+      incidentTime: textField(form, "incidentTimeUtc", 40),
+      incidentTimeEnd: textField(form, "incidentTimeEndUtc", 40),
+      incidentTimeZone: textField(form, "incidentTimeZone", 80) || "UTC",
+      locationDetails: textField(form, "locationDetail", 300),
+      shortDescription: textField(form, "shortDescription", 240),
+      fullDescription: textField(form, "fullDescription", 4000),
+      visibility: textField(form, "visibility", 20) || "public",
+    };
+    if (!fields.shortDescription) return json({ error: "Add a quick version before saving your post." }, 400);
+    if (
+      fields.experienceCategory !== "Not provided" &&
+      fields.incidentCategory !== "Not provided" &&
+      !INCIDENT_CATEGORIES_BY_EXPERIENCE[fields.experienceCategory]?.includes(fields.incidentCategory)
+    ) {
+      return json({ error: "Choose an incident that matches the experience category." }, 400);
+    }
+    if (!["public", "friends", "anonymous"].includes(fields.visibility))
+      return json({ error: "Choose who can see this post before saving." }, 400);
+    if (fields.incidentTime && !Number.isFinite(Date.parse(fields.incidentTime)))
+      return json({ error: "Choose a valid date and time for the experience." }, 400);
+    if (
+      fields.incidentTimeEnd &&
+      (!Number.isFinite(Date.parse(fields.incidentTimeEnd)) ||
+        (fields.incidentTime && Date.parse(fields.incidentTimeEnd) <= Date.parse(fields.incidentTime)))
+    ) {
+      return json({ error: "The end of the time range must be later than its start." }, 400);
+    }
+    const suppliedEvidence = form.getAll("evidence");
+    if (suppliedEvidence.some((file) => file instanceof File && file.size > 0))
+      return json({ error: "Attachments stay with the post while editing." }, 400);
+
+    try {
+      await ensureExperienceOptionColumns(env);
+      const current = await env.DB.prepare(
+        `SELECT id FROM experiences WHERE id = ? AND author_id = ? AND status = ? LIMIT 1`,
+      )
+        .bind(experienceId, user.id, "shared")
+        .first();
+      if (!current) return json({ error: "That post was not found in your profile." }, 404);
+
+      let automaticReview = false;
+      try {
+        automaticReview = await moderationEnabled(env);
+      } catch (error) {
+        console.error("NFD moderation state could not be checked during post editing", error);
+        return json(
+          { error: "NFD could not verify the safety-review setting. Your post was not changed." },
+          503,
+        );
+      }
+      if (automaticReview) {
+        if (!env.GEMINI_API_KEY)
+          return json({ error: "Automatic review is enabled but its Gemini key is not connected." }, 503);
+        if (textField(form, "aiReviewConsent", 10) !== "yes")
+          return json({ error: "Confirm that Google Gemini will review this post before saving." }, 400);
+        const evidence = await env.DB.prepare(
+          `SELECT original_filename, content_type, size_bytes, object_key
+          FROM experience_evidence WHERE experience_id = ? ORDER BY created_at ASC`,
+        )
+          .bind(experienceId)
+          .all();
+        const reviewFiles = [];
+        for (const file of evidence.results || []) {
+          if (!file.content_type.startsWith("image/") && !file.content_type.startsWith("video/")) continue;
+          if (!env.BUCKET) return json({ error: "Post media is not available for automatic review." }, 503);
+          const object = await env.BUCKET.get(file.object_key);
+          if (!object)
+            return json({ error: "An attached file could not be loaded for automatic review." }, 503);
+          reviewFiles.push(
+            new File([await object.arrayBuffer()], safeFilename(file.original_filename), {
+              type: file.content_type,
+            }),
+          );
+        }
+        const result = await reviewWithGemini(env, fields, reviewFiles);
+        if (result.error) return json({ error: result.error }, 503);
+        if (!result.review.approved) {
+          await recordActivity(env, user.id, "automatic_review_blocked", "experience", experienceId, {
+            attachmentCount: reviewFiles.length,
+          });
+          return json(
+            {
+              error:
+                result.review.reviewNote.slice(0, 600) || "This post needs a change before it can be saved.",
+              moderation: {
+                suggestedShortDescription: String(result.review.suggestedShortDescription || "").slice(
+                  0,
+                  240,
+                ),
+                suggestedFullDescription: String(result.review.suggestedFullDescription || "").slice(0, 4000),
+                flaggedFiles: [],
+              },
+            },
+            422,
+          );
+        }
+      }
+
+      const updatedAt = new Date().toISOString();
+      const result = await env.DB.prepare(
+        `UPDATE experiences SET experience_category = ?, incident_category = ?, place = ?,
+          place_category = ?, incident_time = ?, incident_time_end = ?, incident_time_zone = ?,
+          location_details = ?, short_description = ?, full_description = ?, visibility = ?
+        WHERE id = ? AND author_id = ? AND status = ?`,
+      )
+        .bind(
+          fields.experienceCategory,
+          fields.incidentCategory,
+          fields.place,
+          fields.placeCategory,
+          fields.incidentTime ? new Date(fields.incidentTime).toISOString() : "",
+          fields.incidentTimeEnd ? new Date(fields.incidentTimeEnd).toISOString() : null,
+          fields.incidentTimeZone,
+          fields.locationDetails || null,
+          fields.shortDescription,
+          fields.fullDescription,
+          fields.visibility,
+          experienceId,
+          user.id,
+          "shared",
+        )
+        .run();
+      if (!(Number(result.meta?.changes) > 0))
+        return json({ error: "That post was not found in your profile." }, 404);
+      await recordActivity(env, user.id, "experience_edited", "experience", experienceId, {
+        visibility: fields.visibility,
+        automaticReview,
+      });
+      return json({ id: experienceId, status: "shared", updatedAt });
+    } catch (error) {
+      console.error("Post update failed", error);
+      return json({ error: "Your post could not be updated right now. Please try again." }, 503);
     }
   }
 
@@ -964,7 +1167,9 @@ export function createExperienceRoutes(services) {
   return {
     listExperiences,
     getProfile,
+    getOwnExperience,
     deleteOwnExperience,
+    updateOwnExperience,
     serveEvidence,
     updateExperienceReaction,
     handleExperienceComments,

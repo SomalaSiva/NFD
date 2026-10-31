@@ -546,6 +546,9 @@ textarea.control::placeholder {
   gap: 9px;
   margin-top: 11px;
 }
+#evidence-section [hidden] {
+  display: none !important;
+}
 .file-item {
   display: flex;
   align-items: center;
@@ -783,6 +786,15 @@ textarea.control::placeholder {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 9px;
   margin-top: 13px;
+}
+.review-file-reference {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.review-file-reference a {
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 650;
 }
 .review-empty {
   font-size: 12px;
@@ -2051,22 +2063,33 @@ textarea.control::placeholder {
 }
 .profile-post-actions {
   display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
   justify-content: flex-end;
   margin-top: 14px;
 }
-.profile-delete {
+.profile-delete,
+.profile-edit {
   padding: 8px 12px;
   border: 1px solid var(--line);
   border-radius: 9px;
   background: var(--paper);
-  color: var(--danger);
   font: inherit;
   font-size: 10px;
   font-weight: 700;
   cursor: pointer;
 }
+.profile-delete {
+  color: var(--danger);
+}
+.profile-edit {
+  color: var(--accent);
+}
 .profile-delete:hover {
   background: var(--danger-surface);
+}
+.profile-edit:hover {
+  background: var(--surface-hover);
 }
 .profile-delete:disabled {
   opacity: 0.55;
@@ -2173,8 +2196,8 @@ textarea.control::placeholder {
     flex-direction: column;
     gap: 6px;
   }
-  .profile-post-actions .profile-delete {
-    width: 100%;
+  .profile-post-actions > button {
+    flex: 1 1 120px;
   }
 }
 #app-layout.profile-mode #form-heading {

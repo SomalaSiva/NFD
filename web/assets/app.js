@@ -426,6 +426,9 @@ const formStepIntro = document.getElementById("form-step-intro");
 const formStepCount = document.getElementById("form-step-count");
 let activeStoryFormStep = "story";
 let selectedFiles = [];
+let editingPostId = "";
+let editingPostLoaded = false;
+let editingEvidence = [];
 const filePreviewUrls = new Map();
 function getFilePreviewUrl(file) {
   if (!filePreviewUrls.has(file)) filePreviewUrls.set(file, URL.createObjectURL(file));
@@ -595,10 +598,25 @@ function showReview() {
     friends: "Friends only · visible to accepted NFD friends",
     anonymous: "Anonymous · your name and profile are hidden",
   }[audience];
-  document.getElementById("review-file-count").textContent = selectedFiles.length
-    ? `${selectedFiles.length} ${selectedFiles.length === 1 ? "file" : "files"} attached`
-    : "No files attached";
+  document.getElementById("review-file-count").textContent = editingPostId
+    ? editingEvidence.length
+      ? `${editingEvidence.length} existing ${editingEvidence.length === 1 ? "attachment" : "attachments"} will stay attached`
+      : "No attachments"
+    : selectedFiles.length
+      ? `${selectedFiles.length} ${selectedFiles.length === 1 ? "file" : "files"} attached`
+      : "No files attached";
   reviewFiles.innerHTML = "";
+  editingEvidence.forEach((file) => {
+    const item = document.createElement("div");
+    item.className = "review-file-reference";
+    const link = document.createElement("a");
+    link.href = `/api/evidence/${encodeURIComponent(file.id)}`;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.textContent = file.originalFilename;
+    item.append(link);
+    reviewFiles.append(item);
+  });
   selectedFiles.forEach((file) => {
     const item = document.createElement("div");
     item.className = "file-item";
@@ -633,9 +651,9 @@ function showReview() {
   reviewNotice.replaceChildren();
   aiReviewConsentCheckbox.checked = false;
   document.getElementById("edit-experience").disabled = false;
-  document.getElementById("confirm-review").disabled = false;
-  document.getElementById("confirm-review").innerHTML =
-    'Looks right — share <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m5 12 4.5 4.5L19 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const confirmButton = document.getElementById("confirm-review");
+  confirmButton.disabled = !editingPostLoaded && Boolean(editingPostId);
+  confirmButton.textContent = editingPostId ? "Save changes" : "Share";
   void loadReviewModerationStatus();
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
@@ -656,10 +674,16 @@ function showStoryFormStep(step) {
   experienceDetailsStep.hidden = !showDetails;
   storyStepFooter.hidden = showDetails;
   detailsStepFooter.hidden = !showDetails;
-  formStepTitle.textContent = showDetails ? "The who, where, and when" : "What happened?";
-  formStepIntro.textContent = showDetails
-    ? "Add the person, place, and timing so readers can understand the context."
-    : "Good, bad, or complicated—share it in your own words. No need to make it sound like a press release.";
+  formStepTitle.textContent = editingPostId
+    ? "Edit your post"
+    : showDetails
+      ? "The who, where, and when"
+      : "What happened?";
+  formStepIntro.textContent = editingPostId
+    ? "Update your post details. Existing attachments will stay on the post."
+    : showDetails
+      ? "Add the person, place, and timing so readers can understand the context."
+      : "Good, bad, or complicated—share it in your own words. No need to make it sound like a press release.";
   formStepCount.lastChild.textContent = showDetails ? " Step 2 of 3" : " Step 1 of 3";
   experienceStep.classList.toggle("active", !showDetails);
   experienceStep.classList.toggle("done", showDetails);
@@ -698,6 +722,105 @@ function backToEdit() {
   reviewPage.hidden = true;
   form.hidden = false;
   showStoryFormStep("details");
+}
+function toLocalDateTimeInput(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+}
+function renderEditingEvidence() {
+  const section = document.getElementById("evidence-section");
+  document.getElementById("evidence-heading").textContent = "Current attachments";
+  section.querySelector(".section-hint").textContent = editingEvidence.length
+    ? `${editingEvidence.length} kept on post`
+    : "None";
+  document.getElementById("upload-zone").hidden = true;
+  document.getElementById("camera-photo").hidden = true;
+  document.getElementById("camera-video").hidden = true;
+  section.querySelector(".camera-actions").hidden = true;
+  section.querySelector(":scope > .helper:not(#edit-attachments-note)").hidden = true;
+  section.querySelector(".privacy-note").hidden = true;
+  document.getElementById("file-list").hidden = true;
+  const note = document.getElementById("edit-attachments-note");
+  note.hidden = false;
+  note.textContent = editingEvidence.length
+    ? "Existing attachments stay on this post while you edit. To change them, delete the post and share it again."
+    : "This post has no attachments. Attachments cannot be added while editing.";
+  const list = document.getElementById("edit-evidence-list");
+  list.replaceChildren();
+  list.hidden = !editingEvidence.length;
+  editingEvidence.forEach((file) => {
+    const item = document.createElement("div");
+    item.className = "file-item";
+    const icon = document.createElement("span");
+    icon.className = "file-thumb";
+    icon.textContent = file.contentType?.startsWith("video/") ? "▶" : "▧";
+    const meta = document.createElement("div");
+    meta.className = "file-meta";
+    const name = document.createElement("div");
+    name.className = "file-name";
+    name.textContent = file.originalFilename;
+    const size = document.createElement("div");
+    size.className = "file-size";
+    size.textContent = prettySize(file.sizeBytes);
+    meta.append(name, size);
+    item.append(icon, meta);
+    list.append(item);
+  });
+}
+async function loadPostForEditing() {
+  const intro = document.getElementById("form-step-intro");
+  document.querySelector("#form-heading .eyebrow").textContent = "Edit your post";
+  intro.textContent = "Loading your post…";
+  const continueButton = document.getElementById("continue-to-details");
+  const saveButton = document.getElementById("continue-to-review");
+  continueButton.disabled = true;
+  saveButton.disabled = true;
+  try {
+    const response = await fetch(`/api/experiences/${encodeURIComponent(editingPostId)}`, {
+      headers: { accept: "application/json" },
+      cache: "no-store",
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || "This post could not be loaded for editing.");
+    const experience = result.experience;
+    if (!experience) throw new Error("This post could not be loaded for editing.");
+    experienceCategoryInput.value =
+      experience.experienceCategory === "Not provided" ? "" : experience.experienceCategory;
+    updateIncidentCategoryOptions();
+    incidentCategoryInput.value =
+      experience.incidentCategory === "Not provided" ? "" : experience.incidentCategory;
+    postPlaceInput.value = experience.place === "Not provided" ? "" : experience.place;
+    document.getElementById("place-category").value =
+      experience.placeCategory === "Not provided" ? "" : experience.placeCategory;
+    const incidentTimeEndValue = toLocalDateTimeInput(experience.incidentTimeEnd);
+    incidentTimeRangeToggle.checked = Boolean(incidentTimeEndValue);
+    incidentTimeRangeToggle.dispatchEvent(new Event("change", { bubbles: true }));
+    document.getElementById("incident-time").value = toLocalDateTimeInput(experience.incidentTime);
+    incidentTimeEndInput.value = incidentTimeEndValue;
+    postLocationInput.value = experience.locationDetails || "";
+    shortDescription.value = experience.shortDescription || "";
+    fullDescription.value = experience.fullDescription || "";
+    shortDescription.dispatchEvent(new Event("input", { bubbles: true }));
+    fullDescription.dispatchEvent(new Event("input", { bubbles: true }));
+    const audience = document.querySelector(`input[name="visibility"][value="${experience.visibility}"]`);
+    if (audience) audience.checked = true;
+    editingEvidence = experience.evidence || [];
+    renderEditingEvidence();
+    document.querySelector("#form-heading .eyebrow").textContent = "Edit your post";
+    document.title = "Edit post — NFD";
+    editingPostLoaded = true;
+    continueButton.disabled = false;
+    saveButton.disabled = false;
+    showStoryFormStep("story");
+  } catch (error) {
+    intro.textContent = error.message;
+    formStepTitle.textContent = "Couldn’t load this post";
+    continueButton.disabled = true;
+    saveButton.disabled = true;
+    document.getElementById("confirm-review").disabled = true;
+  }
 }
 function prettyDate(value, timeZone) {
   const date = new Date(value);
@@ -1624,6 +1747,17 @@ function renderProfile(data) {
     }
     const actions = document.createElement("div");
     actions.className = "profile-post-actions";
+    const edit = document.createElement("button");
+    edit.type = "button";
+    edit.className = "profile-edit";
+    edit.textContent = "Edit post";
+    edit.setAttribute(
+      "aria-label",
+      `Edit your post: ${experience.shortDescription || experience.experienceCategory}`,
+    );
+    edit.addEventListener("click", () => {
+      window.location.assign(`/share?edit=${encodeURIComponent(experience.id)}`);
+    });
     const remove = document.createElement("button");
     remove.type = "button";
     remove.className = "profile-delete";
@@ -1665,7 +1799,7 @@ function renderProfile(data) {
         setProfileMessage(error.message, true);
       }
     });
-    actions.append(remove);
+    actions.append(edit, remove);
     card.append(actions);
     profilePostList.append(card);
   });
@@ -1695,6 +1829,7 @@ async function loadProfile() {
     const result = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(result.error || "Your profile could not be loaded.");
     renderProfile(result);
+    if (profileParams.has("updated")) setProfileMessage("Your post was updated.");
     loadFriends();
     await loadGhostSettings();
   } catch (error) {
@@ -4391,6 +4526,11 @@ if (location.pathname === "/share") {
   updateIncidentCategoryOptions();
   loadFriendCount();
   void loadPostFieldSuggestions();
+  const editId = new URLSearchParams(location.search).get("edit");
+  if (editId) {
+    editingPostId = editId;
+    void loadPostForEditing();
+  }
   postPlaceInput?.addEventListener("input", schedulePostPlaceSuggestions);
   postLocationInput?.addEventListener("input", schedulePostLocationSuggestions);
   postLocationInput?.addEventListener("focus", schedulePostLocationSuggestions);
@@ -4426,7 +4566,8 @@ document.getElementById("confirm-review").addEventListener("click", async (event
     return;
   }
   button.disabled = true;
-  button.textContent = "Sharing…";
+  const savingEdit = Boolean(editingPostId);
+  button.textContent = savingEdit ? "Saving…" : "Sharing…";
   reviewNotice.classList.remove("show", "error");
   reviewNotice.replaceChildren();
   const payload = new FormData();
@@ -4446,13 +4587,18 @@ document.getElementById("confirm-review").addEventListener("click", async (event
   if (!aiReviewConsent.hidden && aiReviewConsentCheckbox.checked) payload.append("aiReviewConsent", "yes");
   selectedFiles.forEach((file) => payload.append("evidence", file, file.name));
   try {
-    button.textContent = "Preparing media…";
-    for (let index = 0; index < selectedFiles.length; index++) {
-      const preview = await createFeedPreview(selectedFiles[index]);
-      if (preview) payload.append(`evidencePreview-${index}`, preview, `nfd-preview-${index}.webp`);
+    if (!savingEdit) {
+      button.textContent = "Preparing media…";
+      for (let index = 0; index < selectedFiles.length; index++) {
+        const preview = await createFeedPreview(selectedFiles[index]);
+        if (preview) payload.append(`evidencePreview-${index}`, preview, `nfd-preview-${index}.webp`);
+      }
     }
-    button.textContent = "Sharing…";
-    const response = await fetch("/api/experiences", { method: "POST", body: payload });
+    button.textContent = savingEdit ? "Saving…" : "Sharing…";
+    const response = await fetch(
+      savingEdit ? `/api/experiences/${encodeURIComponent(editingPostId)}` : "/api/experiences",
+      { method: savingEdit ? "PUT" : "POST", body: payload },
+    );
     const result = await response.json().catch(() => ({}));
     if (response.status === 422 && result.moderation) {
       reviewNotice.replaceChildren();
@@ -4482,21 +4628,30 @@ document.getElementById("confirm-review").addEventListener("click", async (event
       }
       reviewNotice.classList.add("show", "error");
       button.disabled = false;
-      button.innerHTML = "Try sharing again";
+      button.textContent = savingEdit ? "Try saving again" : "Try sharing again";
       reviewNotice.scrollIntoView({ behavior: "smooth", block: "nearest" });
       return;
     }
     if (!response.ok)
-      throw new Error(result.error || "NFD couldn’t post your story just now. Please try again.");
-    window.location.assign(`/feed?shared=${encodeURIComponent(result.id)}`);
+      throw new Error(
+        result.error ||
+          (savingEdit
+            ? "NFD couldn’t save your post just now. Please try again."
+            : "NFD couldn’t post your story just now. Please try again."),
+      );
+    window.location.assign(
+      savingEdit ? "/profile?tab=posts&updated=1" : `/feed?shared=${encodeURIComponent(result.id)}`,
+    );
   } catch (error) {
     const title = document.createElement("strong");
-    title.textContent = "Your story hasn’t made it to the feed yet.";
+    title.textContent = savingEdit
+      ? "Your changes haven’t been saved yet."
+      : "Your story hasn’t made it to the feed yet.";
     const detail = document.createElement("span");
     detail.textContent = ` ${error instanceof TypeError ? "Connection failed. Your details are still here; try again." : error.message}`;
     reviewNotice.append(title, detail);
     reviewNotice.classList.add("show", "error");
-    button.innerHTML = "Try sharing again";
+    button.textContent = savingEdit ? "Try saving again" : "Try sharing again";
     button.disabled = false;
   }
   reviewNotice.scrollIntoView({ behavior: "smooth", block: "nearest" });

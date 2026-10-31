@@ -655,7 +655,7 @@
                 </div>
               </div>
             </section>
-            <section class="section" aria-labelledby="evidence-heading">
+            <section class="section" id="evidence-section" aria-labelledby="evidence-heading">
               <div class="section-head">
                 <span class="section-title" id="evidence-heading">Add photos, videos, or documents</span
                 ><span class="section-hint">Optional</span>
@@ -710,7 +710,11 @@
                 NFD keeps your original evidence and creates a smaller display copy of supported photos for
                 the feed.
               </p>
+              <p class="helper" id="edit-attachments-note" hidden>
+                Existing attachments stay with this post while you edit.
+              </p>
               <div class="file-list" id="file-list" aria-live="polite"></div>
+              <div class="file-list" id="edit-evidence-list" hidden></div>
               <p class="privacy-note">
                 <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <rect x="5" y="10" width="14" height="11" rx="2" stroke="currentColor" stroke-width="1.7" />

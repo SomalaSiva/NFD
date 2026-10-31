@@ -333,8 +333,14 @@ const worker = {
       return experienceRoutes.getProfile(request, env);
     }
     const ownExperienceMatch = url.pathname.match(/^\/api\/experiences\/([0-9a-f-]{36})$/i);
+    if (request.method === "GET" && ownExperienceMatch) {
+      return experienceRoutes.getOwnExperience(request, env, ownExperienceMatch[1]);
+    }
     if (request.method === "DELETE" && ownExperienceMatch) {
       return experienceRoutes.deleteOwnExperience(request, env, ownExperienceMatch[1]);
+    }
+    if (request.method === "PUT" && ownExperienceMatch) {
+      return experienceRoutes.updateOwnExperience(request, env, ownExperienceMatch[1]);
     }
 
     const evidenceMatch = url.pathname.match(/^\/api\/evidence\/([0-9a-f-]{36})$/i);
