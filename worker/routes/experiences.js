@@ -512,6 +512,14 @@ export function createExperienceRoutes(services) {
     const suppliedEvidence = form.getAll("evidence");
     if (suppliedEvidence.some((file) => file instanceof File && file.size > 0))
       return json({ error: "Attachments stay with the post while editing." }, 400);
+    const requestedRemovalIds = form.getAll("removeEvidence");
+    if (
+      requestedRemovalIds.length > MAX_FILES ||
+      requestedRemovalIds.some((id) => typeof id !== "string" || !/^[0-9a-f-]{36}$/i.test(id))
+    ) {
+      return json({ error: "The attachment selection is invalid. Reload the post and try again." }, 400);
+    }
+    const removalIds = [...new Set(requestedRemovalIds)];
 
     try {
       await ensureExperienceOptionColumns(env);
@@ -521,6 +529,25 @@ export function createExperienceRoutes(services) {
         .bind(experienceId, user.id, "shared")
         .first();
       if (!current) return json({ error: "That post was not found in your profile." }, 404);
+
+      const attachmentResult = await env.DB.prepare(
+        `SELECT id, original_filename, content_type, size_bytes, object_key, preview_object_key
+        FROM experience_evidence WHERE experience_id = ? ORDER BY created_at ASC`,
+      )
+        .bind(experienceId)
+        .all();
+      const attachedEvidence = attachmentResult.results || [];
+      const evidenceById = new Map(attachedEvidence.map((file) => [file.id, file]));
+      if (removalIds.some((id) => !evidenceById.has(id)))
+        return json(
+          { error: "An attachment changed since you opened this editor. Reload the post and try again." },
+          409,
+        );
+      if (removalIds.length && !env.BUCKET)
+        return json({ error: "Media storage is unavailable. Your post was not changed." }, 503);
+      const removalIdSet = new Set(removalIds);
+      const evidenceToRemove = attachedEvidence.filter((file) => removalIdSet.has(file.id));
+      const retainedEvidence = attachedEvidence.filter((file) => !removalIdSet.has(file.id));
 
       let automaticReview = false;
       try {
@@ -537,14 +564,8 @@ export function createExperienceRoutes(services) {
           return json({ error: "Automatic review is enabled but its Gemini key is not connected." }, 503);
         if (textField(form, "aiReviewConsent", 10) !== "yes")
           return json({ error: "Confirm that Google Gemini will review this post before saving." }, 400);
-        const evidence = await env.DB.prepare(
-          `SELECT original_filename, content_type, size_bytes, object_key
-          FROM experience_evidence WHERE experience_id = ? ORDER BY created_at ASC`,
-        )
-          .bind(experienceId)
-          .all();
         const reviewFiles = [];
-        for (const file of evidence.results || []) {
+        for (const file of retainedEvidence) {
           if (!file.content_type.startsWith("image/") && !file.content_type.startsWith("video/")) continue;
           if (!env.BUCKET) return json({ error: "Post media is not available for automatic review." }, 503);
           const object = await env.BUCKET.get(file.object_key);
@@ -581,36 +602,57 @@ export function createExperienceRoutes(services) {
       }
 
       const updatedAt = new Date().toISOString();
-      const result = await env.DB.prepare(
+      const updateStatement = env.DB.prepare(
         `UPDATE experiences SET experience_category = ?, incident_category = ?, place = ?,
           place_category = ?, incident_time = ?, incident_time_end = ?, incident_time_zone = ?,
           location_details = ?, short_description = ?, full_description = ?, visibility = ?
         WHERE id = ? AND author_id = ? AND status = ?`,
-      )
-        .bind(
-          fields.experienceCategory,
-          fields.incidentCategory,
-          fields.place,
-          fields.placeCategory,
-          fields.incidentTime ? new Date(fields.incidentTime).toISOString() : "",
-          fields.incidentTimeEnd ? new Date(fields.incidentTimeEnd).toISOString() : null,
-          fields.incidentTimeZone,
-          fields.locationDetails || null,
-          fields.shortDescription,
-          fields.fullDescription,
-          fields.visibility,
-          experienceId,
-          user.id,
-          "shared",
-        )
-        .run();
-      if (!(Number(result.meta?.changes) > 0))
+      ).bind(
+        fields.experienceCategory,
+        fields.incidentCategory,
+        fields.place,
+        fields.placeCategory,
+        fields.incidentTime ? new Date(fields.incidentTime).toISOString() : "",
+        fields.incidentTimeEnd ? new Date(fields.incidentTimeEnd).toISOString() : null,
+        fields.incidentTimeZone,
+        fields.locationDetails || null,
+        fields.shortDescription,
+        fields.fullDescription,
+        fields.visibility,
+        experienceId,
+        user.id,
+        "shared",
+      );
+      const statements = [updateStatement];
+      for (const file of evidenceToRemove) {
+        statements.push(
+          env.DB.prepare("DELETE FROM experience_evidence WHERE id = ? AND experience_id = ?").bind(
+            file.id,
+            experienceId,
+          ),
+        );
+      }
+      const results = await env.DB.batch(statements);
+      if (!(Number(results[0]?.meta?.changes) > 0))
         return json({ error: "That post was not found in your profile." }, 404);
+      const cleanupPending = evidenceToRemove.length
+        ? await deleteEvidenceObjects(
+            env,
+            evidenceToRemove.flatMap((file) => [file.object_key, file.preview_object_key]),
+          )
+        : false;
       await recordActivity(env, user.id, "experience_edited", "experience", experienceId, {
         visibility: fields.visibility,
         automaticReview,
+        attachmentsRemoved: evidenceToRemove.length,
       });
-      return json({ id: experienceId, status: "shared", updatedAt });
+      return json({
+        id: experienceId,
+        status: "shared",
+        updatedAt,
+        removedEvidenceIds: evidenceToRemove.map((file) => file.id),
+        cleanupPending,
+      });
     } catch (error) {
       console.error("Post update failed", error);
       return json({ error: "Your post could not be updated right now. Please try again." }, 503);

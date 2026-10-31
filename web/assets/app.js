@@ -429,6 +429,7 @@ let selectedFiles = [];
 let editingPostId = "";
 let editingPostLoaded = false;
 let editingEvidence = [];
+let removedEditingEvidenceIds = new Set();
 let editingPostLoadController;
 const filePreviewUrls = new Map();
 function getFilePreviewUrl(file) {
@@ -599,15 +600,15 @@ function showReview() {
     friends: "Friends only · visible to accepted NFD friends",
     anonymous: "Anonymous · your name and profile are hidden",
   }[audience];
+  const retainedEditingEvidence = editingEvidence.filter((file) => !removedEditingEvidenceIds.has(file.id));
+  const removedEditingEvidence = editingEvidence.filter((file) => removedEditingEvidenceIds.has(file.id));
   document.getElementById("review-file-count").textContent = editingPostId
-    ? editingEvidence.length
-      ? `${editingEvidence.length} existing ${editingEvidence.length === 1 ? "attachment" : "attachments"} will stay attached`
-      : "No attachments"
+    ? `${retainedEditingEvidence.length} kept · ${removedEditingEvidence.length} to remove`
     : selectedFiles.length
       ? `${selectedFiles.length} ${selectedFiles.length === 1 ? "file" : "files"} attached`
       : "No files attached";
   reviewFiles.innerHTML = "";
-  editingEvidence.forEach((file) => {
+  retainedEditingEvidence.forEach((file) => {
     const item = document.createElement("div");
     item.className = "review-file-reference";
     const link = document.createElement("a");
@@ -616,6 +617,12 @@ function showReview() {
     link.rel = "noopener noreferrer";
     link.textContent = file.originalFilename;
     item.append(link);
+    reviewFiles.append(item);
+  });
+  removedEditingEvidence.forEach((file) => {
+    const item = document.createElement("div");
+    item.className = "review-file-reference is-removing";
+    item.textContent = `Will be removed: ${file.originalFilename}`;
     reviewFiles.append(item);
   });
   selectedFiles.forEach((file) => {
@@ -732,9 +739,11 @@ function toLocalDateTimeInput(value) {
 }
 function renderEditingEvidence() {
   const section = document.getElementById("evidence-section");
+  const retainedCount = editingEvidence.filter((file) => !removedEditingEvidenceIds.has(file.id)).length;
+  const removedCount = editingEvidence.length - retainedCount;
   document.getElementById("evidence-heading").textContent = "Current attachments";
   section.querySelector(".section-hint").textContent = editingEvidence.length
-    ? `${editingEvidence.length} kept on post`
+    ? `${retainedCount} kept${removedCount ? ` · ${removedCount} marked to remove` : ""}`
     : "None";
   document.getElementById("upload-zone").hidden = true;
   document.getElementById("camera-photo").hidden = true;
@@ -746,7 +755,7 @@ function renderEditingEvidence() {
   const note = document.getElementById("edit-attachments-note");
   note.hidden = false;
   note.textContent = editingEvidence.length
-    ? "Existing attachments stay on this post while you edit. To change them, delete the post and share it again."
+    ? "Choose Remove beside an attachment. It will be deleted when you save changes."
     : "This post has no attachments. Attachments cannot be added while editing.";
   const list = document.getElementById("edit-evidence-list");
   list.replaceChildren();
@@ -754,6 +763,8 @@ function renderEditingEvidence() {
   editingEvidence.forEach((file) => {
     const item = document.createElement("div");
     item.className = "file-item";
+    const isRemoving = removedEditingEvidenceIds.has(file.id);
+    if (isRemoving) item.classList.add("is-removing");
     const icon = document.createElement("span");
     icon.className = "file-thumb";
     icon.textContent = file.contentType?.startsWith("video/") ? "▶" : "▧";
@@ -766,7 +777,21 @@ function renderEditingEvidence() {
     size.className = "file-size";
     size.textContent = prettySize(file.sizeBytes);
     meta.append(name, size);
-    item.append(icon, meta);
+    const toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.className = "secondary-button edit-evidence-toggle";
+    toggle.textContent = isRemoving ? "Keep" : "Remove";
+    toggle.setAttribute("aria-pressed", String(isRemoving));
+    toggle.setAttribute(
+      "aria-label",
+      `${isRemoving ? "Keep" : "Remove"} attachment ${file.originalFilename}`,
+    );
+    toggle.addEventListener("click", () => {
+      if (removedEditingEvidenceIds.has(file.id)) removedEditingEvidenceIds.delete(file.id);
+      else removedEditingEvidenceIds.add(file.id);
+      renderEditingEvidence();
+    });
+    item.append(icon, meta, toggle);
     list.append(item);
   });
 }
@@ -818,6 +843,7 @@ async function loadPostForEditing() {
     const audience = document.querySelector(`input[name="visibility"][value="${experience.visibility}"]`);
     if (audience) audience.checked = true;
     editingEvidence = experience.evidence || [];
+    removedEditingEvidenceIds = new Set();
     renderEditingEvidence();
     document.querySelector("#form-heading .eyebrow").textContent = "Edit your post";
     document.title = "Edit post — NFD";
@@ -4638,6 +4664,7 @@ document.getElementById("confirm-review").addEventListener("click", async (event
   payload.append("visibility", document.querySelector('input[name="visibility"]:checked')?.value || "public");
   if (!aiReviewConsent.hidden && aiReviewConsentCheckbox.checked) payload.append("aiReviewConsent", "yes");
   selectedFiles.forEach((file) => payload.append("evidence", file, file.name));
+  if (savingEdit) removedEditingEvidenceIds.forEach((id) => payload.append("removeEvidence", id));
   try {
     if (!savingEdit) {
       button.textContent = "Preparing media…";

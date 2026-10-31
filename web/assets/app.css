@@ -559,6 +559,22 @@ textarea.control::placeholder {
   border-radius: 10px;
   background: var(--paper);
 }
+#edit-evidence-list {
+  grid-template-columns: minmax(0, 1fr);
+}
+#edit-evidence-list .file-item.is-removing {
+  opacity: 0.68;
+  border-style: dashed;
+}
+#edit-evidence-list .file-item.is-removing .file-name {
+  text-decoration: line-through;
+}
+.edit-evidence-toggle {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  padding: 7px 10px;
+  font-size: 10px;
+}
 .file-thumb {
   width: 39px;
   height: 39px;
@@ -795,6 +811,10 @@ textarea.control::placeholder {
   color: var(--accent);
   font-size: 11px;
   font-weight: 650;
+}
+.review-file-reference.is-removing {
+  color: var(--muted);
+  text-decoration: line-through;
 }
 .review-empty {
   font-size: 12px;
