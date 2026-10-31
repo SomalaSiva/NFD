@@ -1696,7 +1696,6 @@ function renderFriendList(listId, emptyId, entries, kind) {
     }
     person.append(avatar);
     addText(person, "strong", "", friend.name || "NFD member");
-    addText(person, "span", "", friend.email || "");
     item.append(person);
     const actions = document.createElement("div");
     actions.className = "friend-actions";
@@ -1797,7 +1796,7 @@ async function loadFriendSuggestions() {
     if (!suggestions.length) {
       friendSuggestions.hidden = true;
       friendSearchFeedback.textContent =
-        "No matching NFD members found. Try a different spelling or email username.";
+        "No matching NFD members found. Try a different spelling or Ghost ID.";
       return;
     }
     friendSearchFeedback.textContent = `${suggestions.length} matching ${suggestions.length === 1 ? "member" : "members"} found.`;

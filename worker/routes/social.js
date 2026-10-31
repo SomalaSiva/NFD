@@ -14,18 +14,18 @@ export function createSocialRoutes(services) {
         const [friends, incoming, outgoing] = await Promise.all([
           env.DB.prepare(
             `
-          SELECT f.id, u.id AS user_id, u.display_name, u.email, u.profile_photo_key, f.created_at
+          SELECT f.id, u.id AS user_id, u.display_name, u.profile_photo_key, f.created_at
           FROM nfd_friend_requests f
           INNER JOIN nfd_users u ON u.id = CASE WHEN f.from_user_id = ? THEN f.to_user_id ELSE f.from_user_id END
           WHERE f.status = 'accepted' AND (f.from_user_id = ? OR f.to_user_id = ?) AND ${availableIdentitySql}
-          ORDER BY lower(COALESCE(u.display_name, u.email))
+          ORDER BY lower(COALESCE(NULLIF(trim(u.display_name), ''), 'NFD member'))
         `,
           )
             .bind(user.id, user.id, user.id)
             .all(),
           env.DB.prepare(
             `
-          SELECT f.id, u.display_name, u.email, NULL AS profile_photo_key, f.created_at
+          SELECT f.id, u.display_name, NULL AS profile_photo_key, f.created_at
           FROM nfd_friend_requests f INNER JOIN nfd_users u ON u.id = f.from_user_id
           WHERE f.to_user_id = ? AND f.status = 'pending' AND ${availableIdentitySql} ORDER BY f.created_at DESC
         `,
@@ -34,7 +34,7 @@ export function createSocialRoutes(services) {
             .all(),
           env.DB.prepare(
             `
-          SELECT f.id, u.display_name, u.email, NULL AS profile_photo_key, f.created_at
+          SELECT f.id, u.display_name, NULL AS profile_photo_key, f.created_at
           FROM nfd_friend_requests f INNER JOIN nfd_users u ON u.id = f.to_user_id
           WHERE f.from_user_id = ? AND f.status = 'pending' AND ${availableIdentitySql} ORDER BY f.created_at DESC
         `,
@@ -47,7 +47,6 @@ export function createSocialRoutes(services) {
             id: row.id,
             userId: row.user_id || "",
             name: row.display_name || "NFD member",
-            email: row.email || "",
             photoUrl: row.profile_photo_key
               ? `/api/profile-photo/${encodeURIComponent(row.user_id || "")}?v=${Date.now()}`
               : "",
