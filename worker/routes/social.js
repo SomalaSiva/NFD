@@ -155,7 +155,9 @@ export function createSocialRoutes(services) {
 
       const postsResult = await env.DB.prepare(
         `
-        SELECT id, experience_category, incident_category, short_description, created_at
+        SELECT id, experience_category, incident_category, place, place_category,
+          location_details, incident_time, incident_time_end, incident_time_zone,
+          short_description, full_description, created_at
         FROM experiences
         WHERE author_id = ? AND status = 'shared' AND visibility IN ('public', 'friends')
         ORDER BY created_at DESC
@@ -164,6 +166,30 @@ export function createSocialRoutes(services) {
       )
         .bind(friend.user_id)
         .all();
+      const friendPosts = postsResult.results || [];
+      const evidenceByPost = new Map();
+      if (friendPosts.length) {
+        const placeholders = friendPosts.map(() => "?").join(", ");
+        const evidenceResult = await env.DB.prepare(
+          `
+          SELECT id, experience_id, original_filename, content_type
+          FROM experience_evidence
+          WHERE experience_id IN (${placeholders})
+          ORDER BY created_at ASC
+        `,
+        )
+          .bind(...friendPosts.map((post) => post.id))
+          .all();
+        for (const file of evidenceResult.results || []) {
+          const files = evidenceByPost.get(file.experience_id) || [];
+          files.push({
+            id: file.id,
+            originalFilename: file.original_filename,
+            contentType: file.content_type,
+          });
+          evidenceByPost.set(file.experience_id, files);
+        }
+      }
       return json({
         friend: {
           relationshipId: friend.relationship_id,
@@ -175,12 +201,20 @@ export function createSocialRoutes(services) {
             ? `/api/profile-photo/${encodeURIComponent(friend.user_id)}?v=${Date.now()}`
             : "",
         },
-        posts: (postsResult.results || []).map((post) => ({
+        posts: friendPosts.map((post) => ({
           id: post.id,
           category: post.experience_category || "NFD post",
           incident: post.incident_category || "",
+          place: post.place || "",
+          placeCategory: post.place_category || "",
+          locationDetails: post.location_details || "",
+          incidentTime: post.incident_time || "",
+          incidentTimeEnd: post.incident_time_end || "",
+          incidentTimeZone: post.incident_time_zone || "",
           text: post.short_description || "",
+          fullText: post.full_description || "",
           createdAt: post.created_at,
+          evidence: evidenceByPost.get(post.id) || [],
         })),
       });
     } catch (error) {

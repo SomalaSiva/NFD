@@ -1775,25 +1775,87 @@ async function loadFriendProfile(friendId) {
       friendProfileView,
       "h2",
       "friend-profile-posts-heading",
-      "Posts shared with friends",
+      "Posts shared with you",
+    );
+    addText(
+      friendProfileView,
+      "p",
+      "friend-profile-posts-note",
+      "Public and friends-only feed posts appear here. Anonymous posts stay anonymous.",
     );
     const posts = document.createElement("div");
     posts.className = "profile-post-list";
     const friendPosts = result.posts || [];
     if (!friendPosts.length) {
-      addText(posts, "p", "profile-empty", "No posts shared with friends are available.");
+      addText(posts, "p", "profile-empty", "No feed posts have been shared with you yet.");
     } else {
       friendPosts.forEach((post) => {
         const card = document.createElement("article");
         card.className = "profile-post-card friend-profile-post";
-        addText(card, "h3", "profile-post-title", post.text || post.category || "NFD post");
+        const top = document.createElement("div");
+        top.className = "profile-post-top";
+        const titleGroup = document.createElement("div");
+        addText(titleGroup, "h3", "profile-post-title", post.text || post.category || "NFD post");
         addText(
-          card,
+          titleGroup,
           "span",
           "profile-post-category",
           [post.category, post.incident].filter(Boolean).join(" · "),
         );
-        addText(card, "time", "profile-post-date", `Shared ${prettyDate(post.createdAt)}`);
+        top.append(
+          titleGroup,
+          addText(top, "time", "profile-post-date", `Shared ${prettyDate(post.createdAt)}`),
+        );
+        card.append(top);
+        const meta = document.createElement("div");
+        meta.className = "profile-post-meta";
+        const place = document.createElement("span");
+        const placeSummary = [post.place, post.placeCategory].filter(Boolean).join(" · ");
+        place.innerHTML = "<strong>Where</strong> ";
+        place.append(document.createTextNode(placeSummary || "Not provided"));
+        meta.append(place);
+        if (post.locationDetails) {
+          const area = document.createElement("span");
+          area.innerHTML = "<strong>Area</strong> ";
+          area.append(document.createTextNode(post.locationDetails));
+          meta.append(area);
+        }
+        const when = document.createElement("span");
+        when.innerHTML = "<strong>When</strong> ";
+        when.append(
+          document.createTextNode(
+            experienceTimeText({
+              incidentTime: post.incidentTime,
+              incidentTimeEnd: post.incidentTimeEnd,
+              incidentTimeZone: post.incidentTimeZone,
+            }),
+          ),
+        );
+        meta.append(when);
+        card.append(meta);
+        const full = document.createElement("details");
+        full.className = "profile-post-full";
+        addText(full, "summary", "", "Read the full story");
+        addText(full, "p", "", post.fullText || "No additional details were provided.");
+        card.append(full);
+        if (post.evidence?.length) {
+          const files = document.createElement("div");
+          files.className = "profile-post-evidence";
+          post.evidence.forEach((file) => {
+            const link = document.createElement("a");
+            link.href = `/api/evidence/${encodeURIComponent(file.id)}`;
+            link.target = "_blank";
+            link.rel = "noopener noreferrer";
+            const label = file.contentType?.startsWith("video/")
+              ? "Play video"
+              : file.contentType?.startsWith("image/")
+                ? "View photo"
+                : "Open document";
+            link.textContent = `${label} · ${file.originalFilename}`;
+            files.append(link);
+          });
+          card.append(files);
+        }
         posts.append(card);
       });
     }
