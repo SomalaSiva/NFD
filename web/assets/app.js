@@ -1472,14 +1472,9 @@ function renderProfile(data) {
   setProfilePhotoEverywhere(user.photoUrl || "", displayName);
   const identity = addText(profileSummary, "div", "profile-identity", "");
   addText(identity, "h2", "", displayName);
-  addText(
-    identity,
-    "p",
-    "",
-    user.provider === "ghost"
-      ? `@${user.ghostHandle}`
-      : user.email || "Email not provided by this sign-in method",
-  );
+  if (user.provider === "ghost" && user.ghostHandle) {
+    addText(identity, "p", "", `@${user.ghostHandle}`);
+  }
   addText(
     profileSummary,
     "span",

@@ -1658,10 +1658,19 @@ textarea.control::placeholder {
 .layout.profile-mode {
   display: block;
   max-width: 980px;
+  width: 100%;
+  min-width: 0;
 }
 .layout.profile-mode .main {
   max-width: 850px;
+  width: 100%;
+  min-width: 0;
   margin: 0 auto;
+}
+.layout.profile-mode .profile-page,
+.layout.profile-mode .profile-page > * {
+  min-width: 0;
+  max-width: 100%;
 }
 .layout.profile-mode .side {
   display: none;
@@ -1891,6 +1900,27 @@ textarea.control::placeholder {
   margin-top: 25px;
 }
 @media (max-width: 680px) {
+  .profile-photo-panel,
+  .profile-summary,
+  .friends-panel,
+  .profile-post-card {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .profile-identity,
+  .profile-photo-content,
+  .friends-panel-heading,
+  .friend-search {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .friend-item {
+    flex-wrap: wrap;
+  }
+  .friend-actions {
+    max-width: 100%;
+    flex-wrap: wrap;
+  }
   .profile-heading h1 {
     font-size: 30px;
   }
@@ -2263,6 +2293,7 @@ textarea.control::placeholder {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  min-width: 0;
   padding: 8px 9px;
   background: #fff;
   border: 1px solid #e9eeea;
@@ -2559,7 +2590,9 @@ textarea.control::placeholder {
 }
 .friend-person-with-avatar {
   display: flex;
+  flex: 1 1 auto;
   align-items: center;
+  min-width: 0;
   gap: 8px;
 }
 .friend-person-with-avatar > strong,
