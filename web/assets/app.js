@@ -770,6 +770,16 @@ function renderEditingEvidence() {
     list.append(item);
   });
 }
+function cacheOwnedPostForEditing(link, experience) {
+  if (!experience?.isMine || !experience.id) return;
+  link.addEventListener("click", () => {
+    try {
+      sessionStorage.setItem(`nfd-edit:${experience.id}`, JSON.stringify(experience));
+    } catch {
+      // Editing can still load from the API when session storage is unavailable.
+    }
+  });
+}
 async function loadPostForEditing() {
   const intro = document.getElementById("form-step-intro");
   document.querySelector("#form-heading .eyebrow").textContent = "Edit your post";
@@ -787,15 +797,28 @@ async function loadPostForEditing() {
     controller.abort();
   }, 15000);
   try {
-    const response = await fetch(`/api/experiences/${encodeURIComponent(editingPostId)}`, {
-      headers: { accept: "application/json" },
-      cache: "no-store",
-      credentials: "same-origin",
-      signal: controller.signal,
-    });
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(result.error || "This post could not be loaded for editing.");
-    const experience = result.experience;
+    let experience;
+    try {
+      const cachedExperience = sessionStorage.getItem(`nfd-edit:${editingPostId}`);
+      if (cachedExperience) {
+        const parsedExperience = JSON.parse(cachedExperience);
+        if (parsedExperience?.id === editingPostId) experience = parsedExperience;
+        sessionStorage.removeItem(`nfd-edit:${editingPostId}`);
+      }
+    } catch {
+      // Fall back to the authenticated API request if the cached copy is unavailable.
+    }
+    if (!experience) {
+      const response = await fetch(`/api/experiences/${encodeURIComponent(editingPostId)}`, {
+        headers: { accept: "application/json" },
+        cache: "no-store",
+        credentials: "same-origin",
+        signal: controller.signal,
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || "This post could not be loaded for editing.");
+      experience = result.experience;
+    }
     if (!experience) throw new Error("This post could not be loaded for editing.");
     experienceCategoryInput.value =
       experience.experienceCategory === "Not provided" ? "" : experience.experienceCategory;
@@ -1147,6 +1170,7 @@ function renderFeed(experiences, { append = false, nextCursor = "" } = {}) {
       actions.className = "feed-owner-actions";
       const editLink = addText(actions, "a", "feed-edit-post", "Edit post");
       editLink.href = `/share?edit=${encodeURIComponent(experience.id)}`;
+      cacheOwnedPostForEditing(editLink, experience);
       card.append(actions);
     }
     const images = (experience.evidence || []).filter((file) => file.contentType?.startsWith("image/"));
@@ -1780,6 +1804,7 @@ function renderProfile(data) {
     actions.className = "profile-post-actions";
     const edit = addText(actions, "a", "profile-edit", "Edit post");
     edit.href = `/share?edit=${encodeURIComponent(experience.id)}`;
+    cacheOwnedPostForEditing(edit, experience);
     edit.setAttribute(
       "aria-label",
       `Edit your post: ${experience.shortDescription || experience.experienceCategory}`,
