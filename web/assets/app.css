@@ -1216,6 +1216,12 @@ textarea.control::placeholder {
 .google-feedback {
   margin-top: 10px;
 }
+.auth-denied a {
+  color: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
 .admin-panel {
   max-width: 850px;
   margin: 0 auto;

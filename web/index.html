@@ -24,7 +24,7 @@
               ><span class="brand-name">NFD</span><span class="brand-subtitle">No Face Docs</span></span
             ></a
           >
-          <a class="login-admin-link" id="login-admin-link" href="/admin" hidden>Admin</a>
+          <a class="login-admin-link" id="login-admin-link" href="/login?mode=admin" hidden>Admin</a>
           <div class="stories-tray" id="stories-tray" aria-label="Friends’ stories" hidden>
             <div class="story-own-shell">
               <button
@@ -105,19 +105,21 @@
       <section class="auth-panel" aria-labelledby="login-heading">
         <div class="auth-kicker">No Face Docs · Secure access</div>
         <h1 id="login-heading">Sign in to NFD</h1>
-        <p>
+        <p id="login-intro">
           Use your Google or ChatGPT account to read or share stories. NFD checks administrator access behind
           the scenes.
         </p>
         <div class="auth-denied" id="auth-denied" role="alert">
-          This account does not have administrator access. Sign in with an authorized NFD administrator
-          account.
+          This account does not have administrator access.
+          <a href="/auth/signout?return_to=%2Flogin%3Fmode%3Dadmin"
+            >Sign out and use an authorized NFD administrator account.</a
+          >
         </div>
         <div class="google-feedback" id="google-feedback" role="status" aria-live="polite"></div>
         <div class="auth-options">
           <article class="auth-option">
-            <h2>User access</h2>
-            <p>Read the stories and add one of your own.</p>
+            <h2 id="login-access-heading">User access</h2>
+            <p id="login-access-description">Read the stories and add one of your own.</p>
             <a
               class="auth-provider-signin"
               id="user-signin"

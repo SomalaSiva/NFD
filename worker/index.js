@@ -169,7 +169,7 @@ const worker = {
         return redirect(`/login?return_to=${encodeURIComponent(url.pathname)}`, 302);
       }
       if (!(await adminRoutes.isAdmin(request, env))) {
-        return Response.redirect(new URL("/login?access=denied", url), 302);
+        return Response.redirect(new URL("/login?mode=admin&access=denied", url), 302);
       }
       if (OWNER_ADMIN_PAGES.has(url.pathname) && !(await isOwner(request, env))) {
         return Response.redirect(new URL("/admin?access=owner", url), 302);

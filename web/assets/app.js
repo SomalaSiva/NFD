@@ -4465,8 +4465,28 @@ if (location.pathname === "/login") {
   setMainNavigationVisible(false);
   document.title = "Sign in — NFD";
   const params = new URLSearchParams(location.search);
-  const loginReturnTo = params.get("return_to") === "/admin" ? "/admin" : "/feed";
-  document.getElementById("login-admin-link").hidden = false;
+  const adminLogin = params.get("mode") === "admin" || params.get("return_to") === "/admin";
+  const loginReturnTo = adminLogin ? "/admin" : "/feed";
+  const adminLink = document.getElementById("login-admin-link");
+  adminLink.hidden = false;
+  adminLink.href = adminLogin ? "/login" : "/login?mode=admin";
+  adminLink.textContent = adminLogin ? "User sign in" : "Admin";
+  adminLink.setAttribute(
+    "aria-label",
+    adminLogin ? "Switch to user sign in" : "Switch to administrator sign in",
+  );
+  document.getElementById("login-heading").textContent = adminLogin
+    ? "Administrator sign in"
+    : "Sign in to NFD";
+  document.getElementById("login-intro").textContent = adminLogin
+    ? "Sign in with your approved NFD administrator account to open the admin area."
+    : "Use your Google or ChatGPT account to read or share stories. NFD checks administrator access behind the scenes.";
+  document.getElementById("login-access-heading").textContent = adminLogin
+    ? "Administrator access"
+    : "User access";
+  document.getElementById("login-access-description").textContent = adminLogin
+    ? "Use your authorized NFD account. Administrator permissions are checked securely."
+    : "Read the stories and add one of your own.";
   document.getElementById("user-signin").href =
     `/auth/chatgpt-resume?return_to=${encodeURIComponent(loginReturnTo)}`;
   document.getElementById("google-user-signin").href =
