@@ -77,6 +77,10 @@ const incidentCategoriesByExperience = {
   ],
 };
 const form = document.getElementById("experience-form");
+const postPlaceInput = document.getElementById("place");
+const postPlaceSuggestions = document.getElementById("post-place-suggestions");
+const postLocationInput = document.getElementById("location-detail");
+const postLocationSuggestions = document.getElementById("post-location-suggestions");
 const reviewPage = document.getElementById("review-page");
 const reviewFiles = document.getElementById("review-files");
 const reviewNotice = document.getElementById("review-notice");
@@ -2747,6 +2751,14 @@ friendRequestForm.addEventListener("submit", async (event) => {
 let feedRequestNumber = 0;
 let feedFilterTimer;
 let feedAbortController;
+let postPlaceSuggestionTimer;
+let postPlaceSuggestionRequest = 0;
+let postPlaceSuggestionAbort;
+let postLocationSuggestionTimer;
+let postLocationSuggestionAbort;
+const postPlaceValues = [];
+const postLocationValues = [];
+const photonSuggestionCache = new Map();
 function updateSuggestions(list, values) {
   list.replaceChildren();
   [...new Set((values || []).filter(Boolean))].forEach((value) => {
@@ -2758,6 +2770,125 @@ function updateSuggestions(list, values) {
 function rememberFeedSuggestions(list, values, { append = false } = {}) {
   const previous = append ? [...list.options].map((option) => option.value) : [];
   updateSuggestions(list, [...previous, ...(values || [])].slice(0, 100));
+}
+function updatePostAutocomplete(list, suggestions) {
+  if (!list) return;
+  const seen = new Set();
+  list.replaceChildren();
+  for (const suggestion of suggestions) {
+    const value = typeof suggestion === "string" ? suggestion.trim() : suggestion?.value?.trim();
+    if (!value || seen.has(value.toLocaleLowerCase())) continue;
+    seen.add(value.toLocaleLowerCase());
+    const option = document.createElement("option");
+    option.value = value;
+    if (suggestion?.label) option.label = suggestion.label;
+    list.append(option);
+    if (seen.size >= 60) break;
+  }
+}
+async function loadPostFieldSuggestions() {
+  try {
+    const response = await fetch("/api/experiences", {
+      headers: { accept: "application/json" },
+      cache: "no-store",
+    });
+    if (!response.ok) return;
+    const result = await response.json().catch(() => ({}));
+    for (const experience of result.experiences || []) {
+      if (experience.place) postPlaceValues.push(experience.place);
+      if (experience.locationDetails) postLocationValues.push(experience.locationDetails);
+    }
+    updatePostAutocomplete(postPlaceSuggestions, postPlaceValues);
+    updatePostAutocomplete(postLocationSuggestions, postLocationValues);
+  } catch {
+    // Suggestions are optional; users can always enter the value themselves.
+  }
+}
+function schedulePostPlaceSuggestions() {
+  clearTimeout(postPlaceSuggestionTimer);
+  postPlaceSuggestionAbort?.abort();
+  const requestNumber = ++postPlaceSuggestionRequest;
+  const query = postPlaceInput?.value.trim() || "";
+  if (query.length < 2) {
+    updatePostAutocomplete(postPlaceSuggestions, postPlaceValues);
+    return;
+  }
+  postPlaceSuggestionTimer = setTimeout(async () => {
+    const controller = new AbortController();
+    postPlaceSuggestionAbort = controller;
+    try {
+      const response = await fetch(`/api/people/suggestions?q=${encodeURIComponent(query)}`, {
+        headers: { accept: "application/json" },
+        cache: "no-store",
+        signal: controller.signal,
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) return;
+      if (requestNumber !== postPlaceSuggestionRequest) return;
+      updatePostAutocomplete(postPlaceSuggestions, [
+        ...postPlaceValues.map((value) => ({ value, label: "From stories you can view" })),
+        ...(result.suggestions || []),
+      ]);
+    } catch (error) {
+      if (error?.name !== "AbortError") updatePostAutocomplete(postPlaceSuggestions, postPlaceValues);
+    }
+  }, 280);
+}
+function schedulePostLocationSuggestions() {
+  clearTimeout(postLocationSuggestionTimer);
+  postLocationSuggestionAbort?.abort();
+  const query = postLocationInput?.value.trim() || "";
+  if (query.length < 3 || /^(https?:\/\/|www\.)/i.test(query)) {
+    updatePostAutocomplete(postLocationSuggestions, postLocationValues);
+    return;
+  }
+  const cacheKey = query.toLocaleLowerCase();
+  if (photonSuggestionCache.has(cacheKey)) {
+    updatePostAutocomplete(postLocationSuggestions, [
+      ...photonSuggestionCache.get(cacheKey),
+      ...postLocationValues,
+    ]);
+    return;
+  }
+  postLocationSuggestionTimer = setTimeout(async () => {
+    const controller = new AbortController();
+    postLocationSuggestionAbort = controller;
+    try {
+      const params = new URLSearchParams({ q: query, limit: "8", lang: "en" });
+      const response = await fetch(`https://photon.komoot.io/api/?${params}`, {
+        headers: { accept: "application/json" },
+        credentials: "omit",
+        mode: "cors",
+        signal: controller.signal,
+      });
+      if (!response.ok) throw new Error("Place suggestions unavailable");
+      const result = await response.json();
+      if (postLocationInput?.value.trim().toLocaleLowerCase() !== cacheKey) return;
+      const values = (result.features || [])
+        .map(({ properties = {} }) => {
+          const name =
+            properties.name || [properties.housenumber, properties.street].filter(Boolean).join(" ");
+          return [
+            name,
+            properties.city || properties.district || properties.county,
+            properties.state,
+            properties.country,
+          ]
+            .filter(Boolean)
+            .filter(
+              (part, index, parts) =>
+                parts.findIndex((candidate) => candidate.toLocaleLowerCase() === part.toLocaleLowerCase()) ===
+                index,
+            )
+            .join(", ");
+        })
+        .filter(Boolean);
+      photonSuggestionCache.set(cacheKey, values);
+      updatePostAutocomplete(postLocationSuggestions, [...values, ...postLocationValues]);
+    } catch (error) {
+      if (error?.name !== "AbortError") updatePostAutocomplete(postLocationSuggestions, postLocationValues);
+    }
+  }, 350);
 }
 function updateSelectOptions(select, values, placeholder) {
   const selected = select.value;
@@ -4099,6 +4230,9 @@ experienceCategoryInput.addEventListener("change", updateIncidentCategoryOptions
 if (location.pathname === "/share") {
   updateIncidentCategoryOptions();
   loadFriendCount();
+  void loadPostFieldSuggestions();
+  postPlaceInput?.addEventListener("input", schedulePostPlaceSuggestions);
+  postLocationInput?.addEventListener("input", schedulePostLocationSuggestions);
 }
 form.addEventListener("submit", (event) => {
   event.preventDefault();

@@ -857,12 +857,15 @@
                       name="place"
                       placeholder="Enter the exact public name, username, business, or place"
                       autocomplete="off"
+                      list="post-place-suggestions"
                     />
+                    <datalist id="post-place-suggestions"></datalist>
                   </div>
                   <p class="helper">
                     Use the most accurate public name or account username, or the business or place name, so
                     people can find related stories. Stick to firsthand details and never include private
-                    account information.
+                    account information. Suggestions can include NFD member names and places from stories you
+                    can view; email addresses are never shown.
                   </p>
                 </div>
                 <div class="field">
@@ -919,7 +922,20 @@
                     id="location-detail"
                     name="locationDetail"
                     placeholder="City, branch, or online URL"
+                    autocomplete="off"
+                    list="post-location-suggestions"
                   />
+                  <datalist id="post-location-suggestions"></datalist>
+                  <p class="helper">
+                    Place suggestions use OpenStreetMap via Photon. Your search text is sent to Photon; you
+                    can also type any location yourself. ©
+                    <a
+                      href="https://www.openstreetmap.org/copyright"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      >OpenStreetMap contributors</a
+                    >.
+                  </p>
                 </div>
               </div>
             </section>

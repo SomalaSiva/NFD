@@ -254,6 +254,9 @@ const worker = {
     if (request.method === "GET" && url.pathname === "/api/friends/suggestions") {
       return socialRoutes.suggestNfdFriends(request, env);
     }
+    if (request.method === "GET" && url.pathname === "/api/people/suggestions") {
+      return socialRoutes.suggestNfdPeople(request, env);
+    }
     if (url.pathname === "/api/profile/photo" && ["PUT", "DELETE"].includes(request.method)) {
       return storyRoutes.manageProfilePhoto(request, env);
     }

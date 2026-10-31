@@ -509,6 +509,42 @@ export function createSocialRoutes(services) {
     }
   }
 
+  async function suggestNfdPeople(request, env) {
+    const user = await getCurrentUser(request, env);
+    if (!user) return json({ error: "Sign in to see NFD member suggestions." }, 401);
+    if (!env.DB) return json({ error: "NFD member suggestions are unavailable right now." }, 503);
+    const query = cleanSearchTerm(new URL(request.url).searchParams.get("q")).slice(0, 80);
+    if (query.length < 2) return json({ suggestions: [], minimumCharacters: 2 });
+    try {
+      await ensureGhostTables(env);
+      const result = await env.DB.prepare(
+        `
+        SELECT u.display_name, p.handle
+        FROM nfd_users u
+        LEFT JOIN nfd_ghost_profiles p ON p.ghost_user_id = u.id AND p.active = 1
+        WHERE u.id != ? AND ${availableIdentitySql}
+          AND (instr(lower(COALESCE(u.display_name, '')), lower(?)) > 0
+            OR instr(lower(COALESCE(p.handle, '')), lower(?)) > 0)
+        ORDER BY CASE WHEN instr(lower(COALESCE(u.display_name, '')), lower(?)) = 1 THEN 0 ELSE 1 END,
+          lower(COALESCE(NULLIF(trim(u.display_name), ''), 'NFD member'))
+        LIMIT 8
+      `,
+      )
+        .bind(user.id, query, query, query)
+        .all();
+      const suggestions = [];
+      for (const row of result.results || []) {
+        const name = row.display_name?.trim() || "NFD member";
+        suggestions.push({ value: name, label: "NFD member" });
+        if (row.handle) suggestions.push({ value: `@${row.handle}`, label: `${name} · Ghost ID` });
+      }
+      return json({ suggestions });
+    } catch (error) {
+      console.error("NFD post name suggestions failed", error);
+      return json({ error: "NFD member suggestions could not be loaded right now." }, 503);
+    }
+  }
+
   async function respondToFriendRequest(request, env, requestId, accept) {
     const user = await getCurrentUser(request, env);
     if (!user) return json({ error: "Sign in to respond to friend requests." }, 401);
@@ -602,6 +638,7 @@ export function createSocialRoutes(services) {
     sendFriendMessage,
     markFriendMessagesSeen,
     suggestNfdFriends,
+    suggestNfdPeople,
     respondToFriendRequest,
     removeFriendOrRequest,
     cleanupExpiredMessages,
