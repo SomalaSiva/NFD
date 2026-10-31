@@ -1118,6 +1118,13 @@ function renderFeed(experiences, { append = false, nextCursor = "" } = {}) {
     meta.append(shared);
     main.append(meta);
     card.append(main);
+    if (experience.isMine) {
+      const actions = document.createElement("div");
+      actions.className = "feed-owner-actions";
+      const editLink = addText(actions, "a", "feed-edit-post", "Edit post");
+      editLink.href = `/share?edit=${encodeURIComponent(experience.id)}`;
+      card.append(actions);
+    }
     const images = (experience.evidence || []).filter((file) => file.contentType?.startsWith("image/"));
     const videos = (experience.evidence || []).filter((file) => file.contentType?.startsWith("video/"));
     const documents = (experience.evidence || []).filter(
@@ -1747,17 +1754,12 @@ function renderProfile(data) {
     }
     const actions = document.createElement("div");
     actions.className = "profile-post-actions";
-    const edit = document.createElement("button");
-    edit.type = "button";
-    edit.className = "profile-edit";
-    edit.textContent = "Edit post";
+    const edit = addText(actions, "a", "profile-edit", "Edit post");
+    edit.href = `/share?edit=${encodeURIComponent(experience.id)}`;
     edit.setAttribute(
       "aria-label",
       `Edit your post: ${experience.shortDescription || experience.experienceCategory}`,
     );
-    edit.addEventListener("click", () => {
-      window.location.assign(`/share?edit=${encodeURIComponent(experience.id)}`);
-    });
     const remove = document.createElement("button");
     remove.type = "button";
     remove.className = "profile-delete";
@@ -1799,7 +1801,7 @@ function renderProfile(data) {
         setProfileMessage(error.message, true);
       }
     });
-    actions.append(edit, remove);
+    actions.append(remove);
     card.append(actions);
     profilePostList.append(card);
   });

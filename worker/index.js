@@ -159,7 +159,8 @@ const worker = {
     }
     if (request.method === "GET" && url.pathname === "/share") {
       if (!(await getCurrentUser(request, env))) {
-        return Response.redirect(new URL("/login?return_to=%2Ffeed", url), 302);
+        const returnTo = safeReturnTo(`${url.pathname}${url.search}`);
+        return redirect(`/login?return_to=${encodeURIComponent(returnTo)}`, 302);
       }
       return html(PAGE_HTML);
     }

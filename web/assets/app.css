@@ -903,6 +903,26 @@ textarea.control::placeholder {
 .feed-card-main {
   padding: 21px 23px;
 }
+.feed-owner-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin: -10px 23px 14px;
+}
+.feed-edit-post {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 7px 11px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 700;
+  text-decoration: none;
+}
+.feed-edit-post:hover {
+  background: var(--surface-hover);
+}
 .feed-card-head {
   display: flex;
   justify-content: space-between;
@@ -2070,6 +2090,9 @@ textarea.control::placeholder {
 }
 .profile-delete,
 .profile-edit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 8px 12px;
   border: 1px solid var(--line);
   border-radius: 9px;
@@ -2078,6 +2101,7 @@ textarea.control::placeholder {
   font-size: 10px;
   font-weight: 700;
   cursor: pointer;
+  text-decoration: none;
 }
 .profile-delete {
   color: var(--danger);
@@ -2196,8 +2220,11 @@ textarea.control::placeholder {
     flex-direction: column;
     gap: 6px;
   }
-  .profile-post-actions > button {
+  .profile-post-actions > * {
     flex: 1 1 120px;
+  }
+  .feed-owner-actions {
+    margin: -5px 16px 12px;
   }
 }
 #app-layout.profile-mode #form-heading {
