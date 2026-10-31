@@ -171,7 +171,6 @@ export function createStoryRoutes(services) {
     if (!env.DB || !env.BUCKET) return json({ error: "NFD stories are unavailable right now." }, 503);
     try {
       await ensureStoryTables(env);
-      await cleanupExpiredStories(env);
       const now = new Date().toISOString();
       const result = await env.DB.prepare(
         `

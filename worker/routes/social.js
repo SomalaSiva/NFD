@@ -3,6 +3,25 @@ import { ensureMessagingTables, ensureStoryTables } from "../db/ensure.js";
 export function createSocialRoutes(services) {
   const { getCurrentUser, ensureGhostTables, recordActivity, json, cleanSearchTerm, availableIdentitySql } =
     services;
+
+  async function cleanupExpiredMessages(env) {
+    if (!env.DB) return 0;
+    await ensureMessagingTables(env);
+    const now = new Date().toISOString();
+    const result = await env.DB.prepare(
+      `DELETE FROM nfd_messages
+       WHERE id IN (
+         SELECT id FROM nfd_messages
+         WHERE expires_at IS NOT NULL AND expires_at <= ?
+         ORDER BY expires_at
+         LIMIT 500
+       )`,
+    )
+      .bind(now)
+      .run();
+    return Number(result.meta?.changes) || 0;
+  }
+
   async function manageFriends(request, env) {
     const user = await getCurrentUser(request, env);
     if (!user) return json({ error: "Sign in to manage your NFD friends." }, 401);
@@ -251,17 +270,16 @@ export function createSocialRoutes(services) {
       await ensureMessagingTables(env);
       await ensureGhostTables(env);
       const now = new Date().toISOString();
-      await env.DB.prepare("DELETE FROM nfd_messages WHERE expires_at IS NOT NULL AND expires_at <= ?")
-        .bind(now)
-        .run();
       const result = await env.DB.prepare(
         `
       SELECT u.id AS user_id, COALESCE(NULLIF(trim(u.display_name), ''), 'NFD member') AS name,
         (SELECT substr(m.body, 1, 100) FROM nfd_messages m
           WHERE ((m.sender_id = ? AND m.recipient_id = u.id) OR (m.sender_id = u.id AND m.recipient_id = ?))
+            AND (m.expires_at IS NULL OR m.expires_at > ?)
           ORDER BY m.created_at DESC LIMIT 1) AS last_message,
         (SELECT m.created_at FROM nfd_messages m
           WHERE ((m.sender_id = ? AND m.recipient_id = u.id) OR (m.sender_id = u.id AND m.recipient_id = ?))
+            AND (m.expires_at IS NULL OR m.expires_at > ?)
           ORDER BY m.created_at DESC LIMIT 1) AS last_message_at,
         (SELECT COUNT(*) FROM nfd_messages m
           WHERE m.sender_id = u.id AND m.recipient_id = ? AND m.seen_at IS NULL) AS unread_count
@@ -271,7 +289,7 @@ export function createSocialRoutes(services) {
       ORDER BY COALESCE(last_message_at, f.updated_at) DESC, lower(name)
     `,
       )
-        .bind(user.id, user.id, user.id, user.id, user.id, user.id, user.id, user.id)
+        .bind(user.id, user.id, now, user.id, user.id, now, user.id, user.id, user.id, user.id)
         .all();
       return json({
         currentUserId: user.id,
@@ -298,9 +316,6 @@ export function createSocialRoutes(services) {
       const friend = await getAcceptedFriend(env, user.id, friendId);
       if (!friend) return json({ error: "Messages are available only between accepted NFD friends." }, 403);
       const now = new Date().toISOString();
-      await env.DB.prepare("DELETE FROM nfd_messages WHERE expires_at IS NOT NULL AND expires_at <= ?")
-        .bind(now)
-        .run();
       const result = await env.DB.prepare(
         `
       SELECT id, sender_id, recipient_id, body, created_at, seen_at, expires_at
@@ -556,5 +571,6 @@ export function createSocialRoutes(services) {
     suggestNfdFriends,
     respondToFriendRequest,
     removeFriendOrRequest,
+    cleanupExpiredMessages,
   };
 }

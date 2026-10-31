@@ -151,24 +151,14 @@ export function createExperienceRoutes(services) {
         conditions.push("e.place_category = ?");
         bindings.push(placeCategory);
       }
-      const where = conditions.join(" AND ");
       const pageConditions = [...conditions];
       const pageBindings = [...bindings];
       if (cursor) {
         pageConditions.push("(e.created_at < ? OR (e.created_at = ? AND e.id < ?))");
         pageBindings.push(cursor.createdAt, cursor.createdAt, cursor.id);
       }
-      const [
-        result,
-        totalResult,
-        placeResult,
-        locationResult,
-        experienceCategoryResult,
-        incidentCategoryResult,
-        placeCategoryResult,
-      ] = await Promise.all([
-        env.DB.prepare(
-          `
+      const result = await env.DB.prepare(
+        `
         SELECT e.id, e.author_id, e.experience_category, e.incident_category, e.place, e.place_category,
           e.location_details, e.incident_time, e.incident_time_end, e.incident_time_zone, e.short_description,
           e.full_description, e.visibility, e.comments_enabled, e.created_at,
@@ -179,41 +169,12 @@ export function createExperienceRoutes(services) {
           )) THEN NULL ELSE u.display_name END AS author_name
         FROM experiences e LEFT JOIN nfd_users u ON u.id = e.author_id
         WHERE ${pageConditions.join(" AND ")}
-        ORDER BY e.created_at DESC
+        ORDER BY e.created_at DESC, e.id DESC
         LIMIT ${EXPERIENCE_PAGE_SIZE + 1}
       `,
-        )
-          .bind(...pageBindings)
-          .all(),
-        env.DB.prepare(`SELECT COUNT(*) AS total FROM experiences e WHERE ${where}`)
-          .bind(...bindings)
-          .first(),
-        env.DB.prepare(
-          `SELECT DISTINCT e.place FROM experiences e WHERE ${where} ORDER BY e.place COLLATE NOCASE LIMIT 100`,
-        )
-          .bind(...bindings)
-          .all(),
-        env.DB.prepare(
-          `SELECT DISTINCT e.location_details FROM experiences e WHERE ${where} AND e.location_details IS NOT NULL AND trim(e.location_details) != '' ORDER BY e.location_details COLLATE NOCASE LIMIT 100`,
-        )
-          .bind(...bindings)
-          .all(),
-        env.DB.prepare(
-          `SELECT DISTINCT e.experience_category FROM experiences e WHERE e.status = ? AND ${visibilitySql} ORDER BY e.experience_category COLLATE NOCASE`,
-        )
-          .bind("shared", ...visibilityBindings)
-          .all(),
-        env.DB.prepare(
-          `SELECT DISTINCT e.incident_category FROM experiences e WHERE e.status = ? AND ${visibilitySql} ORDER BY e.incident_category COLLATE NOCASE`,
-        )
-          .bind("shared", ...visibilityBindings)
-          .all(),
-        env.DB.prepare(
-          `SELECT DISTINCT e.place_category FROM experiences e WHERE e.status = ? AND ${visibilitySql} ORDER BY e.place_category COLLATE NOCASE`,
-        )
-          .bind("shared", ...visibilityBindings)
-          .all(),
-      ]);
+      )
+        .bind(...pageBindings)
+        .all();
       const pageRows = result.results || [];
       const hasMore = pageRows.length > EXPERIENCE_PAGE_SIZE;
       const experiences = pageRows.slice(0, EXPERIENCE_PAGE_SIZE);
@@ -282,14 +243,6 @@ export function createExperienceRoutes(services) {
       }
 
       return json({
-        total: totalResult?.total || 0,
-        placeSuggestions: (placeResult.results || []).map((row) => row.place),
-        locationSuggestions: (locationResult.results || []).map((row) => row.location_details),
-        experienceCategoryOptions: (experienceCategoryResult.results || []).map(
-          (row) => row.experience_category,
-        ),
-        incidentCategoryOptions: (incidentCategoryResult.results || []).map((row) => row.incident_category),
-        placeCategoryOptions: (placeCategoryResult.results || []).map((row) => row.place_category),
         nextCursor,
         experiences: experiences.map((experience) => ({
           id: experience.id,

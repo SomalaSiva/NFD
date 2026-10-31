@@ -337,7 +337,9 @@ export default {
     return new Response("Not found", { status: 404 });
   },
   async scheduled(_event, env, ctx) {
-    ctx.waitUntil(storyRoutes.cleanupExpiredStories(env));
+    ctx.waitUntil(
+      Promise.all([storyRoutes.cleanupExpiredStories(env), socialRoutes.cleanupExpiredMessages(env)]),
+    );
   },
 };
 

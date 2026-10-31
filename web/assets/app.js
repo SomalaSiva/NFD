@@ -881,7 +881,7 @@ function renderDocumentLink(file) {
 }
 let feedLoadedCount = 0;
 let feedNextCursor = "";
-function renderFeed(experiences, total, { append = false, nextCursor = "" } = {}) {
+function renderFeed(experiences, { append = false, nextCursor = "" } = {}) {
   if (!append) {
     feedList.replaceChildren();
     feedLoadedCount = 0;
@@ -897,15 +897,14 @@ function renderFeed(experiences, total, { append = false, nextCursor = "" } = {}
     feedIncidentCategory.value ||
     feedPlaceCategory.value,
   );
-  const countLabel = filterActive
-    ? `${total} matching stor${total === 1 ? "y" : "ies"}`
-    : `${total} stor${total === 1 ? "y" : "ies"} in the feed`;
-  feedResultCount.textContent = `${countLabel}${total > 0 ? ` · Showing ${Math.min(total, feedLoadedCount + experiences.length)} of ${total}` : ""}`;
+  const countLabel = filterActive ? "Matching stories" : "Stories in the feed";
   if (!experiences.length) {
     if (append) {
       feedLoadMore.hidden = true;
+      feedResultCount.textContent = `${countLabel} · Showing ${feedLoadedCount}`;
       return;
     }
+    feedResultCount.textContent = filterActive ? "No matching stories" : "No stories in the feed";
     const empty = document.createElement("div");
     empty.className = "feed-empty";
     addText(empty, "strong", "", filterActive ? "No stories found here" : "No stories here yet");
@@ -1151,7 +1150,7 @@ function renderFeed(experiences, total, { append = false, nextCursor = "" } = {}
     fitIncidentBadge(card.querySelector(".feed-incident"));
   });
   feedLoadedCount += experiences.length;
-  feedResultCount.textContent = `${countLabel} · Showing ${Math.min(total, feedLoadedCount)} of ${total}`;
+  feedResultCount.textContent = `${countLabel} · Showing ${feedLoadedCount}${feedNextCursor ? "+" : ""}`;
   feedLoadMore.hidden = !feedNextCursor;
 }
 const reactionChoices = [
@@ -2736,6 +2735,10 @@ function updateSuggestions(list, values) {
     list.append(option);
   });
 }
+function rememberFeedSuggestions(list, values, { append = false } = {}) {
+  const previous = append ? [...list.options].map((option) => option.value) : [];
+  updateSuggestions(list, [...previous, ...(values || [])].slice(0, 100));
+}
 function updateSelectOptions(select, values, placeholder) {
   const selected = select.value;
   select.replaceChildren();
@@ -2751,6 +2754,19 @@ function updateSelectOptions(select, values, placeholder) {
   });
   if ((values || []).includes(selected)) select.value = selected;
 }
+function updateFeedTaxonomyFilters() {
+  const experienceCategories = Object.keys(incidentCategoriesByExperience);
+  const incidentCategories = [...new Set(Object.values(incidentCategoriesByExperience).flat())].sort((a, b) =>
+    a.localeCompare(b),
+  );
+  const placeCategories = [...document.getElementById("place-category").options]
+    .map((option) => option.value.trim())
+    .filter(Boolean);
+  updateSelectOptions(feedExperienceCategory, experienceCategories, "Any experience type");
+  updateSelectOptions(feedIncidentCategory, incidentCategories, "Any incident type");
+  updateSelectOptions(feedPlaceCategory, placeCategories, "Any place type");
+}
+updateFeedTaxonomyFilters();
 function updateFeedFilterToggle() {
   const count = [
     feedPlaceSearch.value.trim(),
@@ -2861,16 +2877,20 @@ async function loadFeed({ append = false } = {}) {
     }
     if (!result)
       throw lastError || new Error("The feed service is temporarily unavailable. Try again in a moment.");
-    updateSuggestions(feedPlaceSuggestions, result.placeSuggestions);
-    updateSuggestions(feedLocationSuggestions, result.locationSuggestions);
-    updateSelectOptions(feedExperienceCategory, result.experienceCategoryOptions, "Any experience type");
-    updateSelectOptions(feedIncidentCategory, result.incidentCategoryOptions, "Any incident type");
-    updateSelectOptions(feedPlaceCategory, result.placeCategoryOptions, "Any place type");
+    const experiences = result.experiences || [];
+    rememberFeedSuggestions(
+      feedPlaceSuggestions,
+      experiences.map((experience) => experience.place),
+      { append },
+    );
+    rememberFeedSuggestions(
+      feedLocationSuggestions,
+      experiences.map((experience) => experience.locationDetails),
+      { append },
+    );
+    updateFeedTaxonomyFilters();
     updateFeedFilterToggle();
-    renderFeed(result.experiences || [], Number(result.total) || 0, {
-      append,
-      nextCursor: result.nextCursor || "",
-    });
+    renderFeed(experiences, { append, nextCursor: result.nextCursor || "" });
   } catch (error) {
     if (requestNumber !== feedRequestNumber) return;
     feedState.hidden = true;
