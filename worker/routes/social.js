@@ -126,6 +126,68 @@ export function createSocialRoutes(services) {
     }
   }
 
+  async function getFriendProfile(request, env, friendId) {
+    const user = await getCurrentUser(request, env);
+    if (!user) return json({ error: "Sign in to view NFD friend profiles." }, 401);
+    if (!env.DB) return json({ error: "That NFD profile is unavailable right now." }, 503);
+    if (typeof friendId !== "string" || !/^[A-Za-z0-9:_-]{1,200}$/.test(friendId) || friendId === user.id) {
+      return json({ error: "That friend profile could not be found." }, 404);
+    }
+    try {
+      await ensureGhostTables(env);
+      await ensureStoryTables(env);
+      const friend = await env.DB.prepare(
+        `
+        SELECT f.id AS relationship_id, u.id AS user_id,
+          COALESCE(NULLIF(trim(u.display_name), ''), 'NFD member') AS name,
+          u.provider, u.ghost_handle, u.profile_photo_key
+        FROM nfd_friend_requests f
+        INNER JOIN nfd_users u ON u.id = CASE WHEN f.from_user_id = ? THEN f.to_user_id ELSE f.from_user_id END
+        WHERE f.status = 'accepted' AND (f.from_user_id = ? OR f.to_user_id = ?)
+          AND u.id = ? AND ${availableIdentitySql}
+        LIMIT 1
+      `,
+      )
+        .bind(user.id, user.id, user.id, friendId)
+        .first();
+      if (!friend) return json({ error: "That friend profile could not be found." }, 404);
+
+      const postsResult = await env.DB.prepare(
+        `
+        SELECT id, experience_category, incident_category, short_description, created_at
+        FROM experiences
+        WHERE author_id = ? AND status = 'shared' AND visibility IN ('public', 'friends')
+        ORDER BY created_at DESC
+        LIMIT 100
+      `,
+      )
+        .bind(friend.user_id)
+        .all();
+      return json({
+        friend: {
+          relationshipId: friend.relationship_id,
+          userId: friend.user_id,
+          name: friend.name,
+          provider: friend.provider === "ghost" ? "ghost" : "member",
+          ghostHandle: friend.provider === "ghost" ? friend.ghost_handle || "" : "",
+          photoUrl: friend.profile_photo_key
+            ? `/api/profile-photo/${encodeURIComponent(friend.user_id)}?v=${Date.now()}`
+            : "",
+        },
+        posts: (postsResult.results || []).map((post) => ({
+          id: post.id,
+          category: post.experience_category || "NFD post",
+          incident: post.incident_category || "",
+          text: post.short_description || "",
+          createdAt: post.created_at,
+        })),
+      });
+    } catch (error) {
+      console.error("Friend profile query failed", error);
+      return json({ error: "That friend profile could not be loaded right now." }, 503);
+    }
+  }
+
   async function getAcceptedFriend(env, userId, friendId) {
     // Auth provider subject IDs (for example, "google:123…") are opaque NFD IDs,
     // so do not assume that an account ID is a UUID.
@@ -451,6 +513,7 @@ export function createSocialRoutes(services) {
 
   return {
     manageFriends,
+    getFriendProfile,
     listMessageThreads,
     getFriendMessages,
     sendFriendMessage,

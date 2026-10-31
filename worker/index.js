@@ -264,6 +264,10 @@ export default {
     if (url.pathname === "/api/friends" && ["GET", "POST"].includes(request.method)) {
       return socialRoutes.manageFriends(request, env);
     }
+    const friendProfileMatch = url.pathname.match(/^\/api\/friends\/([^/]+)\/profile$/i);
+    if (friendProfileMatch && request.method === "GET") {
+      return socialRoutes.getFriendProfile(request, env, decodeURIComponent(friendProfileMatch[1]));
+    }
     if (request.method === "GET" && url.pathname === "/api/messages") {
       return socialRoutes.listMessageThreads(request, env);
     }

@@ -338,6 +338,10 @@ document.addEventListener("keydown", (event) => {
   }
 });
 const profilePage = document.getElementById("profile-page");
+const profileOwnView = document.getElementById("profile-own-view");
+const friendProfileView = document.getElementById("friend-profile-view");
+const profileTabs = [...document.querySelectorAll("[data-profile-tab]")];
+const profileTabPanels = [...document.querySelectorAll(".profile-tab-panel")];
 const ghostSettings = document.getElementById("ghost-settings");
 const ghostSettingsFeedback = document.getElementById("ghost-settings-feedback");
 const ghostCreateForm = document.getElementById("ghost-create-form");
@@ -1625,6 +1629,18 @@ function renderProfile(data) {
   });
 }
 async function loadProfile() {
+  const profileParams = new URLSearchParams(location.search);
+  const friendId = profileParams.get("friend");
+  if (friendId) {
+    profileOwnView.hidden = true;
+    friendProfileView.hidden = false;
+    await loadFriendProfile(friendId);
+    return;
+  }
+  profileOwnView.hidden = false;
+  friendProfileView.hidden = true;
+  activateProfileTab(profileParams.get("tab") || "posts", false);
+  if (profileParams.has("removed")) setFriendsFeedback("Friend removed.");
   profileMessage.hidden = true;
   profilePostList.replaceChildren();
   profileSummary.innerHTML = '<div class="profile-loading">Loading your profile…</div>';
@@ -1654,6 +1670,143 @@ async function loadProfile() {
     message.setAttribute("role", "alert");
   }
 }
+function activateProfileTab(tab, updateUrl = true) {
+  const availableTabs = new Set(profileTabs.map((button) => button.dataset.profileTab));
+  const activeTab = availableTabs.has(tab) ? tab : "posts";
+  profileTabs.forEach((button) => {
+    const selected = button.dataset.profileTab === activeTab;
+    button.setAttribute("aria-selected", String(selected));
+    button.tabIndex = selected ? 0 : -1;
+  });
+  profileTabPanels.forEach((panel) => {
+    panel.hidden = panel.id !== `profile-panel-${activeTab}`;
+  });
+  if (updateUrl) {
+    const url = new URL(location.href);
+    url.search = "";
+    if (activeTab !== "posts") url.searchParams.set("tab", activeTab);
+    history.replaceState(null, "", url);
+  }
+}
+profileTabs.forEach((button, index) => {
+  button.addEventListener("click", () => activateProfileTab(button.dataset.profileTab));
+  button.addEventListener("keydown", (event) => {
+    if (!event.key.startsWith("Arrow")) return;
+    event.preventDefault();
+    const direction = event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : 1;
+    const next = (index + direction + profileTabs.length) % profileTabs.length;
+    profileTabs[next].focus();
+    activateProfileTab(profileTabs[next].dataset.profileTab);
+  });
+});
+async function loadFriendProfile(friendId) {
+  friendProfileView.replaceChildren();
+  addText(friendProfileView, "p", "profile-loading", "Loading friend profile…");
+  try {
+    const response = await fetch(`/api/friends/${encodeURIComponent(friendId)}/profile`, {
+      headers: { accept: "application/json" },
+      cache: "no-store",
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || "That friend profile could not be loaded.");
+    const friend = result.friend || {};
+    friendProfileView.replaceChildren();
+    const back = addText(friendProfileView, "a", "friend-profile-back", "← Back to friends");
+    back.href = "/profile?tab=friends";
+    const header = document.createElement("div");
+    header.className = "friend-profile-header";
+    const avatar = document.createElement("div");
+    avatar.className = "profile-avatar";
+    const initials =
+      (friend.name || "NFD member")
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0])
+        .join("")
+        .toUpperCase() || "N";
+    avatar.textContent = initials;
+    if (friend.photoUrl) {
+      const image = document.createElement("img");
+      image.alt = "";
+      image.src = friend.photoUrl;
+      image.onerror = () => image.remove();
+      avatar.replaceChildren(image);
+    }
+    const identity = document.createElement("div");
+    identity.className = "friend-profile-identity";
+    addText(identity, "h1", "", friend.name || "NFD member");
+    addText(
+      identity,
+      "p",
+      "",
+      friend.provider === "ghost" ? `Ghost profile · @${friend.ghostHandle}` : "NFD friend",
+    );
+    header.append(avatar, identity);
+    const actions = document.createElement("div");
+    actions.className = "friend-profile-actions";
+    const message = addText(actions, "a", "secondary-button", "Message");
+    message.href = `/messages?friend=${encodeURIComponent(friend.userId)}`;
+    const remove = addText(actions, "button", "friend-profile-remove", "Remove friend");
+    remove.type = "button";
+    remove.addEventListener("click", async () => {
+      remove.disabled = true;
+      feedback.textContent = "Removing friend…";
+      try {
+        const removal = await fetch(`/api/friends/${encodeURIComponent(friend.relationshipId)}`, {
+          method: "DELETE",
+          headers: { accept: "application/json" },
+        });
+        const removed = await removal.json().catch(() => ({}));
+        if (!removal.ok) throw new Error(removed.error || "This friend could not be removed.");
+        location.assign("/profile?tab=friends&removed=1");
+      } catch (error) {
+        feedback.textContent = error.message;
+        feedback.classList.add("error");
+        remove.disabled = false;
+      }
+    });
+    actions.append(message, remove);
+    const feedback = addText(friendProfileView, "p", "friend-profile-feedback", "");
+    feedback.setAttribute("role", "status");
+    header.append(actions);
+    friendProfileView.append(back, header, feedback);
+    const postsHeading = addText(
+      friendProfileView,
+      "h2",
+      "friend-profile-posts-heading",
+      "Posts shared with friends",
+    );
+    const posts = document.createElement("div");
+    posts.className = "profile-post-list";
+    const friendPosts = result.posts || [];
+    if (!friendPosts.length) {
+      addText(posts, "p", "profile-empty", "No posts shared with friends are available.");
+    } else {
+      friendPosts.forEach((post) => {
+        const card = document.createElement("article");
+        card.className = "profile-post-card friend-profile-post";
+        addText(card, "h3", "profile-post-title", post.text || post.category || "NFD post");
+        addText(
+          card,
+          "span",
+          "profile-post-category",
+          [post.category, post.incident].filter(Boolean).join(" · "),
+        );
+        addText(card, "time", "profile-post-date", `Shared ${prettyDate(post.createdAt)}`);
+        posts.append(card);
+      });
+    }
+    friendProfileView.append(postsHeading, posts);
+    document.title = `${friend.name || "Friend"} — NFD`;
+  } catch (error) {
+    friendProfileView.replaceChildren();
+    const back = addText(friendProfileView, "a", "friend-profile-back", "← Back to friends");
+    back.href = "/profile?tab=friends";
+    const message = addText(friendProfileView, "p", "profile-error", error.message);
+    message.setAttribute("role", "alert");
+  }
+}
 function setFriendsFeedback(message, error = false) {
   friendsFeedback.textContent = message;
   friendsFeedback.classList.toggle("error", error);
@@ -1666,8 +1819,9 @@ function renderFriendList(listId, emptyId, entries, kind) {
   entries.forEach((friend) => {
     const item = document.createElement("li");
     item.className = "friend-item";
-    const person = document.createElement("div");
-    person.className = "friend-person friend-person-with-avatar";
+    const person = document.createElement(kind === "friends" ? "a" : "div");
+    person.className = `friend-person friend-person-with-avatar${kind === "friends" ? " friend-profile-link" : ""}`;
+    if (kind === "friends") person.href = `/profile?friend=${encodeURIComponent(friend.userId)}`;
     const avatar = document.createElement("span");
     avatar.className = "friend-avatar";
     const initials =
@@ -1739,12 +1893,9 @@ function renderFriendList(listId, emptyId, entries, kind) {
       actions.append(button);
     };
     if (kind === "incoming") addAction("Accept", "accept", "POST");
-    addAction(
-      kind === "friends" ? "Remove" : kind === "outgoing" ? "Cancel" : "Ignore",
-      kind === "friends" ? "remove" : "ignore",
-      "DELETE",
-      "remove",
-    );
+    if (kind !== "friends") {
+      addAction(kind === "outgoing" ? "Cancel" : "Ignore", "ignore", "DELETE", "remove");
+    }
     item.append(actions);
     list.append(item);
   });

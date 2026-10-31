@@ -1108,157 +1108,259 @@
           </button>
         </section>
         <section id="profile-page" class="profile-page" aria-labelledby="profile-heading" hidden>
-          <div class="profile-heading">
-            <div>
-              <div class="eyebrow">Your NFD account</div>
-              <h1 id="profile-heading">Your profile</h1>
-              <p class="intro" id="profile-intro">
-                Your account details and the experiences you’ve shared. Your profile details are visible only
-                to you.
-              </p>
-            </div>
-          </div>
-          <section class="profile-photo-panel" aria-labelledby="profile-photo-heading">
-            <div class="profile-photo-preview" id="profile-photo-preview" aria-hidden="true">N</div>
-            <div class="profile-photo-content">
-              <h2 id="profile-photo-heading">Profile photo</h2>
-              <p>Choose a photo for your NFD profile. Only you and your accepted NFD friends can see it.</p>
-              <form id="profile-photo-form" class="profile-photo-form">
-                <label class="secondary-button profile-photo-choose" for="profile-photo-file"
-                  >Choose photo</label
-                >
-                <input id="profile-photo-file" type="file" accept="image/jpeg,image/png,image/webp" hidden />
-                <button class="submit" type="submit" id="profile-photo-save" disabled>Save photo</button>
-                <button class="secondary-button" type="button" id="profile-photo-remove" hidden>
-                  Remove photo
-                </button>
-              </form>
-              <p
-                class="profile-photo-feedback"
-                id="profile-photo-feedback"
-                role="status"
-                aria-live="polite"
-              ></p>
-            </div>
-          </section>
-          <section class="ghost-panel" id="ghost-settings" aria-labelledby="ghost-settings-heading" hidden>
-            <h2 id="ghost-settings-heading">Ghost mode</h2>
-            <p class="ghost-settings-copy" id="ghost-settings-copy">
-              Use a separate NFD identity for friends, posts, and messages. Turn Ghost mode on or off whenever
-              you like. Deactivate this Ghost ID before creating another one.
-            </p>
-            <p
-              class="ghost-settings-feedback"
-              id="ghost-settings-feedback"
-              role="status"
-              aria-live="polite"
-            ></p>
-            <div class="ghost-profile-ready" id="ghost-profile-ready" hidden>
-              <strong id="ghost-profile-name"></strong><span id="ghost-profile-handle"></span
-              ><span class="ghost-profile-state" id="ghost-profile-state"></span>
-              <div class="ghost-profile-actions">
-                <button class="secondary-button" type="button" id="ghost-profile-toggle">
-                  Turn on Ghost mode</button
-                ><button
-                  class="secondary-button ghost-deactivate-button"
-                  type="button"
-                  id="ghost-profile-deactivate"
-                >
-                  Deactivate Ghost ID
-                </button>
-              </div>
-            </div>
-            <form class="ghost-create-form" id="ghost-create-form" hidden>
-              <label for="ghost-name">Ghost name <span class="optional">Optional</span></label
-              ><input
-                class="control"
-                id="ghost-name"
-                name="name"
-                maxlength="64"
-                placeholder="A name people will recognize"
-                autocomplete="off"
-              />
-              <label for="ghost-handle">Ghost ID <span class="optional">Optional</span></label
-              ><input
-                class="control"
-                id="ghost-handle"
-                name="handle"
-                maxlength="32"
-                placeholder="Generated for you if left blank"
-                autocomplete="off"
-              />
-              <p class="helper">Share this ID so people can find your Ghost profile.</p>
-              <button class="submit" type="submit">Create Ghost profile</button>
-            </form>
-          </section>
-          <div class="profile-summary" id="profile-summary">
-            <div class="profile-loading">Loading your profile…</div>
-          </div>
-          <section class="friends-panel" aria-labelledby="friends-heading">
-            <div class="friends-panel-heading">
+          <div id="profile-own-view">
+            <div class="profile-heading">
               <div>
-                <h2 id="friends-heading">Your NFD friends</h2>
-                <p>
-                  Find people by their NFD name or Ghost ID. Friends can see stories you share with friends
-                  only.
+                <div class="eyebrow">Your NFD account</div>
+                <h1 id="profile-heading">Your profile</h1>
+                <p class="intro" id="profile-intro">
+                  Your account details and the experiences you’ve shared. Your profile details are visible
+                  only to you.
                 </p>
               </div>
             </div>
-            <div class="friend-search">
-              <label for="friend-search-query">Find a friend</label
-              ><input
-                class="control"
-                type="search"
-                id="friend-search-query"
-                placeholder="Type at least 2 letters"
-                autocomplete="off"
-                aria-controls="friend-suggestions"
-              />
-              <p class="helper">We’ll suggest matching NFD accounts. Only their name is shown here.</p>
-              <p class="friends-feedback" id="friend-search-feedback" role="status" aria-live="polite"></p>
-              <ul id="friend-suggestions" class="friend-list friend-suggestions" hidden></ul>
-            </div>
-            <details class="friend-email-option">
-              <summary>Prefer to send a request by email?</summary>
-              <form class="friend-request-form" id="friend-request-form">
-                <label class="sr-only" for="friend-request-email">Friend’s NFD email</label
+            <section class="profile-photo-panel" aria-labelledby="profile-photo-heading">
+              <div class="profile-photo-preview" id="profile-photo-preview" aria-hidden="true">N</div>
+              <div class="profile-photo-content">
+                <h2 id="profile-photo-heading">Profile photo</h2>
+                <p>Choose a photo for your NFD profile. Only you and your accepted NFD friends can see it.</p>
+                <form id="profile-photo-form" class="profile-photo-form">
+                  <label class="secondary-button profile-photo-choose" for="profile-photo-file"
+                    >Choose photo</label
+                  >
+                  <input
+                    id="profile-photo-file"
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    hidden
+                  />
+                  <button class="submit" type="submit" id="profile-photo-save" disabled>Save photo</button>
+                  <button class="secondary-button" type="button" id="profile-photo-remove" hidden>
+                    Remove photo
+                  </button>
+                </form>
+                <p
+                  class="profile-photo-feedback"
+                  id="profile-photo-feedback"
+                  role="status"
+                  aria-live="polite"
+                ></p>
+              </div>
+            </section>
+            <section class="ghost-panel" id="ghost-settings" aria-labelledby="ghost-settings-heading" hidden>
+              <h2 id="ghost-settings-heading">Ghost mode</h2>
+              <p class="ghost-settings-copy" id="ghost-settings-copy">
+                Use a separate NFD identity for friends, posts, and messages. Turn Ghost mode on or off
+                whenever you like. Deactivate this Ghost ID before creating another one.
+              </p>
+              <p
+                class="ghost-settings-feedback"
+                id="ghost-settings-feedback"
+                role="status"
+                aria-live="polite"
+              ></p>
+              <div class="ghost-profile-ready" id="ghost-profile-ready" hidden>
+                <strong id="ghost-profile-name"></strong><span id="ghost-profile-handle"></span
+                ><span class="ghost-profile-state" id="ghost-profile-state"></span>
+                <div class="ghost-profile-actions">
+                  <button class="secondary-button" type="button" id="ghost-profile-toggle">
+                    Turn on Ghost mode</button
+                  ><button
+                    class="secondary-button ghost-deactivate-button"
+                    type="button"
+                    id="ghost-profile-deactivate"
+                  >
+                    Deactivate Ghost ID
+                  </button>
+                </div>
+              </div>
+              <form class="ghost-create-form" id="ghost-create-form" hidden>
+                <label for="ghost-name">Ghost name <span class="optional">Optional</span></label
                 ><input
                   class="control"
-                  type="email"
-                  id="friend-request-email"
-                  name="email"
-                  placeholder="Their email address"
-                  required
-                /><button class="submit" type="submit">Send request</button>
+                  id="ghost-name"
+                  name="name"
+                  maxlength="64"
+                  placeholder="A name people will recognize"
+                  autocomplete="off"
+                />
+                <label for="ghost-handle">Ghost ID <span class="optional">Optional</span></label
+                ><input
+                  class="control"
+                  id="ghost-handle"
+                  name="handle"
+                  maxlength="32"
+                  placeholder="Generated for you if left blank"
+                  autocomplete="off"
+                />
+                <p class="helper">Share this ID so people can find your Ghost profile.</p>
+                <button class="submit" type="submit">Create Ghost profile</button>
               </form>
-            </details>
-            <p class="friends-feedback" id="friends-feedback" role="status" aria-live="polite"></p>
-            <div class="friends-lists">
-              <section>
-                <h3>Friend requests</h3>
-                <ul id="friend-incoming-list" class="friend-list"></ul>
-                <p id="friend-incoming-empty" class="friend-empty">No requests waiting.</p>
-              </section>
-              <section>
-                <h3>Your friends</h3>
+            </section>
+            <div class="profile-summary" id="profile-summary">
+              <div class="profile-loading">Loading your profile…</div>
+            </div>
+            <div class="profile-tabs" role="tablist" aria-label="Profile sections">
+              <button
+                id="profile-tab-posts"
+                class="profile-tab"
+                type="button"
+                role="tab"
+                aria-selected="true"
+                aria-controls="profile-panel-posts"
+                data-profile-tab="posts"
+              >
+                My posts
+              </button>
+              <button
+                id="profile-tab-friends"
+                class="profile-tab"
+                type="button"
+                role="tab"
+                aria-selected="false"
+                aria-controls="profile-panel-friends"
+                data-profile-tab="friends"
+                tabindex="-1"
+              >
+                Friends
+              </button>
+              <button
+                id="profile-tab-requests"
+                class="profile-tab"
+                type="button"
+                role="tab"
+                aria-selected="false"
+                aria-controls="profile-panel-requests"
+                data-profile-tab="requests"
+                tabindex="-1"
+              >
+                Friend requests
+              </button>
+              <button
+                id="profile-tab-sent"
+                class="profile-tab"
+                type="button"
+                role="tab"
+                aria-selected="false"
+                aria-controls="profile-panel-sent"
+                data-profile-tab="sent"
+                tabindex="-1"
+              >
+                Requests sent
+              </button>
+            </div>
+            <p
+              class="friends-feedback profile-feedback"
+              id="friends-feedback"
+              role="status"
+              aria-live="polite"
+            ></p>
+            <section
+              id="profile-panel-posts"
+              class="profile-tab-panel"
+              role="tabpanel"
+              aria-labelledby="profile-tab-posts"
+              tabindex="0"
+            >
+              <div class="profile-post-heading">
+                <div>
+                  <h2>Your posts</h2>
+                  <p id="profile-post-count">Loading your posts…</p>
+                </div>
+                <a class="secondary-button" href="/share">Share an experience</a>
+              </div>
+              <div class="profile-post-list" id="profile-post-list" aria-live="polite"></div>
+            </section>
+            <section
+              id="profile-panel-friends"
+              class="profile-tab-panel"
+              role="tabpanel"
+              aria-labelledby="profile-tab-friends"
+              tabindex="0"
+              hidden
+            >
+              <section class="friends-panel" aria-labelledby="friends-heading">
+                <div class="friends-panel-heading">
+                  <div>
+                    <h2 id="friends-heading">Your NFD friends</h2>
+                    <p>
+                      Find people by their NFD name or Ghost ID. Friends can see stories you share with
+                      friends only.
+                    </p>
+                  </div>
+                </div>
+                <div class="friend-search">
+                  <label for="friend-search-query">Find a friend</label
+                  ><input
+                    class="control"
+                    type="search"
+                    id="friend-search-query"
+                    placeholder="Type at least 2 letters"
+                    autocomplete="off"
+                    aria-controls="friend-suggestions"
+                  />
+                  <p class="helper">We’ll suggest matching NFD accounts. Only their name is shown here.</p>
+                  <p
+                    class="friends-feedback"
+                    id="friend-search-feedback"
+                    role="status"
+                    aria-live="polite"
+                  ></p>
+                  <ul id="friend-suggestions" class="friend-list friend-suggestions" hidden></ul>
+                </div>
+                <details class="friend-email-option">
+                  <summary>Prefer to send a request by email?</summary>
+                  <form class="friend-request-form" id="friend-request-form">
+                    <label class="sr-only" for="friend-request-email">Friend’s NFD email</label
+                    ><input
+                      class="control"
+                      type="email"
+                      id="friend-request-email"
+                      name="email"
+                      placeholder="Their email address"
+                      required
+                    /><button class="submit" type="submit">Send request</button>
+                  </form>
+                </details>
+                <h3 class="friend-list-heading">Your friends</h3>
                 <ul id="friend-list" class="friend-list"></ul>
                 <p id="friend-empty" class="friend-empty">No friends yet. Connect with someone you trust.</p>
               </section>
-              <section>
-                <h3>Requests you sent</h3>
+            </section>
+            <section
+              id="profile-panel-requests"
+              class="profile-tab-panel"
+              role="tabpanel"
+              aria-labelledby="profile-tab-requests"
+              tabindex="0"
+              hidden
+            >
+              <section class="friends-panel" aria-labelledby="friend-requests-heading">
+                <h2 id="friend-requests-heading">Friend requests</h2>
+                <p class="profile-tab-description">People who want to connect with you.</p>
+                <ul id="friend-incoming-list" class="friend-list"></ul>
+                <p id="friend-incoming-empty" class="friend-empty">No requests waiting.</p>
+              </section>
+            </section>
+            <section
+              id="profile-panel-sent"
+              class="profile-tab-panel"
+              role="tabpanel"
+              aria-labelledby="profile-tab-sent"
+              tabindex="0"
+              hidden
+            >
+              <section class="friends-panel" aria-labelledby="friend-sent-heading">
+                <h2 id="friend-sent-heading">Requests sent</h2>
+                <p class="profile-tab-description">
+                  Requests you have sent that are still waiting for a response.
+                </p>
                 <ul id="friend-outgoing-list" class="friend-list"></ul>
                 <p id="friend-outgoing-empty" class="friend-empty">No outgoing requests.</p>
               </section>
-            </div>
-          </section>
-          <div class="profile-post-heading">
-            <div>
-              <h2>Your posts</h2>
-              <p id="profile-post-count">Loading your posts…</p>
-            </div>
-            <a class="secondary-button" href="/share">Share an experience</a>
+            </section>
           </div>
-          <div class="profile-post-list" id="profile-post-list" aria-live="polite"></div>
+          <section id="friend-profile-view" class="friend-profile-view" aria-live="polite" hidden></section>
           <div class="profile-message" id="profile-message" role="status" aria-live="polite" hidden></div>
         </section>
         <section id="messages-page" class="messages-page" aria-labelledby="messages-heading" hidden>
