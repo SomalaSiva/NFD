@@ -1359,11 +1359,12 @@ function setProfileMessage(message, isError = false) {
 }
 function renderGhostSettings(state) {
   currentGhostMode = state || { allowed: false, active: false, profile: null };
-  ghostSettings.hidden = !currentGhostMode.allowed;
+  const setupRequested = new URLSearchParams(location.search).get("ghost") === "setup";
+  ghostSettings.hidden = !currentGhostMode.allowed || (!currentGhostMode.profile && !setupRequested);
   if (!currentGhostMode.allowed) return;
   const profile = currentGhostMode.profile;
   ghostProfileReady.hidden = !profile;
-  ghostCreateForm.hidden = Boolean(profile);
+  ghostCreateForm.hidden = Boolean(profile) || !setupRequested;
   if (profile) {
     ghostProfileName.textContent = profile.name || "Ghost profile";
     ghostProfileHandle.textContent = `@${profile.handle}`;
@@ -1421,6 +1422,7 @@ ghostCreateForm.addEventListener("submit", async (event) => {
     });
     const result = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(result.error || "Your Ghost profile could not be created.");
+    window.history.replaceState(null, "", "/profile");
     await loadGhostSettings();
   } catch (error) {
     ghostSettingsFeedback.textContent = error.message;
