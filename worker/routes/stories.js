@@ -16,7 +16,7 @@ const STORY_MEDIA_TYPES = new Set([
 ]);
 
 export function createStoryRoutes(services) {
-  const { getCurrentUser, recordActivity, json, availableIdentitySql } = services;
+  const { getCurrentUser, recordActivity, json, availableIdentitySql, quickStoriesEnabled } = services;
 
   function profilePhotoUrl(userId) {
     return `/api/profile-photo/${encodeURIComponent(userId)}?v=${Date.now()}`;
@@ -184,6 +184,7 @@ export function createStoryRoutes(services) {
     if (!viewer) return json({ error: "Sign in to view friends’ stories." }, 401);
     if (!env.DB || !env.BUCKET) return json({ error: "NFD stories are unavailable right now." }, 503);
     try {
+      if (!(await quickStoriesEnabled(env))) return json({ enabled: false, own: null, friends: [] });
       await ensureStoryTables(env);
       const now = new Date().toISOString();
       const result = await env.DB.prepare(
@@ -243,7 +244,7 @@ export function createStoryRoutes(services) {
         .filter((group) => !group.own)
         .map((group) => ({ ...group, hasUnseen: group.stories.some((story) => !story.viewed) }))
         .sort((first, second) => Number(second.hasUnseen) - Number(first.hasUnseen));
-      return json({ own, friends, expiresAfterHours: 24 });
+      return json({ enabled: true, own, friends, expiresAfterHours: 24 });
     } catch (error) {
       console.error("NFD story list failed", error instanceof Error ? error.name : "unknown");
       return json({ error: "Friends’ stories could not be loaded right now." }, 503);
@@ -258,6 +259,8 @@ export function createStoryRoutes(services) {
       return json({ error: "Choose one photo or video to share." }, 415);
     let objectKey = "";
     try {
+      if (!(await quickStoriesEnabled(env)))
+        return json({ error: "Quick Stories have been turned off by an NFD administrator." }, 403);
       await ensureStoryTables(env);
       const form = await request.formData();
       const file = form.get("media");
@@ -272,6 +275,8 @@ export function createStoryRoutes(services) {
       const expiresAt = new Date(now.getTime() + STORY_LIFETIME_MS).toISOString();
       const originalFilename = (file.name || "story-media").replace(/[\r\n"\\]/g, "_").slice(0, 180);
       objectKey = `stories/${user.id}/${id}`;
+      if (!(await quickStoriesEnabled(env)))
+        return json({ error: "Quick Stories have been turned off by an NFD administrator." }, 403);
       await env.BUCKET.put(objectKey, file.stream(), {
         httpMetadata: { contentType: file.type },
         customMetadata: { storyId: id, authorId: user.id },
@@ -305,6 +310,7 @@ export function createStoryRoutes(services) {
   }
 
   async function getAccessibleStory(env, viewer, storyId) {
+    if (!(await quickStoriesEnabled(env))) return null;
     return env.DB.prepare(
       `
       SELECT s.id, s.author_id, s.object_key, s.content_type, s.original_filename, s.expires_at

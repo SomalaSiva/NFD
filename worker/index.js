@@ -4,6 +4,7 @@ import { createStoryRoutes } from "./routes/stories.js";
 import { createExperienceRoutes } from "./routes/experiences.js";
 import { ADMIN_PAGE_SIZE, getPageMetadata, getPageOffset } from "./lib/pagination.js";
 import { getSessionIdleMinutes, isSessionIdle } from "./lib/session.js";
+import { getQuickStoriesEnabled } from "./lib/quick-stories.js";
 import {
   ensureEngagementTables,
   ensureEvidenceCleanupTable,
@@ -66,6 +67,7 @@ const storyRoutes = createStoryRoutes({
   recordActivity,
   json,
   availableIdentitySql: AVAILABLE_IDENTITY_SQL,
+  quickStoriesEnabled: getQuickStoriesEnabled,
 });
 const experienceRoutes = createExperienceRoutes({
   getCurrentUser,
@@ -242,6 +244,9 @@ const worker = {
     }
     if (url.pathname === "/api/admin/session-timeout" && ["GET", "PUT"].includes(request.method)) {
       return adminRoutes.manageSessionTimeout(request, env);
+    }
+    if (url.pathname === "/api/admin/quick-stories" && ["GET", "PUT"].includes(request.method)) {
+      return adminRoutes.manageQuickStories(request, env);
     }
     if (request.method === "GET" && url.pathname === "/api/users") {
       return adminRoutes.listNfdUsers(request, env);

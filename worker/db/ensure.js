@@ -22,6 +22,11 @@ export async function ensureAppSettings(env) {
     )
       .bind(new Date().toISOString())
       .run();
+    await env.DB.prepare(
+      `INSERT OR IGNORE INTO nfd_app_settings (setting_key, value, updated_at) VALUES ('quick_stories_enabled', '1', ?)`,
+    )
+      .bind(new Date().toISOString())
+      .run();
   })().catch((error) => {
     appSettingsTablePromise = undefined;
     throw error;

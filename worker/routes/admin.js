@@ -6,6 +6,7 @@ import {
   getSessionIdleMinutes,
   saveSessionIdleMinutes,
 } from "../lib/session.js";
+import { getQuickStoriesEnabled, saveQuickStoriesEnabled } from "../lib/quick-stories.js";
 
 export function createAdminRoutes(services) {
   const {
@@ -212,6 +213,33 @@ export function createAdminRoutes(services) {
     } catch (error) {
       console.error("Session timeout settings failed", error);
       return json({ error: "Session timeout settings could not be loaded or saved right now." }, 503);
+    }
+  }
+
+  async function manageQuickStories(request, env) {
+    const admin = await getCurrentUser(request, env);
+    if (!admin) return json({ error: "Sign in to manage Quick Stories." }, 401);
+    if (!(await isAdmin(request, env)))
+      return json({ error: "Only NFD administrators can change Quick Stories access." }, 403);
+    if (!env.DB) return json({ error: "Quick Stories settings are unavailable right now." }, 503);
+    try {
+      if (request.method === "GET") return json({ enabled: await getQuickStoriesEnabled(env) });
+      if (!request.headers.get("content-type")?.toLowerCase().includes("application/json"))
+        return json({ error: "Send the Quick Stories setting as JSON." }, 415);
+      const body = await request.json().catch(() => null);
+      if (typeof body?.enabled !== "boolean")
+        return json({ error: "Choose whether Quick Stories should be enabled." }, 400);
+      await saveQuickStoriesEnabled(env, body.enabled);
+      await recordActivity(
+        env,
+        admin.id,
+        body.enabled ? "quick_stories_enabled" : "quick_stories_disabled",
+        "settings",
+      );
+      return json({ enabled: body.enabled });
+    } catch (error) {
+      console.error("NFD Quick Stories setting failed", error);
+      return json({ error: "Quick Stories settings could not be loaded or saved right now." }, 503);
     }
   }
 
@@ -557,6 +585,7 @@ export function createAdminRoutes(services) {
     manageRestrictedEmails,
     manageModerationSettings,
     manageSessionTimeout,
+    manageQuickStories,
     manageAdmins,
     removeAdmin,
     listActivityAudit,

@@ -2171,6 +2171,14 @@ async function loadStories() {
     });
     const result = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(result.error || "Stories could not be loaded.");
+    if (result.enabled === false) {
+      storyGroups = [];
+      storiesTray.hidden = true;
+      if (storyViewer.open) closeStoryViewer();
+      renderStoryTray({ own: null, friends: [] });
+      return;
+    }
+    storiesTray.hidden = false;
     storyGroups = [...(result.own ? [result.own] : []), ...(result.friends || [])];
     if (storyViewer.open && activeUserId) {
       activeStoryGroupIndex = storyGroups.findIndex((group) => group.userId === activeUserId);
@@ -2951,6 +2959,9 @@ const sessionTimeoutForm = document.getElementById("session-timeout-form");
 const sessionTimeoutMinutesInput = document.getElementById("session-timeout-minutes");
 const sessionTimeoutSave = document.getElementById("session-timeout-save");
 const sessionTimeoutFeedback = document.getElementById("session-timeout-feedback");
+const quickStoriesSettings = document.getElementById("quick-stories-settings");
+const quickStoriesFeedback = document.getElementById("quick-stories-feedback");
+const quickStoriesToggle = document.getElementById("quick-stories-toggle");
 const adminPostManagement = document.getElementById("admin-post-management");
 const adminPostFeedback = document.getElementById("admin-post-feedback");
 const adminPostList = document.getElementById("admin-post-list");
@@ -3603,6 +3614,31 @@ async function loadSessionTimeoutSettings() {
     sessionTimeoutSave.disabled = false;
   }
 }
+async function loadQuickStoriesSettings() {
+  quickStoriesSettings.hidden = false;
+  quickStoriesFeedback.textContent = "Loading Quick Stories settings…";
+  quickStoriesFeedback.classList.remove("error");
+  quickStoriesToggle.disabled = true;
+  try {
+    const response = await fetch("/api/admin/quick-stories", {
+      headers: { accept: "application/json" },
+      cache: "no-store",
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || "Quick Stories settings could not be loaded.");
+    quickStoriesToggle.dataset.enabled = String(result.enabled);
+    quickStoriesToggle.setAttribute("aria-pressed", String(result.enabled));
+    quickStoriesToggle.textContent = result.enabled ? "Turn Quick Stories off" : "Turn Quick Stories on";
+    quickStoriesFeedback.textContent = result.enabled
+      ? "Quick Stories are available to all NFD members."
+      : "Quick Stories are currently disabled for all NFD members.";
+  } catch (error) {
+    quickStoriesFeedback.textContent = error.message;
+    quickStoriesFeedback.classList.add("error");
+  } finally {
+    quickStoriesToggle.disabled = false;
+  }
+}
 async function loadReviewModerationStatus() {
   aiReviewConsent.hidden = true;
   aiReviewConsentCheckbox.checked = false;
@@ -3664,6 +3700,7 @@ async function loadAdminPage() {
     activity: "Account activity",
     moderation: "Automatic post review",
     "session-timeout": "Session timeout",
+    "quick-stories": "Quick Stories",
     admins: "Manage administrators",
   };
   const panels = [
@@ -3674,6 +3711,7 @@ async function loadAdminPage() {
     activityAudit,
     moderationSettings,
     sessionTimeoutSettings,
+    quickStoriesSettings,
     adminPostManagement,
     restrictedEmailsPanel,
   ];
@@ -3731,6 +3769,10 @@ async function loadAdminPage() {
   }
   if (pageKey === "session-timeout") {
     await loadSessionTimeoutSettings();
+    return;
+  }
+  if (pageKey === "quick-stories") {
+    await loadQuickStoriesSettings();
     return;
   }
   if (pageKey === "admins") {
@@ -3821,6 +3863,33 @@ sessionTimeoutForm.addEventListener("submit", async (event) => {
     sessionTimeoutFeedback.classList.add("error");
   } finally {
     sessionTimeoutSave.disabled = false;
+  }
+});
+quickStoriesToggle.addEventListener("click", async () => {
+  const enabled = quickStoriesToggle.dataset.enabled === "true";
+  quickStoriesToggle.disabled = true;
+  quickStoriesFeedback.textContent = "Saving Quick Stories setting…";
+  quickStoriesFeedback.classList.remove("error");
+  try {
+    const response = await fetch("/api/admin/quick-stories", {
+      method: "PUT",
+      headers: { "content-type": "application/json", accept: "application/json" },
+      body: JSON.stringify({ enabled: !enabled }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || "Quick Stories setting could not be saved.");
+    quickStoriesToggle.dataset.enabled = String(result.enabled);
+    quickStoriesToggle.setAttribute("aria-pressed", String(result.enabled));
+    quickStoriesToggle.textContent = result.enabled ? "Turn Quick Stories off" : "Turn Quick Stories on";
+    quickStoriesFeedback.textContent = result.enabled
+      ? "Quick Stories are available to all NFD members."
+      : "Quick Stories are disabled for everyone. Existing stories remain hidden until they expire or the feature is re-enabled.";
+    await loadStories();
+  } catch (error) {
+    quickStoriesFeedback.textContent = error.message;
+    quickStoriesFeedback.classList.add("error");
+  } finally {
+    quickStoriesToggle.disabled = false;
   }
 });
 moderationToggle.addEventListener("click", async () => {

@@ -168,6 +168,7 @@
           <a href="/admin/activity" data-admin-page="activity" data-owner-only hidden>Account activity</a>
           <a href="/admin/moderation" data-admin-page="moderation">Automatic post review</a>
           <a href="/admin/session-timeout" data-admin-page="session-timeout">Session timeout</a>
+          <a href="/admin/quick-stories" data-admin-page="quick-stories">Quick Stories</a>
           <a href="/admin/admins" data-admin-page="admins" data-owner-only hidden>Manage admins</a>
         </nav>
         <div class="eyebrow">NFD administration</div>
@@ -177,7 +178,7 @@
           <h2>Choose an admin page</h2>
           <p>
             Use the navigation above to manage Ghost mode, account restrictions, shared posts, members,
-            activity, post review, or session security.
+            activity, post review, Quick Stories, or session security.
           </p>
         </section>
         <p class="admin-feedback" id="admin-feedback" role="status" aria-live="polite">
@@ -529,6 +530,31 @@
           <p class="admin-feedback" id="session-timeout-feedback" role="status" aria-live="polite">
             Loading session timeout…
           </p>
+        </section>
+        <section
+          class="admin-user-management"
+          id="quick-stories-settings"
+          hidden
+          aria-labelledby="quick-stories-heading"
+        >
+          <h2 id="quick-stories-heading">Quick Stories</h2>
+          <p>
+            Control the 24-hour photo and video Stories feature for everyone. When it is off, members cannot
+            post, view, or open existing Stories. Existing Stories are kept until they expire and scheduled
+            cleanup removes them.
+          </p>
+          <p class="admin-feedback" id="quick-stories-feedback" role="status" aria-live="polite">
+            Loading Quick Stories settings…
+          </p>
+          <button
+            class="secondary-button"
+            id="quick-stories-toggle"
+            type="button"
+            aria-pressed="true"
+            disabled
+          >
+            Loading…
+          </button>
         </section>
         <div class="admin-links">
           <a class="submit" href="/feed">Open Lore Feed</a
