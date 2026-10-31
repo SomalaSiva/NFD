@@ -57,6 +57,10 @@ The Worker still has idempotent schema checks for compatibility with older insta
 
 Run `npm run check` before handing off or publishing a change.
 
+## Responsive UI baseline
+
+The responsive layout is a project-wide requirement. Keep essential content and actions consistent across desktop and mobile, reflowing only as needed to fit. Check every route and major UI state at narrow mobile, standard mobile, tablet, and desktop widths. Prevent page-level horizontal overflow and keep compact labels, badges, controls, and navigation from wrapping unexpectedly. Horizontal scrolling is reserved for intentional content such as media galleries; narrative text should remain readable and naturally wrapped. See [AGENTS.md](AGENTS.md) for the contributor instruction.
+
 ## Production publishing
 
 NFD production is published through OpenAI Sites. Commit and push the exact source to GitHub first, build/package that commit, save a Sites version, then deploy the saved version. Do not use `wrangler deploy`; the Wrangler config is for local development only. Keep the production audience, secrets, D1, and R2 bindings unchanged unless a task specifically requires changing them.

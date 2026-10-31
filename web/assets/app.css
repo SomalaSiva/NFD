@@ -1347,11 +1347,25 @@ textarea.control::placeholder {
     padding: 18px 16px;
   }
   .feed-card-head {
-    flex-direction: column;
+    flex-direction: row;
+    gap: 7px;
+  }
+  .feed-title-group {
+    flex: 1 1 0;
+    max-width: 45%;
+  }
+  .feed-title-group .feed-category {
+    font-size: clamp(14px, 4vw, 17px);
   }
   .feed-incident {
-    max-width: 100%;
-    text-align: left;
+    flex: 0 1 55%;
+    max-width: 55%;
+    padding: 6px 7px;
+    font-size: clamp(8px, 2.4vw, 10px);
+    line-height: 1.2;
+    text-align: right;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .feed-caption {
     padding: 13px 16px 3px;
@@ -1690,6 +1704,19 @@ textarea.control::placeholder {
   overflow-x: auto;
   border-bottom: 1px solid var(--line);
   scrollbar-width: thin;
+}
+@media (max-width: 680px) {
+  .profile-tabs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    overflow: visible;
+    padding-bottom: 12px;
+  }
+  .profile-tab {
+    width: 100%;
+    min-width: 0;
+  }
 }
 .profile-tab {
   flex: 0 0 auto;
@@ -4123,6 +4150,7 @@ textarea.control::placeholder {
     gap: 12px;
     padding: 0 14px;
     font-size: 12px;
+    overflow-x: visible;
   }
   .topbar-navigation .messages-nav-link {
     margin-left: 0;
