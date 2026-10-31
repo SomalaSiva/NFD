@@ -140,9 +140,10 @@ export function createSocialRoutes(services) {
         `
         SELECT f.id AS relationship_id, u.id AS user_id,
           COALESCE(NULLIF(trim(u.display_name), ''), 'NFD member') AS name,
-          u.provider, u.ghost_handle, u.profile_photo_key
+          u.provider, gp.handle AS ghost_handle, u.profile_photo_key
         FROM nfd_friend_requests f
         INNER JOIN nfd_users u ON u.id = CASE WHEN f.from_user_id = ? THEN f.to_user_id ELSE f.from_user_id END
+        LEFT JOIN nfd_ghost_profiles gp ON gp.ghost_user_id = u.id AND gp.active = 1
         WHERE f.status = 'accepted' AND (f.from_user_id = ? OR f.to_user_id = ?)
           AND u.id = ? AND ${availableIdentitySql}
         LIMIT 1
