@@ -14,7 +14,7 @@ export function createSocialRoutes(services) {
          SELECT id FROM nfd_messages
          WHERE expires_at IS NOT NULL AND expires_at <= ?
          ORDER BY expires_at
-         LIMIT 500
+         LIMIT 1000
        )`,
     )
       .bind(now)

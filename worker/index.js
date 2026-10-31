@@ -338,7 +338,11 @@ export default {
   },
   async scheduled(_event, env, ctx) {
     ctx.waitUntil(
-      Promise.all([storyRoutes.cleanupExpiredStories(env), socialRoutes.cleanupExpiredMessages(env)]),
+      Promise.all([
+        storyRoutes.cleanupExpiredStories(env),
+        socialRoutes.cleanupExpiredMessages(env),
+        cleanupExpiredSessions(env),
+      ]),
     );
   },
 };
@@ -883,8 +887,6 @@ async function recordAppSession(env, user) {
   if (!env.DB || !user?.id) return;
   try {
     await ensureIdentityTables(env);
-    const now = new Date().toISOString();
-    await env.DB.prepare("DELETE FROM nfd_sessions WHERE expires_at <= ?").bind(now).run();
     const recentSince = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     const recent = await env.DB.prepare(
       `
@@ -900,6 +902,24 @@ async function recordAppSession(env, user) {
   } catch (error) {
     console.error("NFD session activity write failed", error);
   }
+}
+
+async function cleanupExpiredSessions(env) {
+  if (!env.DB) return 0;
+  await ensureIdentityTables(env);
+  const now = new Date().toISOString();
+  const result = await env.DB.prepare(
+    `DELETE FROM nfd_sessions
+     WHERE session_hash IN (
+       SELECT session_hash FROM nfd_sessions
+       WHERE expires_at <= ?
+       ORDER BY expires_at
+       LIMIT 1000
+     )`,
+  )
+    .bind(now)
+    .run();
+  return Number(result.meta?.changes) || 0;
 }
 
 async function deleteEvidenceObjects(env, objectKeys) {

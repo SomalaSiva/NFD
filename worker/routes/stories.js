@@ -1,6 +1,8 @@
 import { ensureStoryTables } from "../db/ensure.js";
 
 const STORY_LIFETIME_MS = 24 * 60 * 60 * 1000;
+const EXPIRED_STORY_CLEANUP_BATCH_SIZE = 1000;
+const STORY_DELETE_PARAMETER_LIMIT = 99;
 const MAX_STORY_BYTES = 25 * 1024 * 1024;
 const MAX_PROFILE_PHOTO_BYTES = 5 * 1024 * 1024;
 const PROFILE_PHOTO_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -39,23 +41,35 @@ export function createStoryRoutes(services) {
     if (!env.DB || !env.BUCKET) return;
     await ensureStoryTables(env);
     const expired = await env.DB.prepare(
-      "SELECT id, object_key FROM nfd_stories WHERE expires_at <= ? ORDER BY expires_at LIMIT 100",
+      `SELECT id, object_key FROM nfd_stories
+       WHERE expires_at <= ? ORDER BY expires_at LIMIT ${EXPIRED_STORY_CLEANUP_BATCH_SIZE}`,
     )
       .bind(new Date().toISOString())
       .all();
-    for (const story of expired.results || []) {
-      try {
-        await env.BUCKET.delete(story.object_key);
-        await env.DB.prepare("DELETE FROM nfd_stories WHERE id = ? AND expires_at <= ?")
-          .bind(story.id, new Date().toISOString())
-          .run();
-      } catch (error) {
-        console.error(
-          "Expired NFD story cleanup failed",
-          story.id,
-          error instanceof Error ? error.name : "unknown",
+    const rows = expired.results || [];
+    if (!rows.length) return 0;
+
+    try {
+      await env.BUCKET.delete(rows.map((story) => story.object_key));
+      const deleteStatements = [];
+      for (let offset = 0; offset < rows.length; offset += STORY_DELETE_PARAMETER_LIMIT) {
+        const batch = rows.slice(offset, offset + STORY_DELETE_PARAMETER_LIMIT);
+        const placeholders = batch.map(() => "?").join(", ");
+        deleteStatements.push(
+          env.DB.prepare(`DELETE FROM nfd_stories WHERE id IN (${placeholders}) AND expires_at <= ?`).bind(
+            ...batch.map((story) => story.id),
+            new Date().toISOString(),
+          ),
         );
       }
+      const deleted = await env.DB.batch(deleteStatements);
+      return deleted.reduce((total, result) => total + (Number(result.meta?.changes) || 0), 0);
+    } catch (error) {
+      console.error(
+        "Expired NFD story batch cleanup failed",
+        error instanceof Error ? error.name : "unknown",
+      );
+      return 0;
     }
   }
 
@@ -174,24 +188,32 @@ export function createStoryRoutes(services) {
       const now = new Date().toISOString();
       const result = await env.DB.prepare(
         `
+        WITH visible_authors AS (
+          SELECT f.to_user_id AS author_id
+          FROM nfd_friend_requests f
+          INNER JOIN nfd_users u ON u.id = f.to_user_id
+          WHERE f.status = 'accepted' AND f.from_user_id = ? AND ${availableIdentitySql}
+          UNION
+          SELECT f.from_user_id AS author_id
+          FROM nfd_friend_requests f
+          INNER JOIN nfd_users u ON u.id = f.from_user_id
+          WHERE f.status = 'accepted' AND f.to_user_id = ? AND ${availableIdentitySql}
+          UNION
+          SELECT ? AS author_id
+        )
         SELECT s.id, s.author_id, s.caption, s.content_type, s.created_at, s.expires_at,
           u.display_name, u.profile_photo_key,
           CASE WHEN sv.story_id IS NULL THEN 0 ELSE 1 END AS viewed
         FROM nfd_stories s
+        INNER JOIN visible_authors a ON a.author_id = s.author_id
         INNER JOIN nfd_users u ON u.id = s.author_id
         LEFT JOIN nfd_story_views sv ON sv.story_id = s.id AND sv.viewer_id = ?
-        WHERE s.expires_at > ? AND ${availableIdentitySql}
-          AND (s.author_id = ? OR EXISTS (
-            SELECT 1 FROM nfd_friend_requests fr
-            WHERE fr.status = 'accepted'
-              AND ((fr.from_user_id = ? AND fr.to_user_id = s.author_id)
-                OR (fr.from_user_id = s.author_id AND fr.to_user_id = ?))
-          ))
+        WHERE s.expires_at > ?
         ORDER BY CASE WHEN s.author_id = ? THEN 0 WHEN sv.story_id IS NULL THEN 1 ELSE 2 END,
           s.created_at ASC
       `,
       )
-        .bind(viewer.id, now, viewer.id, viewer.id, viewer.id, viewer.id)
+        .bind(viewer.id, viewer.id, viewer.id, viewer.id, now, viewer.id)
         .all();
       const groups = new Map();
       for (const row of result.results || []) {
