@@ -2821,11 +2821,15 @@ async function loadFeed({ append = false } = {}) {
     let result;
     let lastError;
     for (let attempt = 0; attempt < 2; attempt++) {
+      const attemptController = new AbortController();
+      const abortAttempt = () => attemptController.abort();
+      controller.signal.addEventListener("abort", abortAttempt, { once: true });
+      const timeoutId = setTimeout(abortAttempt, 10000);
       try {
         const response = await fetch(`/api/experiences${params.size ? `?${params}` : ""}`, {
           headers: { accept: "application/json" },
           cache: "no-store",
-          signal: controller.signal,
+          signal: attemptController.signal,
         });
         const payload = await response.json().catch(() => null);
         if (requestNumber !== feedRequestNumber || controller.signal.aborted) return;
@@ -2843,12 +2847,16 @@ async function loadFeed({ append = false } = {}) {
         throw lastError;
       } catch (error) {
         if (requestNumber !== feedRequestNumber || controller.signal.aborted) return;
-        lastError = error;
-        if (attempt === 0 && error instanceof TypeError) {
+        const timedOut = error?.name === "AbortError";
+        lastError = timedOut ? new Error("The feed request timed out. Try again in a moment.") : error;
+        if (attempt === 0 && (error instanceof TypeError || timedOut)) {
           await new Promise((resolve) => setTimeout(resolve, 500));
           continue;
         }
-        throw error;
+        throw lastError;
+      } finally {
+        clearTimeout(timeoutId);
+        controller.signal.removeEventListener("abort", abortAttempt);
       }
     }
     if (!result)
