@@ -2727,6 +2727,7 @@ friendRequestForm.addEventListener("submit", async (event) => {
 });
 let feedRequestNumber = 0;
 let feedFilterTimer;
+let feedAbortController;
 function updateSuggestions(list, values) {
   list.replaceChildren();
   [...new Set((values || []).filter(Boolean))].forEach((value) => {
@@ -2797,6 +2798,9 @@ feedLocationSearch.addEventListener("input", scheduleFeedLoad);
 document.getElementById("clear-feed-filters").addEventListener("click", clearFeedFilters);
 async function loadFeed({ append = false } = {}) {
   const requestNumber = ++feedRequestNumber;
+  feedAbortController?.abort();
+  const controller = new AbortController();
+  feedAbortController = controller;
   if (!append) {
     feedNextCursor = "";
     feedLoadedCount = 0;
@@ -2814,13 +2818,41 @@ async function loadFeed({ append = false } = {}) {
   feedState.textContent = params.size ? "Looking for matching stories…" : "Looking for stories…";
   feedState.hidden = false;
   try {
-    const response = await fetch(`/api/experiences${params.size ? `?${params}` : ""}`, {
-      headers: { accept: "application/json" },
-      cache: "no-store",
-    });
-    const result = await response.json().catch(() => ({}));
-    if (requestNumber !== feedRequestNumber) return;
-    if (!response.ok) throw new Error(result.error || "NFD couldn’t load the stories just now.");
+    let result;
+    let lastError;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const response = await fetch(`/api/experiences${params.size ? `?${params}` : ""}`, {
+          headers: { accept: "application/json" },
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        const payload = await response.json().catch(() => null);
+        if (requestNumber !== feedRequestNumber || controller.signal.aborted) return;
+        if (response.ok && payload && typeof payload === "object") {
+          result = payload;
+          break;
+        }
+        lastError = new Error(
+          payload?.error || "The feed service is temporarily unavailable. Try again in a moment.",
+        );
+        if (attempt === 0 && (response.status >= 500 || !payload)) {
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          continue;
+        }
+        throw lastError;
+      } catch (error) {
+        if (requestNumber !== feedRequestNumber || controller.signal.aborted) return;
+        lastError = error;
+        if (attempt === 0 && error instanceof TypeError) {
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          continue;
+        }
+        throw error;
+      }
+    }
+    if (!result)
+      throw lastError || new Error("The feed service is temporarily unavailable. Try again in a moment.");
     updateSuggestions(feedPlaceSuggestions, result.placeSuggestions);
     updateSuggestions(feedLocationSuggestions, result.locationSuggestions);
     updateSelectOptions(feedExperienceCategory, result.experienceCategoryOptions, "Any experience type");
@@ -2843,13 +2875,23 @@ async function loadFeed({ append = false } = {}) {
     } else {
       feedResultCount.textContent = "";
       feedList.replaceChildren();
-      addText(
+      const errorBox = addText(
         feedList,
         "div",
         "feed-error",
-        error instanceof TypeError ? "The feed could not connect. Try refreshing this page." : error.message,
+        error instanceof TypeError
+          ? "The feed could not connect. Check your connection and try again."
+          : error.message,
       );
+      const retryButton = document.createElement("button");
+      retryButton.type = "button";
+      retryButton.className = "secondary-button";
+      retryButton.textContent = "Try again";
+      retryButton.addEventListener("click", () => void loadFeed());
+      errorBox.append(retryButton);
     }
+  } finally {
+    if (feedAbortController === controller) feedAbortController = null;
   }
 }
 feedLoadMore.addEventListener("click", async () => {

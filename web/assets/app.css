@@ -1035,6 +1035,11 @@ textarea.control::placeholder {
   color: var(--danger);
   font-size: 12px;
 }
+.feed-error .secondary-button {
+  display: block;
+  width: fit-content;
+  margin-top: 10px;
+}
 .auth-page {
   max-width: 720px;
   padding-top: 76px;
