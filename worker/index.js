@@ -18,6 +18,7 @@ const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GOOGLE_JWKS_URL = "https://www.googleapis.com/oauth2/v3/certs";
 const GOOGLE_SESSION_COOKIE = "__Host-nfd_session";
+const GOOGLE_ACTIVITY_COOKIE = "__Host-nfd_activity";
 const GOOGLE_OAUTH_COOKIE = "__Host-nfd_google_oauth";
 const GHOST_MODE_COOKIE = "__Host-nfd_ghost";
 const CHATGPT_IDLE_COOKIE = "__Host-nfd_idle";
@@ -32,6 +33,9 @@ const AVAILABLE_IDENTITY_SQL = `u.active = 1 AND (
 )`;
 let googleJwksCache;
 let googleJwksExpiresAt = 0;
+let googleActivityKeySecret = "";
+let googleActivityKeyPromise;
+const googleActivityCookies = new WeakMap();
 const adminRoutes = createAdminRoutes({
   getCurrentUser,
   isOwner,
@@ -78,7 +82,7 @@ const experienceRoutes = createExperienceRoutes({
   reviewWithGemini,
 });
 
-export default {
+const worker = {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (request.method === "GET" && /^\/assets\/app\.[a-f0-9]{12}\.css$/.test(url.pathname)) {
@@ -347,6 +351,22 @@ export default {
   },
 };
 
+export default {
+  ...worker,
+  async fetch(request, env) {
+    const response = await worker.fetch(request, env);
+    const activityCookie = googleActivityCookies.get(request);
+    if (activityCookie === undefined) return response;
+    const headers = new Headers(response.headers);
+    headers.append("set-cookie", activityCookie);
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers,
+    });
+  },
+};
+
 function html(body, status = 200) {
   return new Response(body, {
     status,
@@ -484,7 +504,11 @@ async function signOut(request, env) {
       : idleSignOut
         ? "/login?idle=1"
         : returnTo;
-  const setCookies = [cookie(GOOGLE_SESSION_COOKIE, "", 0), cookie(GHOST_MODE_COOKIE, "", 0)];
+  const setCookies = [
+    cookie(GOOGLE_SESSION_COOKIE, "", 0),
+    cookie(GOOGLE_ACTIVITY_COOKIE, "", 0),
+    cookie(GHOST_MODE_COOKIE, "", 0),
+  ];
   if (idleSignOut && hasChatGptSession) setCookies.push(cookie(CHATGPT_IDLE_COOKIE, "1", 60 * 60 * 24 * 30));
   return redirect(destination, 302, setCookies);
 }
@@ -506,23 +530,43 @@ async function getAuthenticatedUser(request, env) {
         .bind(sessionHash)
         .first();
       const now = Date.now();
-      if (
-        session &&
-        Number(session.active) === 1 &&
-        Date.parse(session.expires_at) > now &&
-        !isSessionIdle(
-          session.last_activity_at || session.created_at,
-          now,
-          (await getSessionIdleMinutes(env)) * 60,
-        )
-      ) {
-        await env.DB.prepare("UPDATE nfd_sessions SET last_activity_at = ? WHERE session_hash = ?")
-          .bind(new Date(now).toISOString(), sessionHash)
-          .run();
-        return session;
+      if (session && Number(session.active) === 1 && Date.parse(session.expires_at) > now) {
+        const idleMinutes = await getSessionIdleMinutes(env);
+        const storedActivity = Date.parse(session.last_activity_at || session.created_at);
+        const cookieActivity = await readGoogleActivityCookie(request, env, sessionHash, now);
+        const lastActivity = Math.max(
+          Number.isFinite(storedActivity) ? storedActivity : 0,
+          cookieActivity || 0,
+        );
+        if (!isSessionIdle(new Date(lastActivity).toISOString(), now, idleMinutes * 60)) {
+          let activityToken = "";
+          try {
+            activityToken = await createGoogleActivityCookie(env, sessionHash, now);
+          } catch (error) {
+            console.error(
+              "Google activity cookie signing failed",
+              error instanceof Error ? error.name : "unknown",
+            );
+          }
+          if (activityToken) {
+            googleActivityCookies.set(
+              request,
+              cookie(GOOGLE_ACTIVITY_COOKIE, activityToken, idleMinutes * 60 + 60),
+            );
+            return { ...session, last_activity_at: new Date(now).toISOString() };
+          }
+          await env.DB.prepare("UPDATE nfd_sessions SET last_activity_at = ? WHERE session_hash = ?")
+            .bind(new Date(now).toISOString(), sessionHash)
+            .run();
+          return session;
+        }
       }
-      if (session)
+      if (session) {
         await env.DB.prepare("DELETE FROM nfd_sessions WHERE session_hash = ?").bind(sessionHash).run();
+        googleActivityCookies.set(request, cookie(GOOGLE_ACTIVITY_COOKIE, "", 0));
+      } else {
+        googleActivityCookies.set(request, cookie(GOOGLE_ACTIVITY_COOKIE, "", 0));
+      }
     } catch (error) {
       console.error("Google session lookup failed", error);
     }
@@ -570,6 +614,66 @@ async function getAuthenticatedUser(request, env) {
   }
 
   return null;
+}
+
+async function getGoogleActivitySigningKey(env) {
+  const secret = env.GOOGLE_CLIENT_SECRET;
+  if (!secret) return null;
+  if (secret !== googleActivityKeySecret) {
+    googleActivityKeySecret = secret;
+    googleActivityKeyPromise = crypto.subtle
+      .digest("SHA-256", new TextEncoder().encode(`NFD Google activity cookie v1\0${secret}`))
+      .then((digest) =>
+        crypto.subtle.importKey("raw", digest, { name: "HMAC", hash: "SHA-256" }, false, ["sign", "verify"]),
+      )
+      .catch((error) => {
+        if (secret === googleActivityKeySecret) googleActivityKeyPromise = undefined;
+        console.error(
+          "Google activity cookie key setup failed",
+          error instanceof Error ? error.name : "unknown",
+        );
+        return null;
+      });
+  }
+  return googleActivityKeyPromise;
+}
+
+async function createGoogleActivityCookie(env, sessionHash, timestamp) {
+  const key = await getGoogleActivitySigningKey(env);
+  if (!key) return "";
+  const payload = `${sessionHash}\n${timestamp}`;
+  const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(payload));
+  return `${base64UrlEncode(payload)}.${base64UrlEncode(new Uint8Array(signature))}`;
+}
+
+async function readGoogleActivityCookie(request, env, sessionHash, now) {
+  const token = getCookie(request, GOOGLE_ACTIVITY_COOKIE);
+  if (!token) return 0;
+  try {
+    const [encodedPayload, encodedSignature, ...extra] = token.split(".");
+    if (!encodedPayload || !encodedSignature || extra.length) return 0;
+    const payload = base64UrlDecode(encodedPayload);
+    const [boundSessionHash, encodedTimestamp, ...payloadExtra] = payload.split("\n");
+    const timestamp = Number(encodedTimestamp);
+    if (
+      payloadExtra.length ||
+      boundSessionHash !== sessionHash ||
+      !Number.isSafeInteger(timestamp) ||
+      timestamp > now + 10_000
+    )
+      return 0;
+    const key = await getGoogleActivitySigningKey(env);
+    if (!key) return 0;
+    const valid = await crypto.subtle.verify(
+      "HMAC",
+      key,
+      base64UrlDecodeBytes(encodedSignature),
+      new TextEncoder().encode(payload),
+    );
+    return valid ? timestamp : 0;
+  } catch {
+    return 0;
+  }
 }
 
 async function getCurrentUser(request, env) {

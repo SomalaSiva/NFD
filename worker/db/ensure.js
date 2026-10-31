@@ -98,6 +98,9 @@ export async function ensureMessagingTables(env) {
     await env.DB.prepare(
       "CREATE INDEX IF NOT EXISTS nfd_messages_expires_idx ON nfd_messages (expires_at)",
     ).run();
+    await env.DB.prepare(
+      "CREATE INDEX IF NOT EXISTS nfd_messages_created_idx ON nfd_messages (created_at)",
+    ).run();
   })().catch((error) => {
     messagingTablesPromise = undefined;
     throw error;

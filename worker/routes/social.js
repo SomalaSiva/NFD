@@ -1,5 +1,7 @@
 import { ensureMessagingTables, ensureStoryTables } from "../db/ensure.js";
 
+const MESSAGE_RETENTION_MS = 90 * 24 * 60 * 60 * 1000;
+
 export function createSocialRoutes(services) {
   const { getCurrentUser, ensureGhostTables, recordActivity, json, cleanSearchTerm, availableIdentitySql } =
     services;
@@ -8,7 +10,8 @@ export function createSocialRoutes(services) {
     if (!env.DB) return 0;
     await ensureMessagingTables(env);
     const now = new Date().toISOString();
-    const result = await env.DB.prepare(
+    const retentionCutoff = new Date(Date.now() - MESSAGE_RETENTION_MS).toISOString();
+    const expired = await env.DB.prepare(
       `DELETE FROM nfd_messages
        WHERE id IN (
          SELECT id FROM nfd_messages
@@ -19,7 +22,18 @@ export function createSocialRoutes(services) {
     )
       .bind(now)
       .run();
-    return Number(result.meta?.changes) || 0;
+    const expiredUnseen = await env.DB.prepare(
+      `DELETE FROM nfd_messages
+       WHERE id IN (
+         SELECT id FROM nfd_messages
+         WHERE expires_at IS NULL AND created_at <= ?
+         ORDER BY created_at
+         LIMIT 1000
+       )`,
+    )
+      .bind(retentionCutoff)
+      .run();
+    return (Number(expired.meta?.changes) || 0) + (Number(expiredUnseen.meta?.changes) || 0);
   }
 
   async function manageFriends(request, env) {
@@ -270,26 +284,43 @@ export function createSocialRoutes(services) {
       await ensureMessagingTables(env);
       await ensureGhostTables(env);
       const now = new Date().toISOString();
+      const retentionCutoff = new Date(Date.now() - MESSAGE_RETENTION_MS).toISOString();
       const result = await env.DB.prepare(
         `
       SELECT u.id AS user_id, COALESCE(NULLIF(trim(u.display_name), ''), 'NFD member') AS name,
         (SELECT substr(m.body, 1, 100) FROM nfd_messages m
           WHERE ((m.sender_id = ? AND m.recipient_id = u.id) OR (m.sender_id = u.id AND m.recipient_id = ?))
             AND (m.expires_at IS NULL OR m.expires_at > ?)
+            AND m.created_at > ?
           ORDER BY m.created_at DESC LIMIT 1) AS last_message,
         (SELECT m.created_at FROM nfd_messages m
           WHERE ((m.sender_id = ? AND m.recipient_id = u.id) OR (m.sender_id = u.id AND m.recipient_id = ?))
             AND (m.expires_at IS NULL OR m.expires_at > ?)
+            AND m.created_at > ?
           ORDER BY m.created_at DESC LIMIT 1) AS last_message_at,
         (SELECT COUNT(*) FROM nfd_messages m
-          WHERE m.sender_id = u.id AND m.recipient_id = ? AND m.seen_at IS NULL) AS unread_count
+          WHERE m.sender_id = u.id AND m.recipient_id = ? AND m.seen_at IS NULL AND m.created_at > ?) AS unread_count
       FROM nfd_friend_requests f
       INNER JOIN nfd_users u ON u.id = CASE WHEN f.from_user_id = ? THEN f.to_user_id ELSE f.from_user_id END
       WHERE f.status = 'accepted' AND (f.from_user_id = ? OR f.to_user_id = ?) AND ${availableIdentitySql}
       ORDER BY COALESCE(last_message_at, f.updated_at) DESC, lower(name)
     `,
       )
-        .bind(user.id, user.id, now, user.id, user.id, now, user.id, user.id, user.id, user.id)
+        .bind(
+          user.id,
+          user.id,
+          now,
+          retentionCutoff,
+          user.id,
+          user.id,
+          now,
+          retentionCutoff,
+          user.id,
+          retentionCutoff,
+          user.id,
+          user.id,
+          user.id,
+        )
         .all();
       return json({
         currentUserId: user.id,
@@ -316,16 +347,18 @@ export function createSocialRoutes(services) {
       const friend = await getAcceptedFriend(env, user.id, friendId);
       if (!friend) return json({ error: "Messages are available only between accepted NFD friends." }, 403);
       const now = new Date().toISOString();
+      const retentionCutoff = new Date(Date.now() - MESSAGE_RETENTION_MS).toISOString();
       const result = await env.DB.prepare(
         `
       SELECT id, sender_id, recipient_id, body, created_at, seen_at, expires_at
       FROM nfd_messages
       WHERE ((sender_id = ? AND recipient_id = ?) OR (sender_id = ? AND recipient_id = ?))
         AND (expires_at IS NULL OR expires_at > ?)
+        AND created_at > ?
       ORDER BY created_at DESC LIMIT 300
     `,
       )
-        .bind(user.id, friend.id, friend.id, user.id, now)
+        .bind(user.id, friend.id, friend.id, user.id, now, retentionCutoff)
         .all();
       const messages = (result.results || []).reverse().map((row) => ({
         id: row.id,

@@ -211,10 +211,9 @@
           NFD stores text messages exchanged between accepted NFD friends so they can appear in the
           conversation; only the two participants can open it in NFD. When a recipient has a message visibly
           open on screen, NFD records when it was seen and sets it to expire one hour later. Expired messages
-          are removed and no longer shown when the messaging service next checks for them. If nobody uses
-          Messages after a message expires, its stored row may remain until the next messaging check. Messages
-          that have not been seen do not start the one-hour timer. Message text is not copied into NFD’s
-          account activity log.
+          are removed and no longer shown when the messaging service next checks for them. Unread messages are
+          removed after 90 days. Cleanup runs on a schedule, so a row may remain briefly after its expiry
+          while it waits for cleanup. Message text is not copied into NFD’s account activity log.
         </p>
 
         <h2>Optional automatic post review</h2>
