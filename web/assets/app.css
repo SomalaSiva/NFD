@@ -1091,25 +1091,29 @@ textarea.control::placeholder {
   line-height: 1.6;
   margin: 0 0 17px;
 }
-.auth-option .submit,
-.google-signin {
-  width: 100%;
-  min-height: 42px;
-  font-size: 11px;
-}
-.google-signin {
+.auth-provider-signin {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 9px;
-  margin-top: 9px;
+  width: 100%;
+  min-height: 42px;
+  font-size: 11px;
   border: 1px solid #dfe6e1;
   border-radius: 10px;
   background: #fff;
   color: #34483d;
   font-weight: 700;
+  text-decoration: none;
+  transition:
+    border-color 0.15s,
+    color 0.15s,
+    background 0.15s;
 }
-.google-signin:hover {
+.auth-provider-signin + .auth-provider-signin {
+  margin-top: 9px;
+}
+.auth-provider-signin:hover {
   border-color: #95b5a1;
   color: var(--green);
 }
