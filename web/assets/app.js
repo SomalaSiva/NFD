@@ -429,6 +429,7 @@ let selectedFiles = [];
 let editingPostId = "";
 let editingPostLoaded = false;
 let editingEvidence = [];
+let editingPostLoadController;
 const filePreviewUrls = new Map();
 function getFilePreviewUrl(file) {
   if (!filePreviewUrls.has(file)) filePreviewUrls.set(file, URL.createObjectURL(file));
@@ -777,10 +778,20 @@ async function loadPostForEditing() {
   const saveButton = document.getElementById("continue-to-review");
   continueButton.disabled = true;
   saveButton.disabled = true;
+  editingPostLoadController?.abort();
+  const controller = new AbortController();
+  editingPostLoadController = controller;
+  let timedOut = false;
+  const timeoutId = window.setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, 15000);
   try {
     const response = await fetch(`/api/experiences/${encodeURIComponent(editingPostId)}`, {
       headers: { accept: "application/json" },
       cache: "no-store",
+      credentials: "same-origin",
+      signal: controller.signal,
     });
     const result = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(result.error || "This post could not be loaded for editing.");
@@ -815,11 +826,24 @@ async function loadPostForEditing() {
     saveButton.disabled = false;
     showStoryFormStep("story");
   } catch (error) {
-    intro.textContent = error.message;
+    if (editingPostLoadController !== controller) return;
+    const message = timedOut
+      ? "This post is taking too long to load. Check your connection and try again."
+      : error.message || "This post could not be loaded for editing.";
+    intro.replaceChildren(document.createTextNode(`${message} `));
+    const retryButton = document.createElement("button");
+    retryButton.className = "secondary-button";
+    retryButton.type = "button";
+    retryButton.textContent = "Try again";
+    retryButton.addEventListener("click", () => void loadPostForEditing(), { once: true });
+    intro.append(retryButton);
     formStepTitle.textContent = "Couldn’t load this post";
     continueButton.disabled = true;
     saveButton.disabled = true;
     document.getElementById("confirm-review").disabled = true;
+  } finally {
+    window.clearTimeout(timeoutId);
+    if (editingPostLoadController === controller) editingPostLoadController = undefined;
   }
 }
 function prettyDate(value, timeZone) {
@@ -4551,12 +4575,13 @@ if (location.pathname === "/login") {
 experienceCategoryInput.addEventListener("change", updateIncidentCategoryOptions);
 if (location.pathname === "/share") {
   updateIncidentCategoryOptions();
-  loadFriendCount();
-  void loadPostFieldSuggestions();
   const editId = new URLSearchParams(location.search).get("edit");
   if (editId) {
     editingPostId = editId;
     void loadPostForEditing();
+  } else {
+    loadFriendCount();
+    void loadPostFieldSuggestions();
   }
   postPlaceInput?.addEventListener("input", schedulePostPlaceSuggestions);
   postLocationInput?.addEventListener("input", schedulePostLocationSuggestions);

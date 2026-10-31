@@ -12,3 +12,11 @@
 
 - Whenever opening or sharing the NFD app in a ChatGPT browser or preview, use a portrait phone-sized viewport only (about 390 × 844 CSS pixels). Do not open it in a desktop-sized viewport.
 - Keep the ChatGPT preview in mobile view for future app links and review sessions. If the available browser tool cannot control its viewport, say so plainly and keep the app UI itself in the requested mobile responsive state where supported.
+
+## Verify changes before calling them done
+
+- Before reporting an app change as complete or sharing its preview/live link, run the relevant automated checks and exercise the changed behavior in the app.
+- Run a regression smoke check of existing core flows affected by the change. For releases, cover sign-in and sign-out, feed browsing and engagement, post creation/editing/deletion and media, profiles and friendships, messages/stories, and administrator access as applicable.
+- Check the changed UI in the portrait mobile ChatGPT preview and confirm existing related controls still work. Do not claim a flow or feature is intact unless it was actually checked.
+- Verify that a live release succeeded and that its exact source commit was pushed to Git before saying it is live or sharing the live link.
+- If browser access, test accounts, or environment constraints prevent a check, state exactly what was and was not verified before handing off the link.
