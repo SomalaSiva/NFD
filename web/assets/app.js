@@ -3619,6 +3619,7 @@ async function loadQuickStoriesSettings() {
   quickStoriesFeedback.textContent = "Loading Quick Stories settings…";
   quickStoriesFeedback.classList.remove("error");
   quickStoriesToggle.disabled = true;
+  let loaded = false;
   try {
     const response = await fetch("/api/admin/quick-stories", {
       headers: { accept: "application/json" },
@@ -3632,11 +3633,12 @@ async function loadQuickStoriesSettings() {
     quickStoriesFeedback.textContent = result.enabled
       ? "Quick Stories are available to all NFD members."
       : "Quick Stories are currently disabled for all NFD members.";
+    loaded = true;
   } catch (error) {
     quickStoriesFeedback.textContent = error.message;
     quickStoriesFeedback.classList.add("error");
   } finally {
-    quickStoriesToggle.disabled = false;
+    quickStoriesToggle.disabled = !loaded;
   }
 }
 async function loadReviewModerationStatus() {
