@@ -1407,6 +1407,7 @@ textarea.control::placeholder {
     padding: 23px 19px;
   }
 }
+
 @media (max-width: 420px) {
   .step-title {
     max-width: 72px;
@@ -4182,4 +4183,36 @@ textarea.control::placeholder {
     top: 72px;
     right: 14px;
   }
+}
+
+/* Preserve portrait captures in the feed instead of forcing them into landscape crops. */
+.feed-photo-grid .feed-photo.is-portrait {
+  display: flex;
+  justify-content: center;
+  background: var(--surface-raised);
+}
+.feed-photo-grid .feed-photo-image.is-portrait {
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  max-height: min(72svh, 700px);
+  aspect-ratio: auto;
+  object-fit: contain;
+  margin-inline: auto;
+}
+.feed-video-item.is-portrait {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #15211c;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.feed-video-item.is-portrait .feed-video {
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  max-height: min(72svh, 700px);
+  aspect-ratio: auto;
+  object-fit: contain;
 }

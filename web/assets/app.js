@@ -1019,11 +1019,20 @@ function renderFeed(experiences, { append = false, nextCursor = "" } = {}) {
         link.rel = "noopener noreferrer";
         const image = document.createElement("img");
         image.className = "feed-photo-image";
-        image.src = file.hasPreview ? `${link.href}?variant=preview` : link.href;
         image.alt = `Photo attached to ${experience.experienceCategory} experience`;
         image.loading = index === 0 ? "eager" : "lazy";
         image.decoding = "async";
         image.title = file.originalFilename;
+        image.addEventListener(
+          "load",
+          () => {
+            const isPortrait = image.naturalHeight > image.naturalWidth;
+            image.classList.toggle("is-portrait", isPortrait);
+            link.classList.toggle("is-portrait", isPortrait);
+          },
+          { once: true },
+        );
+        image.src = file.hasPreview ? `${link.href}?variant=preview` : link.href;
         link.append(image);
         gallery.append(link);
       });
@@ -1106,6 +1115,9 @@ function renderFeed(experiences, { append = false, nextCursor = "" } = {}) {
         video.preload = "metadata";
         video.playsInline = true;
         video.title = file.originalFilename;
+        video.addEventListener("loadedmetadata", () => {
+          videoItem.classList.toggle("is-portrait", video.videoHeight > video.videoWidth);
+        });
         video.poster = file.hasPreview
           ? `/api/evidence/${encodeURIComponent(file.id)}?variant=preview`
           : videoFallbackPoster;
