@@ -4465,7 +4465,12 @@ if (location.pathname === "/login") {
   setMainNavigationVisible(false);
   document.title = "Sign in — NFD";
   const params = new URLSearchParams(location.search);
-  document.getElementById("user-signin").href = "/auth/chatgpt-resume?return_to=%2Ffeed";
+  const loginReturnTo = params.get("return_to") === "/admin" ? "/admin" : "/feed";
+  document.getElementById("login-admin-link").hidden = false;
+  document.getElementById("user-signin").href =
+    `/auth/chatgpt-resume?return_to=${encodeURIComponent(loginReturnTo)}`;
+  document.getElementById("google-user-signin").href =
+    `/auth/google?return_to=${encodeURIComponent(loginReturnTo)}`;
   if (params.get("idle") === "1") {
     const feedback = document.getElementById("google-feedback");
     feedback.style.display = "block";

@@ -24,6 +24,7 @@
               ><span class="brand-name">NFD</span><span class="brand-subtitle">No Face Docs</span></span
             ></a
           >
+          <a class="login-admin-link" id="login-admin-link" href="/admin" hidden>Admin</a>
           <div class="stories-tray" id="stories-tray" aria-label="Friends’ stories" hidden>
             <div class="story-own-shell">
               <button
@@ -105,8 +106,8 @@
         <div class="auth-kicker">No Face Docs · Secure access</div>
         <h1 id="login-heading">Sign in to NFD</h1>
         <p>
-          Use your Google or ChatGPT account to read or share stories. Pick the access you need; NFD checks
-          admin access behind the scenes—no secret handshake required.
+          Use your Google or ChatGPT account to read or share stories. NFD checks administrator access behind
+          the scenes.
         </p>
         <div class="auth-denied" id="auth-denied" role="alert">
           This account does not have administrator access. Sign in with an authorized NFD administrator
@@ -123,16 +124,11 @@
               href="/auth/chatgpt-resume?return_to=%2Ffeed"
               target="_top"
               >Continue with ChatGPT</a
-            ><a class="auth-provider-signin" href="/auth/google?return_to=%2Ffeed" target="_top"
-              ><span class="google-mark" aria-hidden="true">G</span>Continue with Google</a
-            >
-          </article>
-          <article class="auth-option admin">
-            <h2>Administrator access</h2>
-            <p>Sign in with an NFD administrator account to open the admin area.</p>
-            <a class="auth-provider-signin" href="/auth/chatgpt-resume?return_to=%2Fadmin" target="_top"
-              >Continue with ChatGPT</a
-            ><a class="auth-provider-signin" href="/auth/google?return_to=%2Fadmin" target="_top"
+            ><a
+              class="auth-provider-signin"
+              id="google-user-signin"
+              href="/auth/google?return_to=%2Ffeed"
+              target="_top"
               ><span class="google-mark" aria-hidden="true">G</span>Continue with Google</a
             >
           </article>
