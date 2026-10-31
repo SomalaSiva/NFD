@@ -22,6 +22,13 @@
       "when": 1793383777005,
       "tag": "0002_uneven_white_tiger",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1793414509624,
+      "tag": "0003_natural_wendell_rand",
+      "breakpoints": true
     }
   ]
 }

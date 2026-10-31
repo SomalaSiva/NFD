@@ -3,7 +3,7 @@ import { createSocialRoutes } from "./routes/social.js";
 import { createStoryRoutes } from "./routes/stories.js";
 import { createExperienceRoutes } from "./routes/experiences.js";
 import { ADMIN_PAGE_SIZE, getPageMetadata, getPageOffset } from "./lib/pagination.js";
-import { isSessionIdle } from "./lib/session.js";
+import { getSessionIdleMinutes, isSessionIdle } from "./lib/session.js";
 import {
   ensureEngagementTables,
   ensureEvidenceCleanupTable,
@@ -197,7 +197,11 @@ export default {
         isAdmin: !user.isGhost && (await adminRoutes.isAdmin(request, env)),
         provider: user.provider,
         ghostMode: await getGhostModeState(request, env, user),
+        sessionIdleMinutes: await getSessionIdleMinutes(env),
       });
+    }
+    if (request.method === "GET" && url.pathname === "/api/session-timeout") {
+      return json({ minutes: await getSessionIdleMinutes(env) });
     }
     if (url.pathname === "/api/ghost-mode" && ["GET", "PUT"].includes(request.method)) {
       return manageGhostMode(request, env);
@@ -231,6 +235,9 @@ export default {
     }
     if (url.pathname === "/api/moderation/settings" && ["GET", "PUT"].includes(request.method)) {
       return adminRoutes.manageModerationSettings(request, env);
+    }
+    if (url.pathname === "/api/admin/session-timeout" && ["GET", "PUT"].includes(request.method)) {
+      return adminRoutes.manageSessionTimeout(request, env);
     }
     if (request.method === "GET" && url.pathname === "/api/users") {
       return adminRoutes.listNfdUsers(request, env);
@@ -497,7 +504,11 @@ async function getAuthenticatedUser(request, env) {
         session &&
         Number(session.active) === 1 &&
         Date.parse(session.expires_at) > now &&
-        !isSessionIdle(session.last_activity_at || session.created_at, now)
+        !isSessionIdle(
+          session.last_activity_at || session.created_at,
+          now,
+          (await getSessionIdleMinutes(env)) * 60,
+        )
       ) {
         await env.DB.prepare("UPDATE nfd_sessions SET last_activity_at = ? WHERE session_hash = ?")
           .bind(new Date(now).toISOString(), sessionHash)

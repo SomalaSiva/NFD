@@ -167,6 +167,7 @@
           <a href="/admin/members" data-admin-page="members" data-owner-only hidden>People using NFD</a>
           <a href="/admin/activity" data-admin-page="activity" data-owner-only hidden>Account activity</a>
           <a href="/admin/moderation" data-admin-page="moderation">Automatic post review</a>
+          <a href="/admin/session-timeout" data-admin-page="session-timeout">Session timeout</a>
           <a href="/admin/admins" data-admin-page="admins" data-owner-only hidden>Manage admins</a>
         </nav>
         <div class="eyebrow">NFD administration</div>
@@ -176,7 +177,7 @@
           <h2>Choose an admin page</h2>
           <p>
             Use the navigation above to manage Ghost mode, account restrictions, shared posts, members,
-            activity, or post review.
+            activity, post review, or session security.
           </p>
         </section>
         <p class="admin-feedback" id="admin-feedback" role="status" aria-live="polite">
@@ -497,6 +498,37 @@
           <button class="secondary-button" id="moderation-toggle" type="button" aria-pressed="false" disabled>
             Loading…
           </button>
+        </section>
+        <section
+          class="admin-user-management"
+          id="session-timeout-settings"
+          hidden
+          aria-labelledby="session-timeout-heading"
+        >
+          <h2 id="session-timeout-heading">Session timeout</h2>
+          <p>
+            Choose how long a signed-in user can be inactive before NFD signs them out. This setting applies
+            across the app and updates active sessions shortly after you save it.
+          </p>
+          <form id="session-timeout-form" class="admin-add-form">
+            <label for="session-timeout-minutes">Sign out after (minutes)</label>
+            <div class="admin-add-row">
+              <input
+                class="control"
+                id="session-timeout-minutes"
+                type="number"
+                min="1"
+                max="120"
+                step="1"
+                value="4"
+                required
+              />
+              <button class="submit" id="session-timeout-save" type="submit">Save timeout</button>
+            </div>
+          </form>
+          <p class="admin-feedback" id="session-timeout-feedback" role="status" aria-live="polite">
+            Loading session timeout…
+          </p>
         </section>
         <div class="admin-links">
           <a class="submit" href="/feed">Open Lore Feed</a

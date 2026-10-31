@@ -183,9 +183,10 @@ function setMainNavigationVisible(visible) {
   storiesTray.hidden = !visible;
 }
 let messageNavRefreshTimer;
-const SESSION_IDLE_LIMIT_MS = 4 * 60 * 1000;
+let SESSION_IDLE_LIMIT_MS = 4 * 60 * 1000;
 const SESSION_ACTIVITY_STORAGE_KEY = "nfd:last-active-at";
 let inactivityLogoutTimer;
+let sessionTimeoutRefreshTimer;
 let lastSessionActivityAt = 0;
 let lastSessionActivitySavedAt = 0;
 let sessionActivityTrackingStarted = false;
@@ -274,6 +275,25 @@ function readSharedSessionActivity() {
     return 0;
   }
 }
+function applySessionIdleMinutes(value) {
+  const minutes = Number(value);
+  if (!Number.isInteger(minutes) || minutes < 1 || minutes > 120) return;
+  SESSION_IDLE_LIMIT_MS = minutes * 60 * 1000;
+  if (sessionActivityTrackingStarted) scheduleInactivityLogout();
+}
+async function refreshSessionIdleMinutes() {
+  try {
+    const response = await fetch("/api/session-timeout", {
+      headers: { accept: "application/json" },
+      cache: "no-store",
+    });
+    if (!response.ok) return;
+    const result = await response.json().catch(() => ({}));
+    applySessionIdleMinutes(result.minutes);
+  } catch {
+    // Keep using the last value if the settings endpoint is temporarily unavailable.
+  }
+}
 function scheduleInactivityLogout() {
   clearTimeout(inactivityLogoutTimer);
   const lastActivityAt = Math.max(lastSessionActivityAt, readSharedSessionActivity());
@@ -302,6 +322,17 @@ function markSessionActivity() {
 }
 function startSessionActivityTracking() {
   if (sessionActivityTrackingStarted || location.pathname === "/login") return;
+  let signedInAfterLogin = false;
+  try {
+    signedInAfterLogin = sessionStorage.getItem(FEED_TAGLINE_LOGIN_PENDING_KEY) === "1";
+  } catch {
+    // A blocked sessionStorage must not disable activity tracking.
+  }
+  const previousActivity = readSharedSessionActivity();
+  if (!signedInAfterLogin && previousActivity && Date.now() - previousActivity >= SESSION_IDLE_LIMIT_MS) {
+    location.replace("/auth/signout?idle=1&return_to=%2Flogin%3Fidle%3D1");
+    return;
+  }
   sessionActivityTrackingStarted = true;
   markSessionActivity();
   ["pointerdown", "keydown", "touchstart", "scroll", "mousemove"].forEach((eventName) =>
@@ -2845,6 +2876,11 @@ const activityAuditList = document.getElementById("activity-audit-list");
 const moderationSettings = document.getElementById("moderation-settings");
 const moderationFeedback = document.getElementById("moderation-feedback");
 const moderationToggle = document.getElementById("moderation-toggle");
+const sessionTimeoutSettings = document.getElementById("session-timeout-settings");
+const sessionTimeoutForm = document.getElementById("session-timeout-form");
+const sessionTimeoutMinutesInput = document.getElementById("session-timeout-minutes");
+const sessionTimeoutSave = document.getElementById("session-timeout-save");
+const sessionTimeoutFeedback = document.getElementById("session-timeout-feedback");
 const adminPostManagement = document.getElementById("admin-post-management");
 const adminPostFeedback = document.getElementById("admin-post-feedback");
 const adminPostList = document.getElementById("admin-post-list");
@@ -3475,6 +3511,28 @@ async function loadModerationSettings() {
     moderationFeedback.classList.add("error");
   }
 }
+async function loadSessionTimeoutSettings() {
+  sessionTimeoutSettings.hidden = false;
+  sessionTimeoutFeedback.textContent = "Loading session timeout…";
+  sessionTimeoutFeedback.classList.remove("error");
+  sessionTimeoutSave.disabled = true;
+  try {
+    const response = await fetch("/api/admin/session-timeout", {
+      headers: { accept: "application/json" },
+      cache: "no-store",
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || "Session timeout settings could not be loaded.");
+    sessionTimeoutMinutesInput.value = String(result.minutes);
+    applySessionIdleMinutes(result.minutes);
+    sessionTimeoutFeedback.textContent = `Users are signed out after ${result.minutes} minutes without activity.`;
+  } catch (error) {
+    sessionTimeoutFeedback.textContent = error.message;
+    sessionTimeoutFeedback.classList.add("error");
+  } finally {
+    sessionTimeoutSave.disabled = false;
+  }
+}
 async function loadReviewModerationStatus() {
   aiReviewConsent.hidden = true;
   aiReviewConsentCheckbox.checked = false;
@@ -3535,6 +3593,7 @@ async function loadAdminPage() {
     members: "People using NFD",
     activity: "Account activity",
     moderation: "Automatic post review",
+    "session-timeout": "Session timeout",
     admins: "Manage administrators",
   };
   const panels = [
@@ -3544,6 +3603,7 @@ async function loadAdminPage() {
     ghostAccessPanel,
     activityAudit,
     moderationSettings,
+    sessionTimeoutSettings,
     adminPostManagement,
     restrictedEmailsPanel,
   ];
@@ -3599,6 +3659,10 @@ async function loadAdminPage() {
     await loadModerationSettings();
     return;
   }
+  if (pageKey === "session-timeout") {
+    await loadSessionTimeoutSettings();
+    return;
+  }
   if (pageKey === "admins") {
     await loadAdminUsers();
     return;
@@ -3626,6 +3690,7 @@ async function updateNavigation() {
       return;
     }
     const result = await response.json().catch(() => ({}));
+    applySessionIdleMinutes(result.sessionIdleMinutes);
     startSessionActivityTracking();
     currentUserId = result.userId || currentUserId;
     syncFeedTagline(currentUserId);
@@ -3633,6 +3698,8 @@ async function updateNavigation() {
     adminNavLink.hidden = !result.isAdmin;
     accountAdminLink.hidden = !result.isAdmin;
     setMainNavigationVisible(true);
+    clearInterval(sessionTimeoutRefreshTimer);
+    sessionTimeoutRefreshTimer = setInterval(refreshSessionIdleMinutes, 30000);
     currentGhostMode = result.ghostMode || { allowed: false, active: false, profile: null };
     const hasGhostProfile = Boolean(currentGhostMode.profile);
     ghostModeSetupLink.hidden = !currentGhostMode.allowed || hasGhostProfile;
@@ -3657,6 +3724,35 @@ async function updateNavigation() {
   }
 }
 updateNavigation();
+sessionTimeoutForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const minutes = Number(sessionTimeoutMinutesInput.value);
+  if (!Number.isInteger(minutes) || minutes < 1 || minutes > 120) {
+    sessionTimeoutFeedback.textContent = "Choose a whole number from 1 to 120 minutes.";
+    sessionTimeoutFeedback.classList.add("error");
+    return;
+  }
+  sessionTimeoutSave.disabled = true;
+  sessionTimeoutFeedback.textContent = "Saving session timeout…";
+  sessionTimeoutFeedback.classList.remove("error");
+  try {
+    const response = await fetch("/api/admin/session-timeout", {
+      method: "PUT",
+      headers: { "content-type": "application/json", accept: "application/json" },
+      body: JSON.stringify({ minutes }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || "Session timeout could not be saved.");
+    sessionTimeoutMinutesInput.value = String(result.minutes);
+    applySessionIdleMinutes(result.minutes);
+    sessionTimeoutFeedback.textContent = `Saved. Users will be signed out after ${result.minutes} minutes without activity.`;
+  } catch (error) {
+    sessionTimeoutFeedback.textContent = error.message;
+    sessionTimeoutFeedback.classList.add("error");
+  } finally {
+    sessionTimeoutSave.disabled = false;
+  }
+});
 moderationToggle.addEventListener("click", async () => {
   const enabled = moderationToggle.dataset.enabled === "true";
   moderationToggle.disabled = true;
@@ -3792,7 +3888,8 @@ if (location.pathname === "/login") {
   if (params.get("idle") === "1") {
     const feedback = document.getElementById("google-feedback");
     feedback.style.display = "block";
-    feedback.textContent = "You were signed out after 4 minutes without activity. Sign in again to continue.";
+    feedback.textContent =
+      "You were signed out after being inactive for too long. Sign in again to continue.";
   }
   if (params.get("access") === "denied") document.getElementById("auth-denied").style.display = "block";
   const googleStatus = params.get("google");

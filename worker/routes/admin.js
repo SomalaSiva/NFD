@@ -1,5 +1,11 @@
 import { ADMIN_PAGE_SIZE, getPageMetadata, getPageOffset } from "../lib/pagination.js";
 import { ensureAdminTable, ensureEmailRestrictionTable } from "../db/ensure.js";
+import {
+  MAX_SESSION_IDLE_MINUTES,
+  MIN_SESSION_IDLE_MINUTES,
+  getSessionIdleMinutes,
+  saveSessionIdleMinutes,
+} from "../lib/session.js";
 
 export function createAdminRoutes(services) {
   const {
@@ -173,6 +179,39 @@ export function createAdminRoutes(services) {
     } catch (error) {
       console.error("NFD moderation settings failed", error);
       return json({ error: "Moderation settings could not be loaded or saved right now." }, 503);
+    }
+  }
+
+  async function manageSessionTimeout(request, env) {
+    const admin = await getCurrentUser(request, env);
+    if (!admin) return json({ error: "Sign in to manage session timeout settings." }, 401);
+    if (!(await isAdmin(request, env)))
+      return json({ error: "Only NFD administrators can change the session timeout." }, 403);
+    try {
+      if (request.method === "GET") {
+        return json({ minutes: await getSessionIdleMinutes(env) });
+      }
+      if (!request.headers.get("content-type")?.toLowerCase().includes("application/json"))
+        return json({ error: "Send the session timeout as JSON." }, 415);
+      const body = await request.json().catch(() => null);
+      const minutes = body?.minutes;
+      if (
+        !Number.isInteger(minutes) ||
+        minutes < MIN_SESSION_IDLE_MINUTES ||
+        minutes > MAX_SESSION_IDLE_MINUTES
+      )
+        return json(
+          {
+            error: `Choose a whole number from ${MIN_SESSION_IDLE_MINUTES} to ${MAX_SESSION_IDLE_MINUTES} minutes.`,
+          },
+          400,
+        );
+      await saveSessionIdleMinutes(env, minutes);
+      await recordActivity(env, admin.id, "session_timeout_changed", "settings", null, { minutes });
+      return json({ minutes });
+    } catch (error) {
+      console.error("Session timeout settings failed", error);
+      return json({ error: "Session timeout settings could not be loaded or saved right now." }, 503);
     }
   }
 
@@ -517,6 +556,7 @@ export function createAdminRoutes(services) {
     isRestrictedEmail,
     manageRestrictedEmails,
     manageModerationSettings,
+    manageSessionTimeout,
     manageAdmins,
     removeAdmin,
     listActivityAudit,

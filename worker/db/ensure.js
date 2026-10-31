@@ -9,6 +9,25 @@ let adminTablesPromise;
 let emailRestrictionTablesPromise;
 let messagingTablesPromise;
 let storyTablesPromise;
+let appSettingsTablePromise;
+
+export async function ensureAppSettings(env) {
+  if (!env.DB) throw new Error("The NFD database is unavailable.");
+  appSettingsTablePromise ||= (async () => {
+    await env.DB.prepare(
+      `CREATE TABLE IF NOT EXISTS nfd_app_settings (setting_key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL, updated_at TEXT NOT NULL)`,
+    ).run();
+    await env.DB.prepare(
+      `INSERT OR IGNORE INTO nfd_app_settings (setting_key, value, updated_at) VALUES ('session_idle_minutes', '4', ?)`,
+    )
+      .bind(new Date().toISOString())
+      .run();
+  })().catch((error) => {
+    appSettingsTablePromise = undefined;
+    throw error;
+  });
+  await appSettingsTablePromise;
+}
 
 export async function ensureAdminTable(env) {
   if (!env.DB) throw new Error("The NFD database is unavailable.");

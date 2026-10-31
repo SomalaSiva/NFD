@@ -42,6 +42,12 @@ export const nfdSessions = sqliteTable(
   (table) => [index("nfd_sessions_user_id_idx").on(table.userId)],
 );
 
+export const nfdAppSettings = sqliteTable("nfd_app_settings", {
+  settingKey: text("setting_key").primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
 export const nfdGhostAccess = sqliteTable("nfd_ghost_access", {
   userId: text("user_id")
     .primaryKey()
