@@ -733,12 +733,12 @@
                 <div class="field full">
                   <label for="full-description">The full story <span class="optional">Optional</span></label
                   ><textarea
-                    class="control"
-                    style="height: 170px; resize: vertical; padding: 11px 12px; line-height: 1.55"
+                    class="control story-details-input"
                     id="full-description"
                     name="fullDescription"
+                    rows="3"
                     maxlength="4000"
-                    placeholder="Walk through what happened, when it happened, who was involved (roles or aliases are fine), what you expected, and what happened next. Include the impact or outcome if you’re comfortable. Share only what you know firsthand."
+                    placeholder="Optional details"
                   ></textarea>
                   <div class="char-row">
                     <span
@@ -1050,30 +1050,15 @@
               <div class="review-files" id="review-files"></div>
             </div>
             <div class="review-section" id="ai-review-consent" hidden>
-              <label
-                style="
-                  display: flex;
-                  gap: 10px;
-                  align-items: flex-start;
-                  font-size: 11px;
-                  line-height: 1.55;
-                  color: #53645b;
-                "
+              <label class="ai-review-consent-label"
                 ><input
                   type="checkbox"
                   id="ai-review-consent-checkbox"
-                  style="margin-top: 2px; accent-color: #0d7054"
+                  class="ai-review-consent-checkbox"
                 /><span
-                  ><strong>Automatic review <span class="required">*</span> (required when enabled):</strong>
-                  this sends your story text and attached photos or videos to Google Gemini; documents and
-                  your NFD account ID/email are not sent. The original attachment stays with your NFD post;
-                  Gemini receives the same file in resumable chunks. NFD requests deletion of its temporary
-                  review copy as soon as review finishes; Google says Files API uploads are automatically
-                  deleted after 48 hours. Google may use free-tier inputs to improve products, and human
-                  reviewers may process them. Google advises against sending sensitive, confidential, or
-                  personal information to the unpaid service. Your post’s anonymous setting does not make
-                  identifying details in its text or media anonymous to Google. Continue only if you accept
-                  this.
+                  ><strong>Automatic review <span class="required">*</span>:</strong> your story text and
+                  photos/videos go to Google Gemini; your NFD ID, email, and documents do not. Avoid sensitive
+                  details. Google may use or review inputs.
                   <a href="/privacy" target="_blank" rel="noopener">Privacy details</a>.</span
                 ></label
               >
@@ -1084,19 +1069,8 @@
                 share.
               </p>
               <div class="review-actions">
-                <button class="secondary-button" id="edit-experience" type="button">← Back to edit</button
-                ><button class="submit" id="confirm-review" type="button">
-                  Looks right — share
-                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                    <path
-                      d="m5 12 4.5 4.5L19 7"
-                      stroke="currentColor"
-                      stroke-width="1.8"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    />
-                  </svg>
-                </button>
+                <button class="secondary-button" id="edit-experience" type="button">Back</button>
+                <button class="submit" id="confirm-review" type="button">Share</button>
               </div>
             </div>
           </div>

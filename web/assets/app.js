@@ -599,12 +599,6 @@ function showReview() {
     ? `${selectedFiles.length} ${selectedFiles.length === 1 ? "file" : "files"} attached`
     : "No files attached";
   reviewFiles.innerHTML = "";
-  if (!selectedFiles.length) {
-    const empty = document.createElement("p");
-    empty.className = "review-empty";
-    empty.textContent = "You can add photos or documents by going back to edit.";
-    reviewFiles.append(empty);
-  }
   selectedFiles.forEach((file) => {
     const item = document.createElement("div");
     item.className = "file-item";

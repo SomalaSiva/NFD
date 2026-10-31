@@ -452,6 +452,13 @@ textarea.control::placeholder {
   padding: 11px 12px;
   line-height: 1.55;
 }
+.story-details-input {
+  height: 94px;
+  min-height: 76px;
+  resize: vertical;
+  padding: 11px 12px;
+  line-height: 1.5;
+}
 .char-row {
   display: flex;
   justify-content: space-between;
@@ -705,6 +712,22 @@ textarea.control::placeholder {
 }
 .review-section:last-child {
   border-bottom: 0;
+}
+.ai-review-consent-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+.ai-review-consent-label strong {
+  color: var(--ink);
+}
+.ai-review-consent-checkbox {
+  flex: none;
+  margin: 2px 0 0;
+  accent-color: var(--green);
 }
 .review-section-head {
   display: flex;
