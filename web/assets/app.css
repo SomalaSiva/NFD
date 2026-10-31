@@ -2273,7 +2273,7 @@ textarea.control::placeholder {
   padding: 6px 10px;
   border-radius: 999px;
   background: #e7f4c8;
-  color: var(--ink);
+  color: #000;
   font-size: 10px;
   letter-spacing: 0.7px;
 }
