@@ -1019,6 +1019,23 @@ const videoFallbackPoster =
   encodeURIComponent(
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 540"><rect width="960" height="540" fill="#e9f1ec"/><circle cx="480" cy="250" r="66" fill="#0d7058"/><path d="M462 210v80l68-40z" fill="#fff"/><text x="480" y="390" text-anchor="middle" fill="#155b49" font-family="Arial,sans-serif" font-size="34" font-weight="700">Video story</text></svg>',
   );
+const feedVideoPosterObserver =
+  typeof IntersectionObserver === "function"
+    ? new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (!entry.isIntersecting) return;
+            const video = entry.target.querySelector("video[data-preview-poster]");
+            if (video) {
+              video.poster = video.dataset.previewPoster;
+              delete video.dataset.previewPoster;
+            }
+            feedVideoPosterObserver.unobserve(entry.target);
+          });
+        },
+        { rootMargin: "300px 0px" },
+      )
+    : null;
 function addText(parent, tag, className, value) {
   const element = document.createElement(tag);
   if (className) element.className = className;
@@ -1111,7 +1128,7 @@ function renderFeed(experiences, { append = false, nextCursor = "" } = {}) {
     feedLoadMore.hidden = true;
     return;
   }
-  experiences.forEach((experience) => {
+  experiences.forEach((experience, experienceIndex) => {
     const card = document.createElement("article");
     card.className = "feed-card";
     const main = document.createElement("div");
@@ -1198,7 +1215,7 @@ function renderFeed(experiences, { append = false, nextCursor = "" } = {}) {
         const image = document.createElement("img");
         image.className = "feed-photo-image";
         image.alt = `Photo attached to ${experience.experienceCategory} experience`;
-        image.loading = index === 0 ? "eager" : "lazy";
+        image.loading = !append && experienceIndex === 0 && index === 0 ? "eager" : "lazy";
         image.decoding = "async";
         image.title = file.originalFilename;
         image.addEventListener(
@@ -1290,15 +1307,21 @@ function renderFeed(experiences, { append = false, nextCursor = "" } = {}) {
         const video = document.createElement("video");
         video.className = "feed-video";
         video.controls = true;
-        video.preload = "metadata";
+        video.preload = "none";
         video.playsInline = true;
         video.title = file.originalFilename;
         video.addEventListener("loadedmetadata", () => {
           videoItem.classList.toggle("is-portrait", video.videoHeight > video.videoWidth);
         });
-        video.poster = file.hasPreview
-          ? `/api/evidence/${encodeURIComponent(file.id)}?variant=preview`
-          : videoFallbackPoster;
+        video.poster = videoFallbackPoster;
+        if (file.hasPreview) {
+          video.dataset.previewPoster = `/api/evidence/${encodeURIComponent(file.id)}?variant=preview`;
+          if (feedVideoPosterObserver) feedVideoPosterObserver.observe(videoItem);
+          else {
+            video.poster = video.dataset.previewPoster;
+            delete video.dataset.previewPoster;
+          }
+        }
         video.src = `/api/evidence/${encodeURIComponent(file.id)}`;
         if (!file.hasPreview) {
           video.addEventListener("loadedmetadata", () => captureFirstVideoFrame(video), { once: true });
