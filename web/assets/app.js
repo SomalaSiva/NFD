@@ -2756,6 +2756,8 @@ let postPlaceSuggestionRequest = 0;
 let postPlaceSuggestionAbort;
 let postLocationSuggestionTimer;
 let postLocationSuggestionAbort;
+let postLocationSuggestionRequest = 0;
+let activeLocationSuggestionIndex = -1;
 const postPlaceValues = [];
 const postLocationValues = [];
 const photonSuggestionCache = new Map();
@@ -2799,7 +2801,6 @@ async function loadPostFieldSuggestions() {
       if (experience.locationDetails) postLocationValues.push(experience.locationDetails);
     }
     updatePostAutocomplete(postPlaceSuggestions, postPlaceValues);
-    updatePostAutocomplete(postLocationSuggestions, postLocationValues);
   } catch {
     // Suggestions are optional; users can always enter the value themselves.
   }
@@ -2837,19 +2838,18 @@ function schedulePostPlaceSuggestions() {
 function schedulePostLocationSuggestions() {
   clearTimeout(postLocationSuggestionTimer);
   postLocationSuggestionAbort?.abort();
+  const requestNumber = ++postLocationSuggestionRequest;
   const query = postLocationInput?.value.trim() || "";
   if (query.length < 3 || /^(https?:\/\/|www\.)/i.test(query)) {
-    updatePostAutocomplete(postLocationSuggestions, postLocationValues);
+    hidePostLocationSuggestions();
     return;
   }
   const cacheKey = query.toLocaleLowerCase();
   if (photonSuggestionCache.has(cacheKey)) {
-    updatePostAutocomplete(postLocationSuggestions, [
-      ...photonSuggestionCache.get(cacheKey),
-      ...postLocationValues,
-    ]);
+    renderPostLocationSuggestions(photonSuggestionCache.get(cacheKey), query);
     return;
   }
+  renderPostLocationSuggestionStatus("Searching worldwide places…", "loading");
   postLocationSuggestionTimer = setTimeout(async () => {
     const controller = new AbortController();
     postLocationSuggestionAbort = controller;
@@ -2863,32 +2863,198 @@ function schedulePostLocationSuggestions() {
       });
       if (!response.ok) throw new Error("Place suggestions unavailable");
       const result = await response.json();
-      if (postLocationInput?.value.trim().toLocaleLowerCase() !== cacheKey) return;
-      const values = (result.features || [])
+      if (
+        requestNumber !== postLocationSuggestionRequest ||
+        postLocationInput?.value.trim().toLocaleLowerCase() !== cacheKey
+      )
+        return;
+      const places = (result.features || [])
         .map(({ properties = {} }) => {
           const name =
             properties.name || [properties.housenumber, properties.street].filter(Boolean).join(" ");
-          return [
-            name,
-            properties.city || properties.district || properties.county,
+          const details = [
+            properties.street && properties.street !== name ? properties.street : "",
+            properties.city || properties.locality || properties.district || properties.county,
             properties.state,
             properties.country,
+            properties.postcode,
           ]
             .filter(Boolean)
             .filter(
               (part, index, parts) =>
                 parts.findIndex((candidate) => candidate.toLocaleLowerCase() === part.toLocaleLowerCase()) ===
-                index,
-            )
-            .join(", ");
+                  index && part.toLocaleLowerCase() !== name.toLocaleLowerCase(),
+            );
+          const value = [name, ...details].filter(Boolean).join(", ");
+          if (!value) return null;
+          return {
+            id: `${properties.osm_type || properties.type || "place"}-${properties.osm_id || value}`,
+            name: name || value,
+            details,
+            value,
+            type: locationTypeLabel(properties),
+          };
         })
         .filter(Boolean);
-      photonSuggestionCache.set(cacheKey, values);
-      updatePostAutocomplete(postLocationSuggestions, [...values, ...postLocationValues]);
+      photonSuggestionCache.set(cacheKey, places);
+      renderPostLocationSuggestions(places, query);
     } catch (error) {
-      if (error?.name !== "AbortError") updatePostAutocomplete(postLocationSuggestions, postLocationValues);
+      if (error?.name !== "AbortError" && requestNumber === postLocationSuggestionRequest) {
+        renderPostLocationSuggestionStatus(
+          "Place search is unavailable right now. You can still enter a location.",
+          "error",
+        );
+      }
     }
   }, 350);
+}
+function locationTypeLabel(properties) {
+  const type = properties.osm_value || properties.type || properties.osm_key || "place";
+  return type
+    .split(/[ _-]+/)
+    .filter(Boolean)
+    .map((part) => part[0].toLocaleUpperCase() + part.slice(1))
+    .join(" ");
+}
+function hidePostLocationSuggestions() {
+  if (!postLocationSuggestions || !postLocationInput) return;
+  postLocationSuggestions.hidden = true;
+  postLocationSuggestions.replaceChildren();
+  postLocationInput.setAttribute("aria-expanded", "false");
+  postLocationInput.removeAttribute("aria-activedescendant");
+  activeLocationSuggestionIndex = -1;
+}
+function renderPostLocationSuggestionStatus(message, state) {
+  if (!postLocationSuggestions || !postLocationInput) return;
+  postLocationSuggestions.replaceChildren();
+  const status = document.createElement("div");
+  status.className = `location-suggestion-status ${state}`;
+  status.setAttribute("role", "status");
+  status.textContent = message;
+  postLocationSuggestions.append(status);
+  postLocationSuggestions.hidden = false;
+  postLocationInput.setAttribute("aria-expanded", "true");
+  postLocationInput.removeAttribute("aria-activedescendant");
+  activeLocationSuggestionIndex = -1;
+}
+function renderPostLocationSuggestions(places, query) {
+  if (!postLocationSuggestions || !postLocationInput) return;
+  postLocationSuggestions.replaceChildren();
+  const heading = document.createElement("div");
+  heading.className = "location-suggestions-heading";
+  heading.textContent = "WORLDWIDE PLACES";
+  postLocationSuggestions.append(heading);
+  const visiblePlaces = places.slice(0, 8);
+  if (!visiblePlaces.length) {
+    const status = document.createElement("div");
+    status.className = "location-suggestion-status";
+    status.textContent = `No worldwide matches for “${query}”. Try a city, venue, street, or business name.`;
+    postLocationSuggestions.append(status);
+  }
+  visiblePlaces.forEach((place, index) => {
+    const option = document.createElement("div");
+    option.className = "location-suggestion-option";
+    option.id = `location-suggestion-${index}`;
+    option.setAttribute("role", "option");
+    option.setAttribute("aria-selected", "false");
+    option.dataset.locationValue = place.value;
+    const icon = document.createElement("span");
+    icon.className = "location-suggestion-icon";
+    icon.setAttribute("aria-hidden", "true");
+    icon.innerHTML =
+      '<svg viewBox="0 0 24 24" fill="none"><path d="M19 10.2c0 5-7 11-7 11s-7-6-7-11a7 7 0 1 1 14 0Z" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="10" r="2.3" stroke="currentColor" stroke-width="1.7"/></svg>';
+    const copy = document.createElement("span");
+    copy.className = "location-suggestion-copy";
+    const name = document.createElement("strong");
+    name.textContent = place.name;
+    const details = document.createElement("small");
+    details.textContent = place.details.join(", ") || "Worldwide place";
+    copy.append(name, details);
+    const type = document.createElement("span");
+    type.className = "location-suggestion-type";
+    type.textContent = place.type;
+    option.append(icon, copy, type);
+    option.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      choosePostLocationSuggestion(place);
+    });
+    postLocationSuggestions.append(option);
+  });
+  if (postLocationValues.length) {
+    const matchingNfdValues = [...new Set(postLocationValues)]
+      .filter((value) => value.toLocaleLowerCase().includes(query.toLocaleLowerCase()))
+      .slice(0, 3);
+    if (matchingNfdValues.length) {
+      const divider = document.createElement("div");
+      divider.className = "location-suggestions-heading secondary";
+      divider.textContent = "ALSO USED IN NFD STORIES";
+      postLocationSuggestions.append(divider);
+      matchingNfdValues.forEach((value, index) => {
+        const place = { id: `nfd-location-${index}`, name: value, details: [], value, type: "NFD" };
+        const option = document.createElement("div");
+        option.className = "location-suggestion-option";
+        option.id = `location-suggestion-nfd-${index}`;
+        option.setAttribute("role", "option");
+        option.setAttribute("aria-selected", "false");
+        option.dataset.locationValue = place.value;
+        const icon = document.createElement("span");
+        icon.className = "location-suggestion-icon";
+        icon.setAttribute("aria-hidden", "true");
+        icon.textContent = "N";
+        const copy = document.createElement("span");
+        copy.className = "location-suggestion-copy";
+        const name = document.createElement("strong");
+        name.textContent = value;
+        const details = document.createElement("small");
+        details.textContent = "Used in a story visible to you";
+        copy.append(name, details);
+        const type = document.createElement("span");
+        type.className = "location-suggestion-type";
+        type.textContent = "NFD";
+        option.append(icon, copy, type);
+        option.addEventListener("pointerdown", (event) => {
+          event.preventDefault();
+          choosePostLocationSuggestion(place);
+        });
+        postLocationSuggestions.append(option);
+      });
+    }
+  }
+  postLocationSuggestions.hidden = false;
+  postLocationInput.setAttribute("aria-expanded", "true");
+  postLocationInput.removeAttribute("aria-activedescendant");
+  activeLocationSuggestionIndex = -1;
+}
+function choosePostLocationSuggestion(place) {
+  postLocationInput.value = place.value;
+  hidePostLocationSuggestions();
+}
+function movePostLocationSuggestion(direction) {
+  const options = [...(postLocationSuggestions?.querySelectorAll('[role="option"]') || [])];
+  if (!options.length) return false;
+  activeLocationSuggestionIndex =
+    activeLocationSuggestionIndex < 0
+      ? direction > 0
+        ? 0
+        : options.length - 1
+      : Math.max(0, Math.min(options.length - 1, activeLocationSuggestionIndex + direction));
+  options.forEach((option, index) => {
+    const active = index === activeLocationSuggestionIndex;
+    option.classList.toggle("active", active);
+    option.setAttribute("aria-selected", String(active));
+  });
+  const active = options[activeLocationSuggestionIndex];
+  postLocationInput.setAttribute("aria-activedescendant", active.id);
+  active.scrollIntoView({ block: "nearest" });
+  return true;
+}
+function selectActivePostLocationSuggestion() {
+  const options = postLocationSuggestions?.querySelectorAll('[role="option"]');
+  const active = options?.[activeLocationSuggestionIndex];
+  if (!active) return false;
+  postLocationInput.value = active.dataset.locationValue || "";
+  hidePostLocationSuggestions();
+  return true;
 }
 function updateSelectOptions(select, values, placeholder) {
   const selected = select.value;
@@ -4233,6 +4399,19 @@ if (location.pathname === "/share") {
   void loadPostFieldSuggestions();
   postPlaceInput?.addEventListener("input", schedulePostPlaceSuggestions);
   postLocationInput?.addEventListener("input", schedulePostLocationSuggestions);
+  postLocationInput?.addEventListener("focus", schedulePostLocationSuggestions);
+  postLocationInput?.addEventListener("keydown", (event) => {
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      if (movePostLocationSuggestion(event.key === "ArrowDown" ? 1 : -1)) event.preventDefault();
+    } else if (event.key === "Enter" && selectActivePostLocationSuggestion()) {
+      event.preventDefault();
+    } else if (event.key === "Escape") {
+      hidePostLocationSuggestions();
+    }
+  });
+  postLocationInput?.addEventListener("blur", () => {
+    setTimeout(hidePostLocationSuggestions, 120);
+  });
 }
 form.addEventListener("submit", (event) => {
   event.preventDefault();

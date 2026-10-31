@@ -916,19 +916,30 @@
                   </div>
                 </div>
                 <div class="field full">
-                  <label for="location-detail">Location details <span class="optional">Optional</span></label
-                  ><input
-                    class="control"
-                    id="location-detail"
-                    name="locationDetail"
-                    placeholder="City, branch, or online URL"
-                    autocomplete="off"
-                    list="post-location-suggestions"
-                  />
-                  <datalist id="post-location-suggestions"></datalist>
+                  <label for="location-detail">Location details <span class="optional">Optional</span></label>
+                  <div class="location-autocomplete">
+                    <input
+                      class="control"
+                      id="location-detail"
+                      name="locationDetail"
+                      placeholder="Search any city, venue, business, or address"
+                      autocomplete="off"
+                      role="combobox"
+                      aria-autocomplete="list"
+                      aria-expanded="false"
+                      aria-controls="post-location-suggestions"
+                    />
+                    <div
+                      class="location-suggestions"
+                      id="post-location-suggestions"
+                      role="listbox"
+                      aria-label="Worldwide location suggestions"
+                      hidden
+                    ></div>
+                  </div>
                   <p class="helper">
-                    Place suggestions use OpenStreetMap via Photon. Your search text is sent to Photon; you
-                    can also type any location yourself. ©
+                    Search real places worldwide using OpenStreetMap via Photon. Your query is sent to Photon;
+                    you can still type any location yourself. ©
                     <a
                       href="https://www.openstreetmap.org/copyright"
                       target="_blank"
