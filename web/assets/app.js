@@ -1025,10 +1025,16 @@ const feedVideoPosterObserver =
         (entries) => {
           entries.forEach((entry) => {
             if (!entry.isIntersecting) return;
-            const video = entry.target.querySelector("video[data-preview-poster]");
+            const video = entry.target.querySelector("video");
             if (video) {
-              video.poster = video.dataset.previewPoster;
-              delete video.dataset.previewPoster;
+              if (video.dataset.previewPoster) {
+                video.poster = video.dataset.previewPoster;
+                delete video.dataset.previewPoster;
+              }
+              if (video.dataset.capturePreview === "true") {
+                video.preload = "metadata";
+                delete video.dataset.capturePreview;
+              }
             }
             feedVideoPosterObserver.unobserve(entry.target);
           });
@@ -1324,6 +1330,9 @@ function renderFeed(experiences, { append = false, nextCursor = "" } = {}) {
         }
         video.src = `/api/evidence/${encodeURIComponent(file.id)}`;
         if (!file.hasPreview) {
+          video.dataset.capturePreview = "true";
+          if (feedVideoPosterObserver) feedVideoPosterObserver.observe(videoItem);
+          else video.preload = "metadata";
           video.addEventListener("loadedmetadata", () => captureFirstVideoFrame(video), { once: true });
           if (video.readyState >= 1) captureFirstVideoFrame(video);
         }
