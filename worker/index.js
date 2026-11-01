@@ -230,7 +230,7 @@ const worker = {
       return agreementRoutes.createStoredAgreement(request, env);
     }
     const trustAgreementMatch = url.pathname.match(
-      /^\/api\/trust-score\/agreements\/([0-9a-f-]{36})(?:\/(respond|propose-change))?$/i,
+      /^\/api\/trust-score\/agreements\/([0-9a-f-]{36})(?:\/(respond|propose-change|outcome|outcome-response))?$/i,
     );
     if (trustAgreementMatch && request.method === "POST") {
       const agreementId = trustAgreementMatch[1];
@@ -238,7 +238,11 @@ const worker = {
         ? agreementRoutes.respondToStoredAgreement(request, env, agreementId)
         : trustAgreementMatch[2] === "propose-change"
           ? agreementRoutes.proposeAgreementChange(request, env, agreementId)
-          : json({ error: "That agreement action could not be found." }, 404);
+          : trustAgreementMatch[2] === "outcome"
+            ? agreementRoutes.reportAgreementOutcome(request, env, agreementId)
+            : trustAgreementMatch[2] === "outcome-response"
+              ? agreementRoutes.respondToAgreementOutcome(request, env, agreementId)
+              : json({ error: "That agreement action could not be found." }, 404);
     }
     if (request.method === "GET" && url.pathname === "/api/session-timeout") {
       return json({ minutes: await getSessionIdleMinutes(env) });

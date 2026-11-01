@@ -57,6 +57,13 @@
       "when": 1793512704567,
       "tag": "0008_trust_agreements",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1793514464765,
+      "tag": "0009_trust_agreement_outcomes",
+      "breakpoints": true
     }
   ]
 }

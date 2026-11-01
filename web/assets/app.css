@@ -4028,6 +4028,68 @@ textarea.control::placeholder {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+.agreement-outcome-summary,
+.agreement-outcome,
+.agreement-outcome-form,
+.agreement-outcome-response-form {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+.agreement-outcome-summary {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding: 14px;
+  color: var(--ink);
+  background: var(--mint);
+  border-radius: 12px;
+}
+.agreement-outcome-summary strong {
+  font-size: 15px;
+}
+.agreement-outcome-summary small {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  line-height: 1.45;
+}
+.agreement-outcome {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow-wrap: anywhere;
+}
+.agreement-outcome-disputed {
+  border-color: var(--warning, #ba7b2b);
+}
+.agreement-outcome-heading h4 {
+  margin: 0;
+  font-size: 15px;
+}
+.agreement-outcome-note,
+.agreement-outcome-response-summary,
+.agreement-outcome-response-list {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+.agreement-outcome-response-list {
+  padding-left: 20px;
+}
+.agreement-outcome-form,
+.agreement-outcome-response-form {
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.agreement-outcome-form label,
+.agreement-outcome-response-form label {
+  display: grid;
+  gap: 7px;
+}
+.agreement-outcome-form .agreement-actions,
+.agreement-outcome-response-form .agreement-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
 .agreement-change-form {
   display: grid;
   gap: 12px;

@@ -1688,6 +1688,12 @@
                 </div>
                 <button class="secondary-button" id="agreement-refresh" type="button">Refresh</button>
               </div>
+              <div
+                id="my-agreements-summary"
+                class="agreement-outcome-summary"
+                aria-live="polite"
+                hidden
+              ></div>
               <p id="my-agreements-feedback" class="agreement-feedback" role="status" aria-live="polite"></p>
               <div id="my-agreements-list" class="my-agreements-list">
                 <p class="agreement-friends-status">Your saved agreements will appear here.</p>
@@ -1705,11 +1711,11 @@
             <article class="agreement-generator trust-record-card" aria-labelledby="trust-record-heading">
               <div class="agreement-generator-heading">
                 <div>
-                  <span class="agreement-ai-badge">Feature preview</span>
+                  <span class="agreement-ai-badge">Outcome tracking</span>
                   <h2 id="trust-record-heading">Your commitment record</h2>
                   <p>
-                    NFD will only show a record after the people involved confirm an outcome or a review
-                    resolves a disagreement.
+                    NFD shows the outcome reported for an agreement, each participant’s response, and how many
+                    outcomes are disputed.
                   </p>
                 </div>
               </div>
@@ -1722,17 +1728,21 @@
                   <span class="trust-record-label">What counts</span>
                   <strong>Distinct people, not agreement totals</strong>
                 </div>
+                <div>
+                  <span class="trust-record-label">Disputed outcomes</span>
+                  <strong id="trust-record-disputed-count">Loading…</strong>
+                </div>
               </div>
               <p class="trust-score-hint">
-                Agreements can now be saved in NFD and approved by each participant. Outcome tracking and a
-                trust score are not enabled yet, so this preview does not show sample counts as real activity.
+                Agreements can be tracked after approval. Disagreements are counted separately from confirmed
+                outcomes and are not treated as verified failures. A trust score is not enabled yet.
               </p>
             </article>
             <article class="agreement-generator trust-record-card" aria-labelledby="trust-outcomes-heading">
               <div class="agreement-generator-heading">
                 <div>
-                  <h3 id="trust-outcomes-heading">How outcomes could appear</h3>
-                  <p>Neutral descriptions of what both sides confirmed.</p>
+                  <h3 id="trust-outcomes-heading">Outcome labels</h3>
+                  <p>Reports are shown with participant responses so disagreements stay visible.</p>
                 </div>
               </div>
               <div class="trust-outcome-list">
@@ -1761,17 +1771,14 @@
                   <span class="trust-outcome-icon" aria-hidden="true">!</span>
                   <span
                     ><strong>Confirmed not completed</strong
-                    ><small
-                      >Both sides confirm the agreed commitment was not fulfilled, or review resolves
-                      it.</small
-                    ></span
+                    ><small>All other participants confirm the reported outcome.</small></span
                   >
                 </div>
                 <div class="trust-outcome-item">
                   <span class="trust-outcome-icon" aria-hidden="true">…</span>
                   <span
                     ><strong>Disputed or awaiting response</strong
-                    ><small>Kept out of the record until resolved; silence is not a failure.</small></span
+                    ><small>Counted separately; a disagreement is not a verified failure.</small></span
                   >
                 </div>
               </div>

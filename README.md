@@ -20,6 +20,7 @@ NFD is a story-sharing web app. Its pages are plain HTML, CSS, and JavaScript. A
 - `worker/routes/admin.js` — administrator operations and audit/member lists.
 - `worker/routes/social.js` — friends, requests, and messages.
 - `worker/routes/experiences.js` — feed, profiles, comments, reactions, attachments, and post submission.
+- `worker/routes/agreements.js` — Gemini agreement drafts, in-app approvals, version changes, and participant outcome/disagreement tracking.
 - `worker/lib/` — shared Worker utilities.
 - `web/index.html` — shared page markup and route-specific page sections.
 - `web/assets/app.css` and `web/assets/app.js` — shared styles and browser behavior.
