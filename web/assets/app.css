@@ -3638,6 +3638,11 @@ textarea.control::placeholder {
   padding-bottom: 12px;
   border-bottom: 1px solid var(--line);
 }
+.trust-score-tabs .profile-tab[aria-selected="true"] {
+  border-color: var(--accent);
+  background: var(--mint);
+  color: var(--accent);
+}
 .trust-score-panel {
   display: grid;
   gap: 14px;
