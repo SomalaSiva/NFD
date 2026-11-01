@@ -10,6 +10,7 @@ function setup({ user = { id: "user-1" } } = {}) {
     json: (body, status = 200) => Response.json(body, { status }),
     recordActivity: async () => {},
     availableIdentitySql: "u.active = 1",
+    cleanSearchTerm: (value) => (typeof value === "string" ? value : ""),
   });
 }
 
@@ -196,29 +197,31 @@ test("participants can record a disagreement and the count remains separate from
     "utf8",
   );
   sqlite.exec(`
-    CREATE TABLE nfd_users (id TEXT PRIMARY KEY, display_name TEXT);
+    CREATE TABLE nfd_users (id TEXT PRIMARY KEY, display_name TEXT, active INTEGER NOT NULL DEFAULT 1);
+    CREATE TABLE nfd_ghost_profiles (ghost_user_id TEXT, handle TEXT, active INTEGER);
     CREATE TABLE nfd_agreements (
       id TEXT PRIMARY KEY, created_by TEXT NOT NULL, status TEXT NOT NULL,
       current_version INTEGER NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
     );
     CREATE TABLE nfd_agreement_versions (
-      agreement_id TEXT NOT NULL, version INTEGER NOT NULL, title TEXT NOT NULL,
+      id TEXT PRIMARY KEY, agreement_id TEXT NOT NULL, version INTEGER NOT NULL, title TEXT NOT NULL,
       body TEXT NOT NULL, created_by TEXT NOT NULL, created_at TEXT NOT NULL
     );
     CREATE TABLE nfd_agreement_participants (
       agreement_id TEXT NOT NULL, user_id TEXT NOT NULL, role TEXT NOT NULL,
-      status TEXT NOT NULL, accepted_version INTEGER NOT NULL, created_at TEXT NOT NULL
+      status TEXT NOT NULL, accepted_version INTEGER, created_at TEXT NOT NULL, responded_at TEXT
     );
     ${migration.replaceAll("--> statement-breakpoint", "")}
-    INSERT INTO nfd_users VALUES ('user-1', 'Alex'), ('user-2', 'Sam'), ('user-3', 'Jo');
+    INSERT INTO nfd_users VALUES ('user-1', 'Alex', 1), ('user-2', 'Sam', 1), ('user-3', 'Jo', 1);
+    INSERT INTO nfd_ghost_profiles VALUES ('user-3', 'jotest', 1);
     INSERT INTO nfd_agreements VALUES
       ('agreement-1', 'user-1', 'active', 1, '2026-10-01', '2026-10-01');
     INSERT INTO nfd_agreement_versions VALUES
-      ('agreement-1', 1, 'Shared project', 'Terms', 'user-1', '2026-10-01');
+      ('version-1', 'agreement-1', 1, 'Shared project', 'Terms', 'user-1', '2026-10-01');
     INSERT INTO nfd_agreement_participants VALUES
-      ('agreement-1', 'user-1', 'creator', 'accepted', 1, '2026-10-01'),
-      ('agreement-1', 'user-2', 'participant', 'accepted', 1, '2026-10-01'),
-      ('agreement-1', 'user-3', 'participant', 'accepted', 1, '2026-10-01');
+      ('agreement-1', 'user-1', 'creator', 'accepted', 1, '2026-10-01', '2026-10-01'),
+      ('agreement-1', 'user-2', 'participant', 'accepted', 1, '2026-10-01', '2026-10-01'),
+      ('agreement-1', 'user-3', 'participant', 'accepted', 1, '2026-10-01', '2026-10-01');
   `);
 
   const database = {
@@ -240,6 +243,9 @@ test("participants can record a disagreement and the count remains separate from
         },
       };
     },
+    async batch(statements) {
+      return statements.map((statement) => statement.run());
+    },
   };
   let activeUserId = "user-1";
   const routes = createAgreementRoutes({
@@ -247,6 +253,7 @@ test("participants can record a disagreement and the count remains separate from
     json: (body, status = 200) => Response.json(body, { status }),
     recordActivity: async () => {},
     availableIdentitySql: "u.active = 1",
+    cleanSearchTerm: (value) => (typeof value === "string" ? value : ""),
   });
   const env = { DB: database };
   const agreementId = "agreement-1";
@@ -285,5 +292,71 @@ test("participants can record a disagreement and the count remains separate from
   assert.equal(result.agreements[0].outcomes[0].status, "disputed");
   assert.equal(result.agreements[0].outcomes[0].responses.length, 2);
   assert.match(result.agreements[0].outcomes[0].responses[0].name, /Sam|Jo/);
+
+  const createAgreement = async (id) => {
+    sqlite
+      .prepare("INSERT INTO nfd_agreements VALUES (?, 'user-1', 'active', 1, '2026-10-02', '2026-10-02')")
+      .run(id);
+    sqlite
+      .prepare(
+        "INSERT INTO nfd_agreement_versions VALUES (?, ?, 1, 'Repeat work', 'Terms', 'user-1', '2026-10-02')",
+      )
+      .run(`version-${id}`, id);
+    sqlite
+      .prepare(
+        "INSERT INTO nfd_agreement_participants VALUES (?, 'user-1', 'creator', 'accepted', 1, '2026-10-02', '2026-10-02')",
+      )
+      .run(id);
+    sqlite
+      .prepare(
+        "INSERT INTO nfd_agreement_participants VALUES (?, 'user-2', 'participant', 'accepted', 1, '2026-10-02', '2026-10-02')",
+      )
+      .run(id);
+    const outcomeResponse = await routes.reportAgreementOutcome(request({ outcome: "completed" }), env, id);
+    assert.equal(outcomeResponse.status, 201);
+    const { outcomeId: completedOutcomeId } = await outcomeResponse.json();
+    activeUserId = "user-2";
+    const confirmResponse = await routes.respondToAgreementOutcome(
+      request({ outcomeId: completedOutcomeId, decision: "confirm" }),
+      env,
+      id,
+    );
+    assert.equal(confirmResponse.status, 200);
+    activeUserId = "user-1";
+  };
+  activeUserId = "user-1";
+  await createAgreement("agreement-2");
+  await createAgreement("agreement-3");
+  const updatedListing = await routes.listStoredAgreements(
+    new Request("https://nfd.test/api/trust-score/agreements"),
+    env,
+  );
+  const updated = await updatedListing.json();
+  assert.equal(updated.summary.completed, 2, "repeat agreements with the same person count separately");
+  assert.equal(updated.summary.confirmed, 2);
+
+  const search = await routes.searchAgreementParticipants(
+    new Request("https://nfd.test/api/trust-score/agreement-people?q=jo"),
+    env,
+  );
+  const searchResult = await search.json();
+  assert.deepEqual(searchResult.people, [{ userId: "user-3", name: "Jo", handle: "jotest" }]);
+  assert.equal(JSON.stringify(searchResult).includes("@gmail"), false);
+  const savedForNonFriend = await routes.createStoredAgreement(
+    new Request("https://nfd.test/api/trust-score/agreements", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ title: "NFD-wide approval", body: "Terms", participantIds: ["user-3"] }),
+    }),
+    env,
+  );
+  assert.equal(savedForNonFriend.status, 201, "any active NFD member may be selected, not only friends");
+  const saved = await savedForNonFriend.json();
+  assert.equal(
+    sqlite
+      .prepare("SELECT COUNT(*) AS count FROM nfd_agreement_participants WHERE agreement_id = ?")
+      .get(saved.agreementId).count,
+    2,
+  );
   sqlite.close();
 });

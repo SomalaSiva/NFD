@@ -88,6 +88,7 @@ const agreementRoutes = createAgreementRoutes({
   getCurrentUser,
   recordActivity,
   json,
+  cleanSearchTerm,
   availableIdentitySql: AVAILABLE_IDENTITY_SQL,
 });
 
@@ -222,6 +223,9 @@ const worker = {
     }
     if (request.method === "POST" && url.pathname === "/api/trust-score/agreement-draft") {
       return agreementRoutes.generateDraft(request, env);
+    }
+    if (request.method === "GET" && url.pathname === "/api/trust-score/agreement-people") {
+      return agreementRoutes.searchAgreementParticipants(request, env);
     }
     if (request.method === "GET" && url.pathname === "/api/trust-score/agreements") {
       return agreementRoutes.listStoredAgreements(request, env);

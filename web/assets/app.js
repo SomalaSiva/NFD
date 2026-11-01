@@ -402,12 +402,17 @@ const agreementDownloadButton = document.getElementById("agreement-download");
 const agreementDownloadFeedback = document.getElementById("agreement-download-feedback");
 const agreementSaveTitle = document.getElementById("agreement-save-title");
 const agreementFriendsList = document.getElementById("agreement-friends-list");
+const agreementPeopleSearch = document.getElementById("agreement-people-search");
+const agreementPeopleSearchStatus = document.getElementById("agreement-people-search-status");
+const agreementSelectedPeople = document.getElementById("agreement-selected-people");
 const agreementSaveButton = document.getElementById("agreement-save");
 const agreementSaveFeedback = document.getElementById("agreement-save-feedback");
 const myAgreementsList = document.getElementById("my-agreements-list");
 const myAgreementsFeedback = document.getElementById("my-agreements-feedback");
 const myAgreementsSummary = document.getElementById("my-agreements-summary");
 const trustRecordDisputedCount = document.getElementById("trust-record-disputed-count");
+const trustRecordCompletedCount = document.getElementById("trust-record-completed-count");
+const trustRecordAwaitingCount = document.getElementById("trust-record-awaiting-count");
 const agreementRefreshButton = document.getElementById("agreement-refresh");
 const messageThreadList = document.getElementById("message-thread-list");
 const messageInboxStatus = document.getElementById("message-inbox-status");
@@ -4744,60 +4749,130 @@ document.getElementById("edit-experience").addEventListener("click", backToEdit)
 agreementDescription?.addEventListener("input", () => {
   agreementDescriptionCount.textContent = `${agreementDescription.value.length} / 3000`;
 });
-let agreementFriendsLoaded = false;
+const selectedAgreementPeople = new Map();
+let agreementPeopleSearchTimer;
+let agreementPeopleSearchController;
 
-async function loadAgreementFriends(force = false) {
-  if (!agreementFriendsList || (agreementFriendsLoaded && !force)) return;
-  agreementFriendsLoaded = true;
+function renderSelectedAgreementPeople() {
+  if (!agreementSelectedPeople) return;
+  agreementSelectedPeople.replaceChildren();
+  for (const [userId, person] of selectedAgreementPeople) {
+    const chip = document.createElement("span");
+    chip.className = "agreement-selected-person";
+    const name = document.createElement("span");
+    name.textContent = person.handle ? `${person.name} · Ghost @${person.handle}` : person.name;
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.setAttribute("aria-label", `Remove ${person.name} from approvers`);
+    remove.textContent = "×";
+    remove.addEventListener("click", () => {
+      selectedAgreementPeople.delete(userId);
+      for (const checkbox of agreementFriendsList?.querySelectorAll('input[name="agreement-participant"]') ||
+        []) {
+        if (checkbox.value === userId) checkbox.checked = false;
+      }
+      renderSelectedAgreementPeople();
+    });
+    chip.append(name, remove);
+    agreementSelectedPeople.append(chip);
+  }
+}
+
+function renderAgreementPeopleResults(people) {
+  if (!agreementFriendsList) return;
   agreementFriendsList.replaceChildren();
-  const status = document.createElement("p");
-  status.className = "agreement-friends-status";
-  status.textContent = "Loading your NFD friends…";
-  agreementFriendsList.append(status);
+  if (!people.length) {
+    const empty = document.createElement("p");
+    empty.className = "agreement-friends-status";
+    empty.textContent =
+      agreementPeopleSearch?.value.trim().length >= 2
+        ? "No active NFD members matched that search."
+        : "Search for an NFD member to add an approver.";
+    agreementFriendsList.append(empty);
+    return;
+  }
+  for (const person of people) {
+    if (!person?.userId) continue;
+    const label = document.createElement("label");
+    label.className = "agreement-friend-option";
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.name = "agreement-participant";
+    checkbox.value = person.userId;
+    checkbox.checked = selectedAgreementPeople.has(person.userId);
+    const name = document.createElement("span");
+    name.textContent = person.handle
+      ? `${person.name} · Ghost @${person.handle}`
+      : person.name || "NFD member";
+    label.append(checkbox, name);
+    checkbox.addEventListener("change", () => {
+      if (checkbox.checked) {
+        if (selectedAgreementPeople.size >= 19) {
+          checkbox.checked = false;
+          if (agreementPeopleSearchStatus)
+            agreementPeopleSearchStatus.textContent = "You can choose up to 19 approvers.";
+          return;
+        }
+        selectedAgreementPeople.set(person.userId, {
+          name: person.name || "NFD member",
+          handle: person.handle || "",
+        });
+      } else selectedAgreementPeople.delete(person.userId);
+      if (agreementPeopleSearchStatus) agreementPeopleSearchStatus.textContent = "";
+      renderSelectedAgreementPeople();
+    });
+    agreementFriendsList.append(label);
+  }
+}
+
+async function searchAgreementPeople() {
+  if (!agreementFriendsList || !agreementPeopleSearch) return;
+  const query = agreementPeopleSearch.value.trim();
+  if (agreementPeopleSearchController) agreementPeopleSearchController.abort();
+  if (query.length < 2) {
+    renderAgreementPeopleResults([]);
+    if (agreementPeopleSearchStatus) agreementPeopleSearchStatus.textContent = "";
+    return;
+  }
+  agreementPeopleSearchController = new AbortController();
+  agreementFriendsList.replaceChildren();
+  const loading = document.createElement("p");
+  loading.className = "agreement-friends-status";
+  loading.textContent = "Searching NFD members…";
+  agreementFriendsList.append(loading);
   try {
-    const response = await fetch("/api/friends", {
+    const response = await fetch(`/api/trust-score/agreement-people?q=${encodeURIComponent(query)}`, {
       headers: { accept: "application/json" },
       cache: "no-store",
+      signal: agreementPeopleSearchController.signal,
     });
     const result = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(result.error || "NFD friends could not be loaded.");
-    agreementFriendsList.replaceChildren();
-    const friends = Array.isArray(result.friends) ? result.friends : [];
-    if (!friends.length) {
-      const empty = document.createElement("p");
-      empty.className = "agreement-friends-status";
-      empty.textContent = "You need an accepted NFD friend before you can request agreement approval.";
-      agreementFriendsList.append(empty);
-      return;
-    }
-    for (const friend of friends) {
-      if (!friend?.userId) continue;
-      const label = document.createElement("label");
-      label.className = "agreement-friend-option";
-      const checkbox = document.createElement("input");
-      checkbox.type = "checkbox";
-      checkbox.name = "agreement-participant";
-      checkbox.value = friend.userId;
-      const name = document.createElement("span");
-      name.textContent = friend.name || "NFD member";
-      label.append(checkbox, name);
-      agreementFriendsList.append(label);
-    }
-    if (!agreementFriendsList.childElementCount) {
-      const empty = document.createElement("p");
-      empty.className = "agreement-friends-status";
-      empty.textContent = "No eligible NFD friends were found.";
-      agreementFriendsList.append(empty);
-    }
+    if (!response.ok) throw new Error(result.error || "NFD members could not be searched.");
+    if (agreementPeopleSearch.value.trim() !== query) return;
+    renderAgreementPeopleResults(Array.isArray(result.people) ? result.people : []);
+    if (agreementPeopleSearchStatus) agreementPeopleSearchStatus.textContent = "";
   } catch (error) {
-    agreementFriendsLoaded = false;
+    if (error.name === "AbortError") return;
     agreementFriendsList.replaceChildren();
     const failure = document.createElement("p");
     failure.className = "agreement-friends-status error";
-    failure.textContent = error.message || "NFD friends could not be loaded right now.";
+    failure.textContent = error.message || "NFD members could not be searched right now.";
     agreementFriendsList.append(failure);
   }
 }
+
+function resetAgreementApprovers() {
+  selectedAgreementPeople.clear();
+  if (agreementPeopleSearch) agreementPeopleSearch.value = "";
+  if (agreementPeopleSearchStatus) agreementPeopleSearchStatus.textContent = "";
+  renderSelectedAgreementPeople();
+  renderAgreementPeopleResults([]);
+}
+
+agreementPeopleSearch?.addEventListener("input", () => {
+  clearTimeout(agreementPeopleSearchTimer);
+  agreementPeopleSearchTimer = setTimeout(searchAgreementPeople, 180);
+});
 
 function agreementStatusLabel(status) {
   return status === "active"
@@ -5022,7 +5097,7 @@ function renderStoredAgreement(agreement) {
       const outcomeForm = document.createElement("form");
       outcomeForm.className = "agreement-outcome-form";
       const label = document.createElement("label");
-      label.textContent = "Record how this agreement went";
+      label.textContent = "Report this agreement’s outcome";
       const select = document.createElement("select");
       select.className = "control";
       for (const [value, text] of Object.entries(outcomeLabels)) {
@@ -5042,11 +5117,15 @@ function renderStoredAgreement(agreement) {
       const submit = document.createElement("button");
       submit.className = "secondary-button";
       submit.type = "submit";
-      submit.textContent = "Submit outcome for review";
+      submit.textContent = "Report outcome";
       const feedback = document.createElement("p");
       feedback.dataset.outcomeFeedback = "";
       feedback.className = "agreement-feedback";
-      outcomeForm.append(label, noteLabel, submit, feedback);
+      const explanation = document.createElement("p");
+      explanation.className = "agreement-outcome-guidance";
+      explanation.textContent =
+        "Your report will update this agreement’s tracker after every other participant confirms it. Any disagreement will be shown separately.";
+      outcomeForm.append(label, noteLabel, explanation, submit, feedback);
       outcomeForm.addEventListener("submit", (event) => {
         event.preventDefault();
         submitAgreementOutcome(agreement.id, outcomeForm, submit);
@@ -5136,14 +5215,18 @@ async function loadStoredAgreements() {
       const summary = result.summary || {};
       if (trustRecordDisputedCount)
         trustRecordDisputedCount.textContent = String(Number(summary.disputed || 0));
+      if (trustRecordCompletedCount)
+        trustRecordCompletedCount.textContent = String(Number(summary.completed || 0));
+      if (trustRecordAwaitingCount)
+        trustRecordAwaitingCount.textContent = String(Number(summary.awaiting || 0));
       myAgreementsSummary.replaceChildren();
       const disputed = document.createElement("strong");
       disputed.textContent = `Disputed outcomes: ${Number(summary.disputed || 0)}`;
       const otherCounts = document.createElement("span");
-      otherCounts.textContent = `Confirmed: ${Number(summary.confirmed || 0)} · Awaiting responses: ${Number(summary.awaiting || 0)}`;
+      otherCounts.textContent = `Completed agreements: ${Number(summary.completed || 0)} · Confirmed outcomes: ${Number(summary.confirmed || 0)} · Awaiting responses: ${Number(summary.awaiting || 0)}`;
       const note = document.createElement("small");
       note.textContent =
-        "Each count is one agreement outcome. A disagreement is shown separately and does not by itself prove a broken commitment.";
+        "Each count is one agreement outcome, even when the same people have several agreements. An outcome is confirmed only after all other participants respond; a disagreement does not by itself prove a broken commitment.";
       myAgreementsSummary.append(disputed, otherCounts, note);
       myAgreementsSummary.hidden = false;
     }
@@ -5151,7 +5234,7 @@ async function loadStoredAgreements() {
       const empty = document.createElement("p");
       empty.className = "agreement-friends-status";
       empty.textContent =
-        "No agreements saved yet. Generate a draft, then choose friends to request approval.";
+        "No agreements saved yet. Generate a draft, search for NFD members, then request their approval.";
       myAgreementsList.append(empty);
       return;
     }
@@ -5173,11 +5256,10 @@ agreementSaveButton?.addEventListener("click", async () => {
   agreementSaveFeedback.classList.remove("error");
   const title = agreementSaveTitle.value.trim();
   const body = agreementDraft.value.trim();
-  const participantIds = [
-    ...agreementFriendsList.querySelectorAll('input[name="agreement-participant"]:checked'),
-  ].map((input) => input.value);
+  const participantIds = [...selectedAgreementPeople.keys()];
   if (!title || !body || !participantIds.length) {
-    agreementSaveFeedback.textContent = "Add a title, agreement text, and at least one NFD friend.";
+    agreementSaveFeedback.textContent =
+      "Add a title, agreement text, and at least one NFD member who can approve it.";
     agreementSaveFeedback.classList.add("error");
     return;
   }
@@ -5191,7 +5273,8 @@ agreementSaveButton?.addEventListener("click", async () => {
     });
     const result = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(result.error || "The agreement could not be saved.");
-    agreementSaveFeedback.textContent = "Saved in NFD. Your friends can review it from My agreements.";
+    agreementSaveFeedback.textContent =
+      "Saved in NFD. The selected NFD members can review it from My agreements.";
     activateTrustScoreTab("my-agreements");
     document.getElementById("trust-tab-my-agreements")?.focus();
   } catch (error) {
@@ -5246,7 +5329,7 @@ agreementForm?.addEventListener("submit", async (event) => {
     agreementSaveFeedback.textContent = "";
     agreementFeedback.textContent =
       "Draft ready. Review and edit it before downloading or requesting approval.";
-    loadAgreementFriends();
+    resetAgreementApprovers();
     agreementResult.scrollIntoView({ behavior: "smooth", block: "start" });
     agreementDraft.focus({ preventScroll: true });
   } catch (error) {
