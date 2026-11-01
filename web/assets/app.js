@@ -387,6 +387,9 @@ const ghostProfileToggle = document.getElementById("ghost-profile-toggle");
 const ghostProfileDeactivate = document.getElementById("ghost-profile-deactivate");
 const messagesPage = document.getElementById("messages-page");
 const trustScorePage = document.getElementById("trust-score-page");
+const trustScoreTabs = [...document.querySelectorAll("[data-trust-tab]")];
+const trustScorePanels = [...document.querySelectorAll(".trust-score-panel")];
+const openAgreementTabButton = document.getElementById("open-agreement-tab");
 const agreementForm = document.getElementById("agreement-form");
 const agreementDescription = document.getElementById("agreement-description");
 const agreementDescriptionCount = document.getElementById("agreement-description-count");
@@ -1959,6 +1962,23 @@ function activateProfileTab(tab, updateUrl = true) {
     history.replaceState(null, "", url);
   }
 }
+function activateTrustScoreTab(tab, updateUrl = true) {
+  const availableTabs = new Set(trustScoreTabs.map((button) => button.dataset.trustTab));
+  const activeTab = availableTabs.has(tab) ? tab : "overview";
+  trustScoreTabs.forEach((button) => {
+    const selected = button.dataset.trustTab === activeTab;
+    button.setAttribute("aria-selected", String(selected));
+    button.tabIndex = selected ? 0 : -1;
+  });
+  trustScorePanels.forEach((panel) => {
+    panel.hidden = panel.id !== `trust-panel-${activeTab}`;
+  });
+  if (updateUrl) {
+    const url = new URL(location.href);
+    url.searchParams.set("tab", activeTab);
+    history.replaceState(null, "", url);
+  }
+}
 profileTabs.forEach((button, index) => {
   button.addEventListener("click", () => activateProfileTab(button.dataset.profileTab));
   button.addEventListener("keydown", (event) => {
@@ -1969,6 +1989,25 @@ profileTabs.forEach((button, index) => {
     profileTabs[next].focus();
     activateProfileTab(profileTabs[next].dataset.profileTab);
   });
+});
+trustScoreTabs.forEach((button, index) => {
+  button.addEventListener("click", () => activateTrustScoreTab(button.dataset.trustTab));
+  button.addEventListener("keydown", (event) => {
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+    event.preventDefault();
+    const next =
+      event.key === "Home"
+        ? 0
+        : event.key === "End"
+          ? trustScoreTabs.length - 1
+          : (index + (event.key === "ArrowLeft" ? -1 : 1) + trustScoreTabs.length) % trustScoreTabs.length;
+    trustScoreTabs[next].focus();
+    activateTrustScoreTab(trustScoreTabs[next].dataset.trustTab);
+  });
+});
+openAgreementTabButton?.addEventListener("click", () => {
+  activateTrustScoreTab("agreements");
+  document.getElementById("trust-tab-agreements")?.focus();
 });
 async function loadFriendProfile(friendId) {
   friendProfileView.replaceChildren();
@@ -4635,6 +4674,7 @@ if (location.pathname === "/login") {
   profilePage.hidden = true;
   messagesPage.hidden = true;
   trustScorePage.hidden = false;
+  activateTrustScoreTab(new URLSearchParams(location.search).get("tab"), false);
   document.title = "Trust Score — NFD";
 } else if (location.pathname === "/feed" || location.pathname === "/feed/") {
   appLayout.classList.add("feed-mode");

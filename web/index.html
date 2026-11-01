@@ -1493,74 +1493,129 @@
               <div class="eyebrow">A new space in NFD</div>
               <h1 id="trust-score-heading">Trust Score</h1>
               <p class="intro">
-                Prepare a first draft of an agreement from a short plain-language description.
+                Tools for preparing agreements and managing commitments, organized in one place.
               </p>
             </div>
           </div>
-          <section class="agreement-generator" aria-labelledby="agreement-generator-heading">
-            <div class="agreement-generator-heading">
-              <div>
-                <h2 id="agreement-generator-heading">Agreement generator</h2>
-                <p>
-                  Describe what the people involved agree to do. Gemini will create an editable first draft.
-                </p>
-              </div>
-              <span class="agreement-ai-badge">AI draft</span>
-            </div>
-            <form id="agreement-form" novalidate>
-              <label for="agreement-description">What should the agreement cover?</label>
-              <textarea
-                class="control agreement-description"
-                id="agreement-description"
-                maxlength="3000"
-                rows="4"
-                placeholder="For example: Two people are lending and borrowing a bicycle. The borrower will return it by a date they will fill in, and both will note any existing damage."
-                required
-              ></textarea>
-              <div class="agreement-input-meta">
-                <span>Use placeholders for details you have not decided.</span>
-                <span id="agreement-description-count">0 / 3000</span>
-              </div>
-              <label class="agreement-consent" for="agreement-gemini-consent">
-                <input id="agreement-gemini-consent" type="checkbox" />
-                <span>
-                  Send this description to Google Gemini to create a draft. I understand it may be inaccurate
-                  and is not legal advice. I’ll have it reviewed before signing and won’t include unnecessary
-                  sensitive information.
-                  <a href="/privacy" target="_blank" rel="noreferrer">Privacy details</a>.
-                </span>
-              </label>
-              <div class="agreement-actions">
-                <button class="submit" id="agreement-generate" type="submit">Generate draft</button>
-              </div>
-              <p class="agreement-feedback" id="agreement-feedback" role="status" aria-live="polite"></p>
-            </form>
-            <section
-              class="agreement-result"
-              id="agreement-result"
-              aria-labelledby="agreement-result-heading"
-              hidden
+          <div class="trust-score-tabs" role="tablist" aria-label="Trust Score features">
+            <button
+              id="trust-tab-overview"
+              class="profile-tab"
+              type="button"
+              role="tab"
+              aria-selected="true"
+              aria-controls="trust-panel-overview"
+              data-trust-tab="overview"
             >
-              <div class="agreement-result-heading">
+              Overview
+            </button>
+            <button
+              id="trust-tab-agreements"
+              class="profile-tab"
+              type="button"
+              role="tab"
+              aria-selected="false"
+              aria-controls="trust-panel-agreements"
+              data-trust-tab="agreements"
+              tabindex="-1"
+            >
+              Agreement generator
+            </button>
+          </div>
+          <section
+            id="trust-panel-overview"
+            class="trust-score-panel"
+            role="tabpanel"
+            aria-labelledby="trust-tab-overview"
+            tabindex="0"
+          >
+            <article class="trust-feature-card">
+              <div class="trust-feature-copy">
+                <span class="agreement-ai-badge">Available now</span>
+                <h2>Agreement generator</h2>
+                <p>Turn a short description into an editable agreement draft, then download your copy.</p>
+              </div>
+              <button class="secondary-button" id="open-agreement-tab" type="button">
+                Open agreement generator
+              </button>
+            </article>
+            <p class="trust-score-hint">New Trust Score tools can be added here as separate tabs.</p>
+          </section>
+          <section
+            id="trust-panel-agreements"
+            class="trust-score-panel"
+            role="tabpanel"
+            aria-labelledby="trust-tab-agreements"
+            tabindex="0"
+            hidden
+          >
+            <section class="agreement-generator" aria-labelledby="agreement-generator-heading">
+              <div class="agreement-generator-heading">
                 <div>
-                  <h3 id="agreement-result-heading">Your agreement draft</h3>
-                  <p>Edit the draft below, then download your copy. NFD does not save it to your account.</p>
+                  <h2 id="agreement-generator-heading">Agreement generator</h2>
+                  <p>
+                    Describe what the people involved agree to do. Gemini will create an editable first draft.
+                  </p>
                 </div>
+                <span class="agreement-ai-badge">AI draft</span>
               </div>
-              <label class="sr-only" for="agreement-draft">Editable agreement draft</label>
-              <textarea
-                class="control agreement-draft"
-                id="agreement-draft"
-                maxlength="30000"
-                rows="18"
-                spellcheck="true"
-              ></textarea>
-              <div class="agreement-actions agreement-download-actions">
-                <button class="secondary-button" id="agreement-download" type="button">
-                  Download agreement
-                </button>
-                <span id="agreement-download-feedback" role="status" aria-live="polite"></span>
-              </div>
+              <form id="agreement-form" novalidate>
+                <label for="agreement-description">What should the agreement cover?</label>
+                <textarea
+                  class="control agreement-description"
+                  id="agreement-description"
+                  maxlength="3000"
+                  rows="4"
+                  placeholder="For example: Two people are lending and borrowing a bicycle. The borrower will return it by a date they will fill in, and both will note any existing damage."
+                  required
+                ></textarea>
+                <div class="agreement-input-meta">
+                  <span>Use placeholders for details you have not decided.</span>
+                  <span id="agreement-description-count">0 / 3000</span>
+                </div>
+                <label class="agreement-consent" for="agreement-gemini-consent">
+                  <input id="agreement-gemini-consent" type="checkbox" />
+                  <span>
+                    Send this description to Google Gemini to create a draft. I understand it may be
+                    inaccurate and is not legal advice. I’ll have it reviewed before signing and won’t include
+                    unnecessary sensitive information.
+                    <a href="/privacy" target="_blank" rel="noreferrer">Privacy details</a>.
+                  </span>
+                </label>
+                <div class="agreement-actions">
+                  <button class="submit" id="agreement-generate" type="submit">Generate draft</button>
+                </div>
+                <p class="agreement-feedback" id="agreement-feedback" role="status" aria-live="polite"></p>
+              </form>
+              <section
+                class="agreement-result"
+                id="agreement-result"
+                aria-labelledby="agreement-result-heading"
+                hidden
+              >
+                <div class="agreement-result-heading">
+                  <div>
+                    <h3 id="agreement-result-heading">Your agreement draft</h3>
+                    <p>
+                      Edit the draft below, then download your copy. NFD does not save it to your account.
+                    </p>
+                  </div>
+                </div>
+                <label class="sr-only" for="agreement-draft">Editable agreement draft</label>
+                <textarea
+                  class="control agreement-draft"
+                  id="agreement-draft"
+                  maxlength="30000"
+                  rows="18"
+                  spellcheck="true"
+                ></textarea>
+                <div class="agreement-actions agreement-download-actions">
+                  <button class="secondary-button" id="agreement-download" type="button">
+                    Download agreement
+                  </button>
+                  <span id="agreement-download-feedback" role="status" aria-live="polite"></span>
+                </div>
+              </section>
             </section>
           </section>
         </section>
