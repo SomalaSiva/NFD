@@ -3868,6 +3868,14 @@ textarea.control::placeholder {
   font-size: 13px;
   line-height: 1.5;
 }
+#agreement-save-feedback {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+#agreement-save-feedback.error {
+  color: var(--danger);
+}
 .agreement-feedback.error,
 #agreement-download-feedback.error {
   color: var(--danger);
@@ -3882,6 +3890,156 @@ textarea.control::placeholder {
 }
 .agreement-result[hidden] {
   display: none !important;
+}
+.agreement-save-panel {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 18px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+.agreement-save-panel h3 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 17px;
+}
+.agreement-save-panel > p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.agreement-save-panel > label,
+.agreement-change-form > label {
+  display: grid;
+  gap: 7px;
+  font-weight: 700;
+}
+.agreement-friends-fieldset {
+  display: grid;
+  gap: 9px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.agreement-friends-fieldset legend {
+  margin-bottom: 8px;
+  font-weight: 700;
+}
+.agreement-friends-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+.agreement-friend-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  padding: 9px 12px;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  overflow-wrap: anywhere;
+}
+.agreement-friend-option input {
+  flex: none;
+  width: 17px;
+  height: 17px;
+  margin: 0;
+  accent-color: var(--green);
+}
+.agreement-friends-status {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.agreement-friends-status.error {
+  color: var(--danger);
+}
+.my-agreements-list {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+.stored-agreement-card {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 17px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+.stored-agreement-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+.stored-agreement-heading h3 {
+  min-width: 0;
+  margin: 0;
+  color: var(--ink);
+  font-size: 18px;
+  overflow-wrap: anywhere;
+}
+.agreement-status-badge {
+  flex: none;
+  max-width: 100%;
+  padding: 6px 9px;
+  color: var(--accent);
+  background: var(--mint);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 750;
+}
+.agreement-status-badge.status-declined {
+  color: var(--danger);
+  background: var(--danger-surface);
+}
+.stored-agreement-version,
+.stored-agreement-people {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.stored-agreement-text {
+  min-width: 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+.stored-agreement-text summary {
+  color: var(--accent);
+  font-weight: 700;
+  cursor: pointer;
+}
+.stored-agreement-text pre {
+  max-width: 100%;
+  margin: 12px 0 0;
+  color: var(--ink);
+  font: inherit;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.agreement-change-form {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.agreement-change-form[hidden] {
+  display: none !important;
+}
+.agreement-change-form .agreement-draft {
+  min-height: 220px;
 }
 .agreement-draft {
   min-height: 360px;
@@ -3922,6 +4080,10 @@ textarea.control::placeholder {
   .agreement-generator-heading,
   .agreement-result-heading {
     gap: 10px;
+  }
+  .stored-agreement-heading {
+    align-items: flex-start;
+    flex-direction: column;
   }
   .agreement-generator-heading h2 {
     font-size: 18px;

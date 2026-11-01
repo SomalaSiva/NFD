@@ -267,6 +267,71 @@ export const nfdEvidenceCleanup = sqliteTable("nfd_evidence_cleanup", {
   attempts: integer("attempts").notNull().default(0),
 });
 
+export const nfdAgreements = sqliteTable(
+  "nfd_agreements",
+  {
+    id: text("id").primaryKey(),
+    createdBy: text("created_by")
+      .notNull()
+      .references(() => nfdUsers.id, { onDelete: "cascade" }),
+    status: text("status").notNull().default("pending"),
+    currentVersion: integer("current_version").notNull().default(1),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [
+    index("nfd_agreements_created_by_updated_idx").on(table.createdBy, table.updatedAt),
+    index("nfd_agreements_status_updated_idx").on(table.status, table.updatedAt),
+  ],
+);
+
+export const nfdAgreementVersions = sqliteTable(
+  "nfd_agreement_versions",
+  {
+    id: text("id").primaryKey(),
+    agreementId: text("agreement_id")
+      .notNull()
+      .references(() => nfdAgreements.id, { onDelete: "cascade" }),
+    version: integer("version").notNull(),
+    title: text("title").notNull(),
+    body: text("body").notNull(),
+    createdBy: text("created_by")
+      .notNull()
+      .references(() => nfdUsers.id, { onDelete: "cascade" }),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("nfd_agreement_versions_number_unique").on(table.agreementId, table.version),
+    index("nfd_agreement_versions_created_idx").on(table.agreementId, table.createdAt),
+  ],
+);
+
+export const nfdAgreementParticipants = sqliteTable(
+  "nfd_agreement_participants",
+  {
+    agreementId: text("agreement_id")
+      .notNull()
+      .references(() => nfdAgreements.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => nfdUsers.id, { onDelete: "cascade" }),
+    role: text("role").notNull(),
+    status: text("status").notNull(),
+    acceptedVersion: integer("accepted_version"),
+    createdAt: text("created_at").notNull(),
+    respondedAt: text("responded_at"),
+  },
+  (table) => [
+    uniqueIndex("nfd_agreement_participants_pair_unique").on(table.agreementId, table.userId),
+    index("nfd_agreement_participants_user_status_idx").on(table.userId, table.status, table.createdAt),
+    index("nfd_agreement_participants_agreement_status_idx").on(
+      table.agreementId,
+      table.status,
+      table.createdAt,
+    ),
+  ],
+);
+
 // Tables kept in sync with the production D1 schema. Runtime queries use D1's
 // prepared-statement API; these definitions are the schema reference for tools.
 export const nfdAdminUsers = sqliteTable("nfd_admin_users", {

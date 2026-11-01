@@ -6,6 +6,8 @@ function setup({ user = { id: "user-1" } } = {}) {
   return createAgreementRoutes({
     getCurrentUser: async () => user,
     json: (body, status = 200) => Response.json(body, { status }),
+    recordActivity: async () => {},
+    availableIdentitySql: "u.active = 1",
   });
 }
 
@@ -106,4 +108,41 @@ test("agreement generator reports missing credentials and provider errors safely
   );
   assert.equal(response.status, 503);
   assert.doesNotMatch((await response.json()).error, /provider details/i);
+});
+
+test("stored agreements require sign-in and validate a title, body, and NFD approver", async () => {
+  const routes = setup({ user: null });
+  const response = await routes.listStoredAgreements(
+    new Request("https://nfd.test/api/trust-score/agreements"),
+    {
+      DB: {},
+    },
+  );
+  assert.equal(response.status, 401);
+
+  const signedIn = setup();
+  const invalid = await signedIn.createStoredAgreement(
+    request({ title: "", body: "Agreement text", participantIds: [] }),
+    { DB: {} },
+  );
+  assert.equal(invalid.status, 400);
+  assert.match((await invalid.json()).error, /title/i);
+
+  const noApprover = await signedIn.createStoredAgreement(
+    request({ title: "Loan", body: "Agreement text", participantIds: ["user-1"] }),
+    { DB: {} },
+  );
+  assert.equal(noApprover.status, 400);
+  assert.match((await noApprover.json()).error, /at least one/i);
+});
+
+test("agreement responses accept only approve or decline decisions", async () => {
+  const routes = setup();
+  const response = await routes.respondToStoredAgreement(
+    request({ decision: "edit" }),
+    { DB: {} },
+    "b6eaa238-918a-4a35-a57b-20e3283f2fb5",
+  );
+  assert.equal(response.status, 400);
+  assert.match((await response.json()).error, /approve or decline/i);
 });
