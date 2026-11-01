@@ -101,7 +101,23 @@ export function createAgreementRoutes({ getCurrentUser, json, recordActivity, av
         .bind(user.id)
         .all();
       const agreements = rows.results || [];
-      if (!agreements.length) return json({ agreements: [] });
+      const summaryRow = await env.DB.prepare(
+        `SELECT
+           SUM(CASE WHEN o.status = 'disputed' THEN 1 ELSE 0 END) AS disputed_outcomes,
+           SUM(CASE WHEN o.status = 'awaiting' THEN 1 ELSE 0 END) AS awaiting_outcomes,
+           SUM(CASE WHEN o.status = 'confirmed' THEN 1 ELSE 0 END) AS confirmed_outcomes
+         FROM nfd_agreement_outcomes o
+         INNER JOIN nfd_agreement_participants p ON p.agreement_id = o.agreement_id
+         WHERE p.user_id = ?`,
+      )
+        .bind(user.id)
+        .first();
+      const summary = {
+        disputed: Number(summaryRow?.disputed_outcomes || 0),
+        awaiting: Number(summaryRow?.awaiting_outcomes || 0),
+        confirmed: Number(summaryRow?.confirmed_outcomes || 0),
+      };
+      if (!agreements.length) return json({ agreements: [], summary });
       const placeholders = agreements.map(() => "?").join(", ");
       const participantRows = await env.DB.prepare(
         `SELECT p.agreement_id, p.user_id, p.role, p.status, p.accepted_version,
@@ -125,7 +141,56 @@ export function createAgreementRoutes({ getCurrentUser, json, recordActivity, av
         });
         participantsByAgreement.set(participant.agreement_id, participants);
       }
+      const outcomeRows = await env.DB.prepare(
+        `SELECT id, agreement_id, agreement_version, reported_by, outcome, note, status, created_at
+         FROM nfd_agreement_outcomes
+         WHERE agreement_id IN (${placeholders})
+         ORDER BY created_at DESC`,
+      )
+        .bind(...agreements.map((agreement) => agreement.id))
+        .all();
+      const outcomes = outcomeRows.results || [];
+      const outcomeParticipants = outcomes.length
+        ? await env.DB.prepare(
+            `SELECT r.outcome_id, r.user_id, r.decision, r.note, r.responded_at,
+                    COALESCE(NULLIF(trim(u.display_name), ''), 'NFD member') AS name
+             FROM nfd_agreement_outcome_responses r
+             INNER JOIN nfd_users u ON u.id = r.user_id
+             WHERE r.outcome_id IN (${outcomes.map(() => "?").join(", ")})
+             ORDER BY r.responded_at, lower(COALESCE(NULLIF(trim(u.display_name), ''), 'NFD member'))`,
+          )
+            .bind(...outcomes.map((outcome) => outcome.id))
+            .all()
+        : { results: [] };
+      const responsesByOutcome = new Map();
+      for (const response of outcomeParticipants.results || []) {
+        const responses = responsesByOutcome.get(response.outcome_id) || [];
+        responses.push({
+          userId: response.user_id,
+          name: response.name,
+          decision: response.decision,
+          note: response.note,
+          respondedAt: response.responded_at,
+        });
+        responsesByOutcome.set(response.outcome_id, responses);
+      }
+      const outcomesByAgreement = new Map();
+      for (const outcome of outcomes) {
+        const reports = outcomesByAgreement.get(outcome.agreement_id) || [];
+        reports.push({
+          id: outcome.id,
+          version: outcome.agreement_version,
+          reportedBy: outcome.reported_by,
+          result: outcome.outcome,
+          note: outcome.note,
+          status: outcome.status,
+          createdAt: outcome.created_at,
+          responses: responsesByOutcome.get(outcome.id) || [],
+        });
+        outcomesByAgreement.set(outcome.agreement_id, reports);
+      }
       return json({
+        summary,
         agreements: agreements.map((agreement) => ({
           id: agreement.id,
           createdBy: agreement.created_by,
@@ -139,11 +204,140 @@ export function createAgreementRoutes({ getCurrentUser, json, recordActivity, av
           createdAt: agreement.created_at,
           updatedAt: agreement.updated_at,
           participants: participantsByAgreement.get(agreement.id) || [],
+          outcomes: outcomesByAgreement.get(agreement.id) || [],
         })),
       });
     } catch (error) {
       console.error("Stored NFD agreements could not be listed", error);
       return json({ error: "Agreements could not be loaded right now." }, 503);
+    }
+  }
+
+  async function reportAgreementOutcome(request, env, agreementId) {
+    const user = await getCurrentUser(request, env);
+    if (!user) return json({ error: "Sign in to report an agreement outcome." }, 401);
+    if (!env.DB) return json({ error: "Outcome tracking is unavailable right now." }, 503);
+    if (!request.headers.get("content-type")?.toLowerCase().includes("application/json"))
+      return json({ error: "Send the outcome as JSON." }, 415);
+    const body = await request.json().catch(() => null);
+    const result = body?.outcome;
+    const note = typeof body?.note === "string" ? body.note.trim() : "";
+    if (!["completed", "partially_completed", "delayed", "not_completed"].includes(result))
+      return json({ error: "Choose a valid outcome." }, 400);
+    if (note.length > 2000) return json({ error: "Keep the outcome note under 2,000 characters." }, 413);
+    try {
+      const id = crypto.randomUUID();
+      const now = new Date().toISOString();
+      const saved = await env.DB.prepare(
+        `INSERT INTO nfd_agreement_outcomes
+           (id, agreement_id, agreement_version, required_responses, reported_by, outcome, note, status, created_at)
+         SELECT ?, a.id, a.current_version,
+                (SELECT COUNT(*) - 1 FROM nfd_agreement_participants accepted
+                 WHERE accepted.agreement_id = a.id AND accepted.status = 'accepted'
+                   AND accepted.accepted_version = a.current_version),
+                ?, ?, ?, 'awaiting', ?
+         FROM nfd_agreements a
+         INNER JOIN nfd_agreement_participants p ON p.agreement_id = a.id AND p.user_id = ?
+         WHERE a.id = ? AND a.status = 'active' AND p.status = 'accepted'
+           AND p.accepted_version = a.current_version
+           AND NOT EXISTS (
+             SELECT 1 FROM nfd_agreement_outcomes o
+             WHERE o.agreement_id = a.id AND o.agreement_version = a.current_version
+           )`,
+      )
+        .bind(id, user.id, result, note || null, now, user.id, agreementId)
+        .run();
+      if (!saved.meta?.changes)
+        return json(
+          {
+            error: "This agreement must be active, and its current version can have only one outcome report.",
+          },
+          409,
+        );
+      await recordActivity?.(
+        env,
+        user.id,
+        "trust_agreement_outcome_reported",
+        "trust_agreement",
+        agreementId,
+        {
+          outcome: result,
+        },
+      );
+      return json({ ok: true, outcomeId: id }, 201);
+    } catch (error) {
+      console.error("NFD agreement outcome could not be saved", error);
+      return json({ error: "The agreement outcome could not be saved right now." }, 503);
+    }
+  }
+
+  async function respondToAgreementOutcome(request, env, agreementId) {
+    const user = await getCurrentUser(request, env);
+    if (!user) return json({ error: "Sign in to respond to an outcome." }, 401);
+    if (!env.DB) return json({ error: "Outcome tracking is unavailable right now." }, 503);
+    if (!request.headers.get("content-type")?.toLowerCase().includes("application/json"))
+      return json({ error: "Send your response as JSON." }, 415);
+    const body = await request.json().catch(() => null);
+    const decision = body?.decision;
+    const note = typeof body?.note === "string" ? body.note.trim() : "";
+    const outcomeId = typeof body?.outcomeId === "string" ? body.outcomeId : "";
+    if (!["confirm", "dispute"].includes(decision))
+      return json({ error: "Choose confirm or disagree." }, 400);
+    if (!outcomeId) return json({ error: "That outcome report could not be found." }, 400);
+    if (decision === "dispute" && !note)
+      return json({ error: "Add a short explanation when you disagree with an outcome." }, 400);
+    if (note.length > 2000) return json({ error: "Keep your response under 2,000 characters." }, 413);
+    try {
+      const now = new Date().toISOString();
+      const saved = await env.DB.prepare(
+        `INSERT INTO nfd_agreement_outcome_responses
+           (outcome_id, user_id, decision, note, responded_at)
+         SELECT o.id, p.user_id, ?, ?, ?
+         FROM nfd_agreement_outcomes o
+         INNER JOIN nfd_agreement_participants p ON p.agreement_id = o.agreement_id AND p.user_id = ?
+         INNER JOIN nfd_agreement_versions v
+           ON v.agreement_id = o.agreement_id AND v.version = o.agreement_version
+         WHERE o.id = ? AND o.agreement_id = ? AND o.status IN ('awaiting', 'disputed')
+           AND o.reported_by != p.user_id`,
+      )
+        .bind(decision, note || null, now, user.id, outcomeId, agreementId)
+        .run();
+      if (!saved.meta?.changes)
+        return json(
+          { error: "This outcome is no longer open for your response, or you already responded." },
+          409,
+        );
+      await env.DB.prepare(
+        `UPDATE nfd_agreement_outcomes
+         SET status = CASE
+           WHEN EXISTS (
+             SELECT 1 FROM nfd_agreement_outcome_responses r
+             WHERE r.outcome_id = ? AND r.decision = 'dispute'
+           ) THEN 'disputed'
+           WHEN (
+             SELECT COUNT(*) FROM nfd_agreement_outcome_responses r
+             WHERE r.outcome_id = ? AND r.decision = 'confirm'
+           ) = (SELECT required_responses FROM nfd_agreement_outcomes o WHERE o.id = ?) THEN 'confirmed'
+           ELSE 'awaiting'
+         END
+         WHERE id = ? AND status IN ('awaiting', 'disputed')`,
+      )
+        .bind(outcomeId, outcomeId, outcomeId, outcomeId)
+        .run();
+      await recordActivity?.(
+        env,
+        user.id,
+        "trust_agreement_outcome_response",
+        "trust_agreement",
+        agreementId,
+        {
+          decision,
+        },
+      );
+      return json({ ok: true });
+    } catch (error) {
+      console.error("NFD agreement outcome response could not be saved", error);
+      return json({ error: "Your outcome response could not be saved right now." }, 503);
     }
   }
 
@@ -386,5 +580,7 @@ export function createAgreementRoutes({ getCurrentUser, json, recordActivity, av
     createStoredAgreement,
     respondToStoredAgreement,
     proposeAgreementChange,
+    reportAgreementOutcome,
+    respondToAgreementOutcome,
   };
 }

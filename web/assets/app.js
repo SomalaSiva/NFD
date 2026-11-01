@@ -406,6 +406,8 @@ const agreementSaveButton = document.getElementById("agreement-save");
 const agreementSaveFeedback = document.getElementById("agreement-save-feedback");
 const myAgreementsList = document.getElementById("my-agreements-list");
 const myAgreementsFeedback = document.getElementById("my-agreements-feedback");
+const myAgreementsSummary = document.getElementById("my-agreements-summary");
+const trustRecordDisputedCount = document.getElementById("trust-record-disputed-count");
 const agreementRefreshButton = document.getElementById("agreement-refresh");
 const messageThreadList = document.getElementById("message-thread-list");
 const messageInboxStatus = document.getElementById("message-inbox-status");
@@ -1986,7 +1988,7 @@ function activateTrustScoreTab(tab, updateUrl = true) {
     url.searchParams.set("tab", activeTab);
     history.replaceState(null, "", url);
   }
-  if (activeTab === "my-agreements") loadStoredAgreements();
+  if (activeTab === "my-agreements" || activeTab === "record") loadStoredAgreements();
 }
 profileTabs.forEach((button, index) => {
   button.addEventListener("click", () => activateProfileTab(button.dataset.profileTab));
@@ -4387,6 +4389,12 @@ async function updateNavigation() {
     applySessionIdleMinutes(result.sessionIdleMinutes);
     startSessionActivityTracking();
     currentUserId = result.userId || currentUserId;
+    if (
+      location.pathname === "/trust-score" &&
+      ["my-agreements", "record"].includes(new URLSearchParams(location.search).get("tab"))
+    ) {
+      loadStoredAgreements();
+    }
     syncFeedTagline(currentUserId);
     setProfilePhotoEverywhere(result.profilePhotoUrl || "", result.displayName || "NFD member");
     accountAdminLink.hidden = !result.isAdmin;
@@ -4799,6 +4807,143 @@ function agreementStatusLabel(status) {
       : "Waiting for approval";
 }
 
+const outcomeLabels = {
+  completed: "Completed",
+  partially_completed: "Partially completed",
+  delayed: "Delayed",
+  not_completed: "Not completed",
+};
+
+const outcomeStatusLabels = {
+  awaiting: "Awaiting responses",
+  confirmed: "Confirmed by all other participants",
+  disputed: "Disagreement recorded",
+};
+
+async function submitAgreementOutcome(agreementId, form, button) {
+  const feedback = form.querySelector("[data-outcome-feedback]");
+  const select = form.querySelector("select");
+  const note = form.querySelector("textarea");
+  button.disabled = true;
+  try {
+    const response = await fetch(`/api/trust-score/agreements/${encodeURIComponent(agreementId)}/outcome`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ outcome: select.value, note: note.value }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || "The outcome could not be saved.");
+    await loadStoredAgreements();
+  } catch (error) {
+    feedback.textContent = error.message || "The outcome could not be saved.";
+    feedback.classList.add("error");
+    button.disabled = false;
+  }
+}
+
+async function submitAgreementOutcomeResponse(agreementId, outcomeId, decision, form, button) {
+  const feedback = form.querySelector("[data-outcome-feedback]");
+  const note = form.querySelector("textarea");
+  button.disabled = true;
+  try {
+    const response = await fetch(
+      `/api/trust-score/agreements/${encodeURIComponent(agreementId)}/outcome-response`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ outcomeId, decision, note: note.value }),
+      },
+    );
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || "Your response could not be saved.");
+    await loadStoredAgreements();
+  } catch (error) {
+    feedback.textContent = error.message || "Your response could not be saved.";
+    feedback.classList.add("error");
+    button.disabled = false;
+  }
+}
+
+function renderAgreementOutcome(agreement, outcome) {
+  const section = document.createElement("section");
+  section.className = `agreement-outcome agreement-outcome-${outcome.status}`;
+  const heading = document.createElement("div");
+  heading.className = "agreement-outcome-heading";
+  const title = document.createElement("h4");
+  title.textContent = `${outcomeLabels[outcome.result] || "Reported outcome"} · ${outcomeStatusLabels[outcome.status] || "In review"}`;
+  heading.append(title);
+  section.append(heading);
+  if (outcome.note) {
+    const note = document.createElement("p");
+    note.className = "agreement-outcome-note";
+    note.textContent = outcome.note;
+    section.append(note);
+  }
+  const responses = outcome.responses || [];
+  const disputedResponses = responses.filter((response) => response.decision === "dispute");
+  const responseSummary = document.createElement("p");
+  responseSummary.className = "agreement-outcome-response-summary";
+  if (outcome.status === "disputed") {
+    responseSummary.textContent = `Disagreement recorded by ${disputedResponses.length} participant${disputedResponses.length === 1 ? "" : "s"}. This is a disputed report, not a verified finding.`;
+  } else if (outcome.status === "confirmed") {
+    responseSummary.textContent = "Every other participant confirmed this outcome.";
+  } else {
+    responseSummary.textContent = `${responses.length} of ${Math.max(0, agreement.participants.length - 1)} participant responses received.`;
+  }
+  section.append(responseSummary);
+  if (responses.length) {
+    const responseList = document.createElement("ul");
+    responseList.className = "agreement-outcome-response-list";
+    for (const response of responses) {
+      const item = document.createElement("li");
+      const decisionLabel = response.decision === "dispute" ? "disagrees" : "confirms";
+      item.textContent = `${response.name} ${decisionLabel}${response.note ? `: ${response.note}` : ""}`;
+      responseList.append(item);
+    }
+    section.append(responseList);
+  }
+  const myResponse = responses.find((response) => response.userId === currentUserId);
+  const mayRespond =
+    agreement.status === "active" &&
+    outcome.status !== "confirmed" &&
+    outcome.reportedBy !== currentUserId &&
+    !myResponse &&
+    agreement.myStatus === "accepted";
+  if (mayRespond) {
+    const form = document.createElement("form");
+    form.className = "agreement-outcome-response-form";
+    const label = document.createElement("label");
+    label.textContent = "Your response";
+    const note = document.createElement("textarea");
+    note.className = "control";
+    note.rows = 2;
+    note.maxLength = 2000;
+    note.placeholder = "Optional to confirm; required to disagree";
+    label.append(note);
+    const actions = document.createElement("div");
+    actions.className = "agreement-actions";
+    for (const [decision, text, className] of [
+      ["confirm", "Confirm", "submit"],
+      ["dispute", "Disagree", "secondary-button"],
+    ]) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = className;
+      button.textContent = text;
+      button.addEventListener("click", () =>
+        submitAgreementOutcomeResponse(agreement.id, outcome.id, decision, form, button),
+      );
+      actions.append(button);
+    }
+    const feedback = document.createElement("p");
+    feedback.dataset.outcomeFeedback = "";
+    feedback.className = "agreement-feedback";
+    form.append(label, actions, feedback);
+    section.append(form);
+  }
+  return section;
+}
+
 async function sendAgreementResponse(agreementId, decision, button) {
   button.disabled = true;
   try {
@@ -4852,6 +4997,9 @@ function renderStoredAgreement(agreement) {
   disclosure.append(summary, agreementText);
   card.append(heading, version, people, disclosure);
 
+  const outcomes = agreement.outcomes || [];
+  for (const outcome of outcomes) card.append(renderAgreementOutcome(agreement, outcome));
+
   if (agreement.status === "pending" && agreement.myStatus === "pending") {
     const actions = document.createElement("div");
     actions.className = "agreement-actions";
@@ -4870,6 +5018,41 @@ function renderStoredAgreement(agreement) {
   }
 
   if (agreement.status === "active" && agreement.myStatus === "accepted") {
+    if (!outcomes.some((outcome) => outcome.version === agreement.currentVersion)) {
+      const outcomeForm = document.createElement("form");
+      outcomeForm.className = "agreement-outcome-form";
+      const label = document.createElement("label");
+      label.textContent = "Record how this agreement went";
+      const select = document.createElement("select");
+      select.className = "control";
+      for (const [value, text] of Object.entries(outcomeLabels)) {
+        const option = document.createElement("option");
+        option.value = value;
+        option.textContent = text;
+        select.append(option);
+      }
+      label.append(select);
+      const noteLabel = document.createElement("label");
+      noteLabel.textContent = "Short note (optional)";
+      const note = document.createElement("textarea");
+      note.className = "control";
+      note.rows = 2;
+      note.maxLength = 2000;
+      noteLabel.append(note);
+      const submit = document.createElement("button");
+      submit.className = "secondary-button";
+      submit.type = "submit";
+      submit.textContent = "Submit outcome for review";
+      const feedback = document.createElement("p");
+      feedback.dataset.outcomeFeedback = "";
+      feedback.className = "agreement-feedback";
+      outcomeForm.append(label, noteLabel, submit, feedback);
+      outcomeForm.addEventListener("submit", (event) => {
+        event.preventDefault();
+        submitAgreementOutcome(agreement.id, outcomeForm, submit);
+      });
+      card.append(outcomeForm);
+    }
     const changeButton = document.createElement("button");
     changeButton.className = "secondary-button";
     changeButton.type = "button";
@@ -4938,6 +5121,7 @@ async function loadStoredAgreements() {
     myAgreementsFeedback.textContent = "";
     myAgreementsFeedback.classList.remove("error");
   }
+  if (myAgreementsSummary) myAgreementsSummary.hidden = true;
   if (agreementRefreshButton) agreementRefreshButton.disabled = true;
   try {
     const response = await fetch("/api/trust-score/agreements", {
@@ -4948,6 +5132,21 @@ async function loadStoredAgreements() {
     if (!response.ok) throw new Error(result.error || "Agreements could not be loaded.");
     myAgreementsList.replaceChildren();
     const agreements = Array.isArray(result.agreements) ? result.agreements : [];
+    if (myAgreementsSummary) {
+      const summary = result.summary || {};
+      if (trustRecordDisputedCount)
+        trustRecordDisputedCount.textContent = String(Number(summary.disputed || 0));
+      myAgreementsSummary.replaceChildren();
+      const disputed = document.createElement("strong");
+      disputed.textContent = `Disputed outcomes: ${Number(summary.disputed || 0)}`;
+      const otherCounts = document.createElement("span");
+      otherCounts.textContent = `Confirmed: ${Number(summary.confirmed || 0)} · Awaiting responses: ${Number(summary.awaiting || 0)}`;
+      const note = document.createElement("small");
+      note.textContent =
+        "Each count is one agreement outcome. A disagreement is shown separately and does not by itself prove a broken commitment.";
+      myAgreementsSummary.append(disputed, otherCounts, note);
+      myAgreementsSummary.hidden = false;
+    }
     if (!agreements.length) {
       const empty = document.createElement("p");
       empty.className = "agreement-friends-status";

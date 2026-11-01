@@ -332,6 +332,48 @@ export const nfdAgreementParticipants = sqliteTable(
   ],
 );
 
+export const nfdAgreementOutcomes = sqliteTable(
+  "nfd_agreement_outcomes",
+  {
+    id: text("id").primaryKey(),
+    agreementId: text("agreement_id")
+      .notNull()
+      .references(() => nfdAgreements.id, { onDelete: "cascade" }),
+    agreementVersion: integer("agreement_version").notNull(),
+    requiredResponses: integer("required_responses").notNull(),
+    reportedBy: text("reported_by")
+      .notNull()
+      .references(() => nfdUsers.id, { onDelete: "cascade" }),
+    outcome: text("outcome").notNull(),
+    note: text("note"),
+    status: text("status").notNull().default("awaiting"),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("nfd_agreement_outcomes_version_unique").on(table.agreementId, table.agreementVersion),
+    index("nfd_agreement_outcomes_status_idx").on(table.status, table.createdAt),
+  ],
+);
+
+export const nfdAgreementOutcomeResponses = sqliteTable(
+  "nfd_agreement_outcome_responses",
+  {
+    outcomeId: text("outcome_id")
+      .notNull()
+      .references(() => nfdAgreementOutcomes.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => nfdUsers.id, { onDelete: "cascade" }),
+    decision: text("decision").notNull(),
+    note: text("note"),
+    respondedAt: text("responded_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("nfd_agreement_outcome_responses_pair_unique").on(table.outcomeId, table.userId),
+    index("nfd_agreement_outcome_responses_outcome_idx").on(table.outcomeId, table.respondedAt),
+  ],
+);
+
 // Tables kept in sync with the production D1 schema. Runtime queries use D1's
 // prepared-statement API; these definitions are the schema reference for tools.
 export const nfdAdminUsers = sqliteTable("nfd_admin_users", {
