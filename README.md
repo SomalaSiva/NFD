@@ -26,7 +26,7 @@ NFD is a story-sharing web app. Its pages are plain HTML, CSS, and JavaScript. A
 - `web/privacy.html`, `web/guidelines.html`, and `web/nfd-icon.png` — static pages and image.
 - `db/schema.ts` — Drizzle reference for all application tables.
 - `db/migrations/` — current D1 migration baseline and future forward migrations.
-- `drizzle/` — older migration history retained for reference; use `db/migrations/` for new work.
+- `drizzle/` — hosted Sites migration bundle; keep its applied history immutable and append forward migrations for production releases.
 - `scripts/build-worker.mjs` — bundles the Worker and its web assets into `dist/`.
 - `wrangler.jsonc` — local-only Worker, D1, and R2 configuration. Production publishing is handled by Sites.
 
@@ -44,7 +44,7 @@ The ChatGPT identity header is supplied by the hosted environment and is not ava
 
 ## Database changes
 
-Update `db/schema.ts`, generate a migration with `npm run db:generate -- --name=short_description`, inspect the SQL, then test it against local D1. Keep the generated SQL in `db/migrations/` and run `npm run db:local:migrate` locally. The migration baseline is for new local databases. The live database already contains application tables created during the app's earlier runtime-bootstrap era; do not apply the baseline to production. Establish and review a production migration baseline before applying future production D1 migrations.
+Update `db/schema.ts`, generate a migration with `npm run db:generate -- --name=short_description`, inspect the SQL, then test it against local D1. Keep the generated SQL in `db/migrations/` and run `npm run db:local:migrate` locally. `db/migrations/` is the local D1 history and baseline; `drizzle/` is the separate hosted Sites migration bundle included in release archives. For a production schema change, append a reviewed forward migration and matching journal/snapshot metadata to `drizzle/`; never apply the local baseline to the existing live database or rewrite already applied migrations. Sites applies the hosted migrations before uploading the Worker.
 
 The Worker still has idempotent schema checks for compatibility with older installations. Treat those as a transition aid; new schema changes belong in the Drizzle schema and reviewed migration files.
 
