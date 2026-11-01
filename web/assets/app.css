@@ -3626,6 +3626,7 @@ textarea.control::placeholder {
   gap: 20px;
 }
 .messages-page[hidden],
+.trust-score-page[hidden],
 .message-thread-header[hidden],
 .message-list[hidden],
 .message-compose[hidden],

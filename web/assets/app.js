@@ -387,6 +387,7 @@ const ghostProfileState = document.getElementById("ghost-profile-state");
 const ghostProfileToggle = document.getElementById("ghost-profile-toggle");
 const ghostProfileDeactivate = document.getElementById("ghost-profile-deactivate");
 const messagesPage = document.getElementById("messages-page");
+const trustScorePage = document.getElementById("trust-score-page");
 const messageThreadList = document.getElementById("message-thread-list");
 const messageInboxStatus = document.getElementById("message-inbox-status");
 const messageInboxEmpty = document.getElementById("message-inbox-empty");
@@ -4618,6 +4619,15 @@ if (location.pathname === "/login") {
   messagesPage.hidden = false;
   document.title = "Messages — NFD";
   loadMessagesPage();
+} else if (location.pathname === "/trust-score") {
+  appLayout.classList.add("profile-mode");
+  form.hidden = true;
+  reviewPage.hidden = true;
+  feedPage.hidden = true;
+  profilePage.hidden = true;
+  messagesPage.hidden = true;
+  trustScorePage.hidden = false;
+  document.title = "Trust Score — NFD";
 } else if (location.pathname === "/feed" || location.pathname === "/feed/") {
   appLayout.classList.add("feed-mode");
   form.hidden = true;

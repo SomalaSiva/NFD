@@ -141,6 +141,12 @@ const worker = {
       }
       return html(PAGE_HTML);
     }
+    if (request.method === "GET" && url.pathname === "/trust-score") {
+      if (!(await getCurrentUser(request, env))) {
+        return Response.redirect(new URL("/login?return_to=%2Ftrust-score", url), 302);
+      }
+      return html(PAGE_HTML);
+    }
     if (request.method === "GET" && url.pathname === "/privacy") {
       return html(PRIVACY_HTML);
     }
