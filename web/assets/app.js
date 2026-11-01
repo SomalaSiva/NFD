@@ -424,6 +424,7 @@ let currentMessageFriendId = "";
 let messageRefreshTimer;
 let messageRefreshInFlight = false;
 let messageSeenPending = new Set();
+let storedAgreementsLoading = false;
 const profileSummary = document.getElementById("profile-summary");
 const profilePostCount = document.getElementById("profile-post-count");
 const profilePostList = document.getElementById("profile-post-list");
@@ -4736,7 +4737,6 @@ agreementDescription?.addEventListener("input", () => {
   agreementDescriptionCount.textContent = `${agreementDescription.value.length} / 3000`;
 });
 let agreementFriendsLoaded = false;
-let storedAgreementsLoading = false;
 
 async function loadAgreementFriends(force = false) {
   if (!agreementFriendsList || (agreementFriendsLoaded && !force)) return;
