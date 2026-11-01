@@ -3685,6 +3685,76 @@ textarea.control::placeholder {
 .trust-score-hint {
   font-size: 13px;
 }
+.trust-record-card {
+  gap: 16px;
+}
+.trust-record-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.trust-record-summary > div {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-width: 0;
+  padding: 15px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+.trust-record-label {
+  color: var(--muted);
+  font-size: 12px;
+}
+.trust-record-summary strong {
+  overflow-wrap: anywhere;
+}
+.trust-outcome-list {
+  display: grid;
+  gap: 10px;
+}
+.trust-outcome-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+  padding: 13px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+.trust-outcome-icon {
+  display: grid;
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  color: var(--accent);
+  background: var(--mint);
+  border-radius: 50%;
+  font-weight: 800;
+}
+.trust-outcome-item > span:last-child {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.trust-outcome-item small {
+  color: var(--muted);
+  line-height: 1.45;
+}
+.trust-safety-note {
+  padding: 14px;
+  color: var(--muted);
+  background: var(--surface);
+  border-inline-start: 3px solid var(--accent);
+  border-radius: 10px;
+  line-height: 1.5;
+}
+.trust-safety-note strong {
+  color: var(--ink);
+}
 .messages-page[hidden],
 .trust-score-page[hidden],
 .message-thread-header[hidden],
@@ -3845,6 +3915,9 @@ textarea.control::placeholder {
   .agreement-generator {
     padding: 17px;
     gap: 15px;
+  }
+  .trust-record-summary {
+    grid-template-columns: minmax(0, 1fr);
   }
   .agreement-generator-heading,
   .agreement-result-heading {

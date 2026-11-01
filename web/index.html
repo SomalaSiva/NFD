@@ -1521,6 +1521,18 @@
             >
               Agreement generator
             </button>
+            <button
+              id="trust-tab-record"
+              class="profile-tab"
+              type="button"
+              role="tab"
+              aria-selected="false"
+              aria-controls="trust-panel-record"
+              data-trust-tab="record"
+              tabindex="-1"
+            >
+              People &amp; track record
+            </button>
           </div>
           <section
             id="trust-panel-overview"
@@ -1617,6 +1629,95 @@
                 </div>
               </section>
             </section>
+          </section>
+          <section
+            id="trust-panel-record"
+            class="trust-score-panel"
+            role="tabpanel"
+            aria-labelledby="trust-tab-record"
+            tabindex="0"
+            hidden
+          >
+            <article class="agreement-generator trust-record-card" aria-labelledby="trust-record-heading">
+              <div class="agreement-generator-heading">
+                <div>
+                  <span class="agreement-ai-badge">Feature preview</span>
+                  <h2 id="trust-record-heading">Your commitment record</h2>
+                  <p>
+                    NFD will only show a record after the people involved confirm an outcome or a review
+                    resolves a disagreement.
+                  </p>
+                </div>
+              </div>
+              <div class="trust-record-summary" aria-label="Trust record status">
+                <div>
+                  <span class="trust-record-label">Score</span>
+                  <strong>Not available yet</strong>
+                </div>
+                <div>
+                  <span class="trust-record-label">What counts</span>
+                  <strong>Distinct people, not agreement totals</strong>
+                </div>
+              </div>
+              <p class="trust-score-hint">
+                If you have several agreements with one person, NFD would count that person once. The current
+                app does not yet save tracked agreements or calculate a score, so this preview does not show
+                sample counts as real activity.
+              </p>
+            </article>
+            <article class="agreement-generator trust-record-card" aria-labelledby="trust-outcomes-heading">
+              <div class="agreement-generator-heading">
+                <div>
+                  <h3 id="trust-outcomes-heading">How outcomes could appear</h3>
+                  <p>Neutral descriptions of what both sides confirmed.</p>
+                </div>
+              </div>
+              <div class="trust-outcome-list">
+                <div class="trust-outcome-item">
+                  <span class="trust-outcome-icon" aria-hidden="true">✓</span>
+                  <span
+                    ><strong>Commitment kept</strong
+                    ><small>For example, an item was returned as agreed.</small></span
+                  >
+                </div>
+                <div class="trust-outcome-item">
+                  <span class="trust-outcome-icon" aria-hidden="true">◷</span>
+                  <span
+                    ><strong>Completed late</strong
+                    ><small>An accepted deadline passed without a jointly approved change.</small></span
+                  >
+                </div>
+                <div class="trust-outcome-item">
+                  <span class="trust-outcome-icon" aria-hidden="true">½</span>
+                  <span
+                    ><strong>Partially completed</strong
+                    ><small>Some agreed work or repayment remains outstanding.</small></span
+                  >
+                </div>
+                <div class="trust-outcome-item">
+                  <span class="trust-outcome-icon" aria-hidden="true">!</span>
+                  <span
+                    ><strong>Confirmed not completed</strong
+                    ><small
+                      >Both sides confirm the agreed commitment was not fulfilled, or review resolves
+                      it.</small
+                    ></span
+                  >
+                </div>
+                <div class="trust-outcome-item">
+                  <span class="trust-outcome-icon" aria-hidden="true">…</span>
+                  <span
+                    ><strong>Disputed or awaiting response</strong
+                    ><small>Kept out of the record until resolved; silence is not a failure.</small></span
+                  >
+                </div>
+              </div>
+              <div class="trust-safety-note">
+                <strong>Safety concerns are handled separately.</strong>
+                Reports about threats or aggressive behavior should go through private review. A one-sided
+                allegation does not become a public score entry.
+              </div>
+            </article>
           </section>
         </section>
         <div class="trust-note">
