@@ -4250,11 +4250,18 @@ textarea.control::placeholder {
   overscroll-behavior-x: contain;
   scrollbar-width: none;
 }
-.topbar-navigation .messages-nav-link {
+.topbar-navigation .nav-utility-links {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: clamp(12px, 2vw, 24px);
   margin-left: auto;
 }
+.topbar-navigation .messages-nav-link {
+  margin-left: 0;
+}
 .topbar-navigation .nav-share-link {
-  margin-left: auto;
+  margin-left: 0;
   flex: none;
   white-space: nowrap;
 }
@@ -4273,13 +4280,16 @@ textarea.control::placeholder {
     max-width: none;
     min-height: 52px;
     justify-content: flex-start;
-    gap: 12px;
+    gap: 9px;
     padding: 0 14px;
     font-size: 12px;
     overflow-x: visible;
   }
   .topbar-navigation .messages-nav-link {
     margin-left: 0;
+  }
+  .topbar-navigation .nav-utility-links {
+    gap: 9px;
   }
   .topbar-navigation .top-actions a:nth-child(2),
   .topbar-navigation .top-actions a.feed-nav-link,
@@ -4302,6 +4312,26 @@ textarea.control::placeholder {
     position: fixed;
     top: 72px;
     right: 14px;
+  }
+}
+@media (max-width: 420px) {
+  .topbar-navigation .top-actions {
+    gap: 6px;
+    padding-right: 8px;
+    padding-left: 8px;
+    font-size: 10px;
+  }
+  .topbar-navigation .nav-utility-links {
+    gap: 6px;
+  }
+  .topbar-navigation .nav-share-link {
+    gap: 4px;
+    padding: 5px 6px;
+    font-size: 10px;
+  }
+  .topbar-navigation .nav-share-link img {
+    width: 18px;
+    height: 18px;
   }
 }
 
