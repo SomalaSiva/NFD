@@ -3928,11 +3928,55 @@ textarea.control::placeholder {
   margin-bottom: 8px;
   font-weight: 700;
 }
+.agreement-people-search-label {
+  font-weight: 700;
+}
+.agreement-people-search-help,
+.agreement-outcome-guidance {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.agreement-selected-people {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+.agreement-selected-person {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 100%;
+  padding: 6px 8px 6px 11px;
+  color: var(--ink);
+  background: var(--mint);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  overflow-wrap: anywhere;
+}
+.agreement-selected-person button {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  border-radius: 50%;
+  font: inherit;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
 .agreement-friends-list {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   min-width: 0;
+  max-height: 240px;
+  overflow: auto;
 }
 .agreement-friend-option {
   display: inline-flex;
@@ -4035,6 +4079,9 @@ textarea.control::placeholder {
   display: grid;
   gap: 10px;
   min-width: 0;
+}
+.agreement-outcome-guidance {
+  max-width: 70ch;
 }
 .agreement-outcome-summary {
   grid-template-columns: repeat(2, minmax(0, 1fr));

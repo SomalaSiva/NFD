@@ -6,7 +6,13 @@ const GEMINI_TIMEOUT_MS = 60000;
 
 const MAX_PARTICIPANTS = 20;
 
-export function createAgreementRoutes({ getCurrentUser, json, recordActivity, availableIdentitySql }) {
+export function createAgreementRoutes({
+  getCurrentUser,
+  json,
+  recordActivity,
+  availableIdentitySql,
+  cleanSearchTerm,
+}) {
   async function generateDraft(request, env) {
     const user = await getCurrentUser(request, env);
     if (!user) return json({ error: "Sign in to generate an agreement draft." }, 401);
@@ -105,7 +111,8 @@ export function createAgreementRoutes({ getCurrentUser, json, recordActivity, av
         `SELECT
            SUM(CASE WHEN o.status = 'disputed' THEN 1 ELSE 0 END) AS disputed_outcomes,
            SUM(CASE WHEN o.status = 'awaiting' THEN 1 ELSE 0 END) AS awaiting_outcomes,
-           SUM(CASE WHEN o.status = 'confirmed' THEN 1 ELSE 0 END) AS confirmed_outcomes
+           SUM(CASE WHEN o.status = 'confirmed' THEN 1 ELSE 0 END) AS confirmed_outcomes,
+           SUM(CASE WHEN o.status = 'confirmed' AND o.outcome = 'completed' THEN 1 ELSE 0 END) AS completed_outcomes
          FROM nfd_agreement_outcomes o
          INNER JOIN nfd_agreement_participants p ON p.agreement_id = o.agreement_id
          WHERE p.user_id = ?`,
@@ -116,6 +123,7 @@ export function createAgreementRoutes({ getCurrentUser, json, recordActivity, av
         disputed: Number(summaryRow?.disputed_outcomes || 0),
         awaiting: Number(summaryRow?.awaiting_outcomes || 0),
         confirmed: Number(summaryRow?.confirmed_outcomes || 0),
+        completed: Number(summaryRow?.completed_outcomes || 0),
       };
       if (!agreements.length) return json({ agreements: [], summary });
       const placeholders = agreements.map(() => "?").join(", ");
@@ -210,6 +218,43 @@ export function createAgreementRoutes({ getCurrentUser, json, recordActivity, av
     } catch (error) {
       console.error("Stored NFD agreements could not be listed", error);
       return json({ error: "Agreements could not be loaded right now." }, 503);
+    }
+  }
+
+  async function searchAgreementParticipants(request, env) {
+    const user = await getCurrentUser(request, env);
+    if (!user) return json({ error: "Sign in to search NFD members." }, 401);
+    if (!env.DB) return json({ error: "NFD member search is unavailable right now." }, 503);
+    const query = cleanSearchTerm(new URL(request.url).searchParams.get("q")).trim().slice(0, 80);
+    if (query.length < 2) return json({ people: [], minimumCharacters: 2 });
+    try {
+      const result = await env.DB.prepare(
+        `SELECT u.id, COALESCE(NULLIF(trim(u.display_name), ''), 'NFD member') AS name, gp.handle
+         FROM nfd_users u
+         LEFT JOIN nfd_ghost_profiles gp ON gp.ghost_user_id = u.id AND gp.active = 1
+         WHERE u.id != ? AND ${availableIdentitySql}
+           AND (instr(lower(COALESCE(u.display_name, '')), lower(?)) > 0
+             OR instr(lower(COALESCE(gp.handle, '')), lower(?)) > 0
+             OR instr(lower(u.id), lower(?)) = 1)
+         ORDER BY CASE
+             WHEN instr(lower(COALESCE(u.display_name, '')), lower(?)) = 1 THEN 0
+             WHEN instr(lower(COALESCE(gp.handle, '')), lower(?)) = 1 THEN 1
+             ELSE 2
+           END, lower(COALESCE(NULLIF(trim(u.display_name), ''), 'NFD member'))
+         LIMIT 20`,
+      )
+        .bind(user.id, query, query, query, query, query)
+        .all();
+      return json({
+        people: (result.results || []).map((person) => ({
+          userId: person.id,
+          name: person.name,
+          handle: person.handle || "",
+        })),
+      });
+    } catch (error) {
+      console.error("NFD agreement member search failed", error);
+      return json({ error: "NFD members could not be searched right now." }, 503);
     }
   }
 
@@ -358,24 +403,21 @@ export function createAgreementRoutes({ getCurrentUser, json, recordActivity, av
     if (!agreementBody) return json({ error: "Add agreement text before saving it." }, 400);
     if (agreementBody.length > MAX_DRAFT_LENGTH)
       return json({ error: `Keep the agreement under ${MAX_DRAFT_LENGTH} characters.` }, 413);
-    if (!recipients.length) return json({ error: "Choose at least one NFD friend to approve it." }, 400);
+    if (!recipients.length) return json({ error: "Choose at least one NFD member to approve it." }, 400);
     if (recipients.length > MAX_PARTICIPANTS - 1)
       return json({ error: `An agreement can include up to ${MAX_PARTICIPANTS} people.` }, 400);
 
     try {
       const placeholders = recipients.map(() => "?").join(", ");
-      const friends = await env.DB.prepare(
-        `SELECT u.id
-         FROM nfd_friend_requests f
-         INNER JOIN nfd_users u ON u.id = CASE WHEN f.from_user_id = ? THEN f.to_user_id ELSE f.from_user_id END
-         WHERE f.status = 'accepted' AND (f.from_user_id = ? OR f.to_user_id = ?)
-           AND u.id IN (${placeholders}) AND ${availableIdentitySql}`,
+      const members = await env.DB.prepare(
+        `SELECT u.id FROM nfd_users u
+         WHERE u.id IN (${placeholders}) AND ${availableIdentitySql}`,
       )
-        .bind(user.id, user.id, user.id, ...recipients)
+        .bind(...recipients)
         .all();
-      const verifiedIds = new Set((friends.results || []).map((friend) => friend.id));
+      const verifiedIds = new Set((members.results || []).map((member) => member.id));
       if (verifiedIds.size !== recipients.length)
-        return json({ error: "Choose only active NFD friends who are already connected to you." }, 400);
+        return json({ error: "Choose only active NFD members from the search results." }, 400);
 
       const agreementId = crypto.randomUUID();
       const versionId = crypto.randomUUID();
@@ -576,6 +618,7 @@ export function createAgreementRoutes({ getCurrentUser, json, recordActivity, av
 
   return {
     generateDraft,
+    searchAgreementParticipants,
     listStoredAgreements,
     createStoredAgreement,
     respondToStoredAgreement,

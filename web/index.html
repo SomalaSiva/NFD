@@ -1642,8 +1642,8 @@
                 <section class="agreement-save-panel" aria-labelledby="agreement-save-heading">
                   <h3 id="agreement-save-heading">Keep it in NFD for approval</h3>
                   <p>
-                    Choose at least one NFD friend. They can review and approve the exact text you save. Any
-                    later change needs approval from everyone again.
+                    Search for active NFD members and select everyone who should approve the exact text you
+                    save. Any later change needs approval from everyone again.
                   </p>
                   <label for="agreement-save-title">Agreement title</label>
                   <input
@@ -1655,9 +1655,35 @@
                   />
                   <fieldset class="agreement-friends-fieldset">
                     <legend>Who should approve it?</legend>
-                    <div id="agreement-friends-list" class="agreement-friends-list">
-                      <p class="agreement-friends-status">Loading your NFD friends…</p>
+                    <label class="agreement-people-search-label" for="agreement-people-search"
+                      >Find NFD members</label
+                    >
+                    <input
+                      class="control"
+                      id="agreement-people-search"
+                      type="search"
+                      autocomplete="off"
+                      maxlength="80"
+                      placeholder="Search by name, NFD ID, or Ghost ID"
+                      aria-describedby="agreement-people-search-help agreement-people-search-status"
+                    />
+                    <p class="agreement-people-search-help" id="agreement-people-search-help">
+                      Type at least 2 characters. Select one or more people; they do not need to be friends.
+                    </p>
+                    <div
+                      id="agreement-selected-people"
+                      class="agreement-selected-people"
+                      aria-live="polite"
+                    ></div>
+                    <div id="agreement-friends-list" class="agreement-friends-list" aria-live="polite">
+                      <p class="agreement-friends-status">Search for an NFD member to add an approver.</p>
                     </div>
+                    <p
+                      id="agreement-people-search-status"
+                      class="agreement-friends-status"
+                      role="status"
+                      aria-live="polite"
+                    ></p>
                   </fieldset>
                   <div class="agreement-actions">
                     <button class="submit" id="agreement-save" type="button">
@@ -1714,8 +1740,8 @@
                   <span class="agreement-ai-badge">Outcome tracking</span>
                   <h2 id="trust-record-heading">Your commitment record</h2>
                   <p>
-                    NFD shows the outcome reported for an agreement, each participant’s response, and how many
-                    outcomes are disputed.
+                    NFD tracks each agreement outcome separately, including repeated agreements between the
+                    same people, and shows how many outcomes are disputed.
                   </p>
                 </div>
               </div>
@@ -1726,7 +1752,15 @@
                 </div>
                 <div>
                   <span class="trust-record-label">What counts</span>
-                  <strong>Distinct people, not agreement totals</strong>
+                  <strong>Each agreement outcome counts separately</strong>
+                </div>
+                <div>
+                  <span class="trust-record-label">Confirmed completed agreements</span>
+                  <strong id="trust-record-completed-count">Loading…</strong>
+                </div>
+                <div>
+                  <span class="trust-record-label">Awaiting outcome responses</span>
+                  <strong id="trust-record-awaiting-count">Loading…</strong>
                 </div>
                 <div>
                   <span class="trust-record-label">Disputed outcomes</span>
@@ -1734,8 +1768,10 @@
                 </div>
               </div>
               <p class="trust-score-hint">
-                Agreements can be tracked after approval. Disagreements are counted separately from confirmed
-                outcomes and are not treated as verified failures. A trust score is not enabled yet.
+                Approval makes an agreement active, but does not mark it completed. A participant reports the
+                outcome, then every other participant confirms or disagrees. Each agreement is counted once;
+                disagreements are counted separately from completed outcomes and are not treated as verified
+                failures. A trust score is not enabled yet.
               </p>
             </article>
             <article class="agreement-generator trust-record-card" aria-labelledby="trust-outcomes-heading">
