@@ -400,6 +400,13 @@ const agreementResult = document.getElementById("agreement-result");
 const agreementDraft = document.getElementById("agreement-draft");
 const agreementDownloadButton = document.getElementById("agreement-download");
 const agreementDownloadFeedback = document.getElementById("agreement-download-feedback");
+const agreementSaveTitle = document.getElementById("agreement-save-title");
+const agreementFriendsList = document.getElementById("agreement-friends-list");
+const agreementSaveButton = document.getElementById("agreement-save");
+const agreementSaveFeedback = document.getElementById("agreement-save-feedback");
+const myAgreementsList = document.getElementById("my-agreements-list");
+const myAgreementsFeedback = document.getElementById("my-agreements-feedback");
+const agreementRefreshButton = document.getElementById("agreement-refresh");
 const messageThreadList = document.getElementById("message-thread-list");
 const messageInboxStatus = document.getElementById("message-inbox-status");
 const messageInboxEmpty = document.getElementById("message-inbox-empty");
@@ -1978,6 +1985,7 @@ function activateTrustScoreTab(tab, updateUrl = true) {
     url.searchParams.set("tab", activeTab);
     history.replaceState(null, "", url);
   }
+  if (activeTab === "my-agreements") loadStoredAgreements();
 }
 profileTabs.forEach((button, index) => {
   button.addEventListener("click", () => activateProfileTab(button.dataset.profileTab));
@@ -4727,6 +4735,275 @@ document.getElementById("edit-experience").addEventListener("click", backToEdit)
 agreementDescription?.addEventListener("input", () => {
   agreementDescriptionCount.textContent = `${agreementDescription.value.length} / 3000`;
 });
+let agreementFriendsLoaded = false;
+let storedAgreementsLoading = false;
+
+async function loadAgreementFriends(force = false) {
+  if (!agreementFriendsList || (agreementFriendsLoaded && !force)) return;
+  agreementFriendsLoaded = true;
+  agreementFriendsList.replaceChildren();
+  const status = document.createElement("p");
+  status.className = "agreement-friends-status";
+  status.textContent = "Loading your NFD friends…";
+  agreementFriendsList.append(status);
+  try {
+    const response = await fetch("/api/friends", {
+      headers: { accept: "application/json" },
+      cache: "no-store",
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || "NFD friends could not be loaded.");
+    agreementFriendsList.replaceChildren();
+    const friends = Array.isArray(result.friends) ? result.friends : [];
+    if (!friends.length) {
+      const empty = document.createElement("p");
+      empty.className = "agreement-friends-status";
+      empty.textContent = "You need an accepted NFD friend before you can request agreement approval.";
+      agreementFriendsList.append(empty);
+      return;
+    }
+    for (const friend of friends) {
+      if (!friend?.userId) continue;
+      const label = document.createElement("label");
+      label.className = "agreement-friend-option";
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.name = "agreement-participant";
+      checkbox.value = friend.userId;
+      const name = document.createElement("span");
+      name.textContent = friend.name || "NFD member";
+      label.append(checkbox, name);
+      agreementFriendsList.append(label);
+    }
+    if (!agreementFriendsList.childElementCount) {
+      const empty = document.createElement("p");
+      empty.className = "agreement-friends-status";
+      empty.textContent = "No eligible NFD friends were found.";
+      agreementFriendsList.append(empty);
+    }
+  } catch (error) {
+    agreementFriendsLoaded = false;
+    agreementFriendsList.replaceChildren();
+    const failure = document.createElement("p");
+    failure.className = "agreement-friends-status error";
+    failure.textContent = error.message || "NFD friends could not be loaded right now.";
+    agreementFriendsList.append(failure);
+  }
+}
+
+function agreementStatusLabel(status) {
+  return status === "active"
+    ? "Approved by everyone"
+    : status === "declined"
+      ? "Declined"
+      : "Waiting for approval";
+}
+
+async function sendAgreementResponse(agreementId, decision, button) {
+  button.disabled = true;
+  try {
+    const response = await fetch(`/api/trust-score/agreements/${encodeURIComponent(agreementId)}/respond`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ decision }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || "Your response could not be saved.");
+    if (myAgreementsFeedback)
+      myAgreementsFeedback.textContent = decision === "accept" ? "Approval saved." : "Agreement declined.";
+    await loadStoredAgreements();
+  } catch (error) {
+    if (myAgreementsFeedback) {
+      myAgreementsFeedback.textContent = error.message || "Your response could not be saved.";
+      myAgreementsFeedback.classList.add("error");
+    }
+    button.disabled = false;
+  }
+}
+
+function renderStoredAgreement(agreement) {
+  const card = document.createElement("article");
+  card.className = "stored-agreement-card";
+  const heading = document.createElement("div");
+  heading.className = "stored-agreement-heading";
+  const title = document.createElement("h3");
+  title.textContent = agreement.title || "Agreement";
+  const badge = document.createElement("span");
+  badge.className = `agreement-status-badge status-${agreement.status}`;
+  badge.textContent = agreementStatusLabel(agreement.status);
+  heading.append(title, badge);
+  const version = document.createElement("p");
+  version.className = "stored-agreement-version";
+  version.textContent = `Version ${agreement.currentVersion} · ${agreement.role === "creator" ? "Created by you" : "Shared with you"}`;
+  const people = document.createElement("p");
+  people.className = "stored-agreement-people";
+  people.textContent = (agreement.participants || [])
+    .map(
+      (participant) =>
+        `${participant.name}: ${participant.status === "accepted" && participant.acceptedVersion === agreement.currentVersion ? "approved" : participant.status === "declined" ? "declined" : "awaiting approval"}`,
+    )
+    .join(" · ");
+  const disclosure = document.createElement("details");
+  disclosure.className = "stored-agreement-text";
+  const summary = document.createElement("summary");
+  summary.textContent = "Review agreement text";
+  const agreementText = document.createElement("pre");
+  agreementText.textContent = agreement.body || "";
+  disclosure.append(summary, agreementText);
+  card.append(heading, version, people, disclosure);
+
+  if (agreement.status === "pending" && agreement.myStatus === "pending") {
+    const actions = document.createElement("div");
+    actions.className = "agreement-actions";
+    const approve = document.createElement("button");
+    approve.className = "submit";
+    approve.type = "button";
+    approve.textContent = "Approve this version";
+    approve.addEventListener("click", () => sendAgreementResponse(agreement.id, "accept", approve));
+    const decline = document.createElement("button");
+    decline.className = "secondary-button";
+    decline.type = "button";
+    decline.textContent = "Decline";
+    decline.addEventListener("click", () => sendAgreementResponse(agreement.id, "decline", decline));
+    actions.append(approve, decline);
+    card.append(actions);
+  }
+
+  if (agreement.status === "active" && agreement.myStatus === "accepted") {
+    const changeButton = document.createElement("button");
+    changeButton.className = "secondary-button";
+    changeButton.type = "button";
+    changeButton.textContent = "Propose a change";
+    const form = document.createElement("form");
+    form.className = "agreement-change-form";
+    form.hidden = true;
+    const titleLabel = document.createElement("label");
+    titleLabel.textContent = "Updated title";
+    const titleInput = document.createElement("input");
+    titleInput.className = "control";
+    titleInput.maxLength = 160;
+    titleInput.value = agreement.title || "";
+    titleLabel.append(titleInput);
+    const bodyLabel = document.createElement("label");
+    bodyLabel.textContent = "Complete proposed version";
+    const bodyInput = document.createElement("textarea");
+    bodyInput.className = "control agreement-draft";
+    bodyInput.maxLength = 30000;
+    bodyInput.rows = 12;
+    bodyInput.value = agreement.body || "";
+    bodyLabel.append(bodyInput);
+    const submit = document.createElement("button");
+    submit.className = "submit";
+    submit.type = "submit";
+    submit.textContent = "Request approval for change";
+    form.append(titleLabel, bodyLabel, submit);
+    changeButton.addEventListener("click", () => {
+      form.hidden = !form.hidden;
+      changeButton.textContent = form.hidden ? "Propose a change" : "Cancel change";
+    });
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      submit.disabled = true;
+      try {
+        const response = await fetch(
+          `/api/trust-score/agreements/${encodeURIComponent(agreement.id)}/propose-change`,
+          {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ title: titleInput.value, body: bodyInput.value }),
+          },
+        );
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.error || "The change could not be submitted.");
+        if (myAgreementsFeedback)
+          myAgreementsFeedback.textContent = `Version ${result.version} was saved and sent to all participants for approval.`;
+        await loadStoredAgreements();
+      } catch (error) {
+        if (myAgreementsFeedback) {
+          myAgreementsFeedback.textContent = error.message || "The change could not be submitted.";
+          myAgreementsFeedback.classList.add("error");
+        }
+        submit.disabled = false;
+      }
+    });
+    card.append(changeButton, form);
+  }
+  return card;
+}
+
+async function loadStoredAgreements() {
+  if (!myAgreementsList || storedAgreementsLoading) return;
+  storedAgreementsLoading = true;
+  if (myAgreementsFeedback) {
+    myAgreementsFeedback.textContent = "";
+    myAgreementsFeedback.classList.remove("error");
+  }
+  if (agreementRefreshButton) agreementRefreshButton.disabled = true;
+  try {
+    const response = await fetch("/api/trust-score/agreements", {
+      headers: { accept: "application/json" },
+      cache: "no-store",
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || "Agreements could not be loaded.");
+    myAgreementsList.replaceChildren();
+    const agreements = Array.isArray(result.agreements) ? result.agreements : [];
+    if (!agreements.length) {
+      const empty = document.createElement("p");
+      empty.className = "agreement-friends-status";
+      empty.textContent =
+        "No agreements saved yet. Generate a draft, then choose friends to request approval.";
+      myAgreementsList.append(empty);
+      return;
+    }
+    for (const agreement of agreements) myAgreementsList.append(renderStoredAgreement(agreement));
+  } catch (error) {
+    myAgreementsList.replaceChildren();
+    const failure = document.createElement("p");
+    failure.className = "agreement-friends-status error";
+    failure.textContent = error.message || "Agreements could not be loaded right now.";
+    myAgreementsList.append(failure);
+  } finally {
+    storedAgreementsLoading = false;
+    if (agreementRefreshButton) agreementRefreshButton.disabled = false;
+  }
+}
+
+agreementSaveButton?.addEventListener("click", async () => {
+  agreementSaveFeedback.textContent = "";
+  agreementSaveFeedback.classList.remove("error");
+  const title = agreementSaveTitle.value.trim();
+  const body = agreementDraft.value.trim();
+  const participantIds = [
+    ...agreementFriendsList.querySelectorAll('input[name="agreement-participant"]:checked'),
+  ].map((input) => input.value);
+  if (!title || !body || !participantIds.length) {
+    agreementSaveFeedback.textContent = "Add a title, agreement text, and at least one NFD friend.";
+    agreementSaveFeedback.classList.add("error");
+    return;
+  }
+  agreementSaveButton.disabled = true;
+  agreementSaveButton.textContent = "Saving…";
+  try {
+    const response = await fetch("/api/trust-score/agreements", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ title, body, participantIds }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || "The agreement could not be saved.");
+    agreementSaveFeedback.textContent = "Saved in NFD. Your friends can review it from My agreements.";
+    activateTrustScoreTab("my-agreements");
+    document.getElementById("trust-tab-my-agreements")?.focus();
+  } catch (error) {
+    agreementSaveFeedback.textContent = error.message || "The agreement could not be saved right now.";
+    agreementSaveFeedback.classList.add("error");
+  } finally {
+    agreementSaveButton.disabled = false;
+    agreementSaveButton.textContent = "Save in NFD & request approval";
+  }
+});
+agreementRefreshButton?.addEventListener("click", loadStoredAgreements);
 agreementForm?.addEventListener("submit", async (event) => {
   event.preventDefault();
   agreementFeedback.textContent = "";
@@ -4760,8 +5037,17 @@ agreementForm?.addEventListener("submit", async (event) => {
     if (typeof result.draft !== "string" || !result.draft.trim())
       throw new Error("Gemini returned an empty draft. Please try again.");
     agreementDraft.value = result.draft;
+    agreementSaveTitle.value =
+      result.draft
+        .split("\n")
+        .find((line) => line.trim())
+        ?.replace(/^#+\s*/, "")
+        .slice(0, 160) || "Agreement";
     agreementResult.hidden = false;
-    agreementFeedback.textContent = "Draft ready. Review and edit it before you download.";
+    agreementSaveFeedback.textContent = "";
+    agreementFeedback.textContent =
+      "Draft ready. Review and edit it before downloading or requesting approval.";
+    loadAgreementFriends();
     agreementResult.scrollIntoView({ behavior: "smooth", block: "start" });
     agreementDraft.focus({ preventScroll: true });
   } catch (error) {

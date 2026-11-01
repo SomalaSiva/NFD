@@ -1522,6 +1522,18 @@
               Agreement generator
             </button>
             <button
+              id="trust-tab-my-agreements"
+              class="profile-tab"
+              type="button"
+              role="tab"
+              aria-selected="false"
+              aria-controls="trust-panel-my-agreements"
+              data-trust-tab="my-agreements"
+              tabindex="-1"
+            >
+              My agreements
+            </button>
+            <button
               id="trust-tab-record"
               class="profile-tab"
               type="button"
@@ -1545,7 +1557,7 @@
               <div class="trust-feature-copy">
                 <span class="agreement-ai-badge">Available now</span>
                 <h2>Agreement generator</h2>
-                <p>Turn a short description into an editable agreement draft, then download your copy.</p>
+                <p>Generate an editable agreement, request approval, and keep the approved version in NFD.</p>
               </div>
               <button class="secondary-button" id="open-agreement-tab" type="button">
                 Open agreement generator
@@ -1609,7 +1621,7 @@
                   <div>
                     <h3 id="agreement-result-heading">Your agreement draft</h3>
                     <p>
-                      Edit the draft below, then download your copy. NFD does not save it to your account.
+                      Edit the draft below, then download it or save it in NFD and ask friends to approve it.
                     </p>
                   </div>
                 </div>
@@ -1627,7 +1639,59 @@
                   </button>
                   <span id="agreement-download-feedback" role="status" aria-live="polite"></span>
                 </div>
+                <section class="agreement-save-panel" aria-labelledby="agreement-save-heading">
+                  <h3 id="agreement-save-heading">Keep it in NFD for approval</h3>
+                  <p>
+                    Choose at least one NFD friend. They can review and approve the exact text you save. Any
+                    later change needs approval from everyone again.
+                  </p>
+                  <label for="agreement-save-title">Agreement title</label>
+                  <input
+                    class="control"
+                    id="agreement-save-title"
+                    type="text"
+                    maxlength="160"
+                    placeholder="e.g. Bicycle loan"
+                  />
+                  <fieldset class="agreement-friends-fieldset">
+                    <legend>Who should approve it?</legend>
+                    <div id="agreement-friends-list" class="agreement-friends-list">
+                      <p class="agreement-friends-status">Loading your NFD friends…</p>
+                    </div>
+                  </fieldset>
+                  <div class="agreement-actions">
+                    <button class="submit" id="agreement-save" type="button">
+                      Save in NFD &amp; request approval
+                    </button>
+                    <span id="agreement-save-feedback" role="status" aria-live="polite"></span>
+                  </div>
+                </section>
               </section>
+            </section>
+          </section>
+          <section
+            id="trust-panel-my-agreements"
+            class="trust-score-panel"
+            role="tabpanel"
+            aria-labelledby="trust-tab-my-agreements"
+            tabindex="0"
+            hidden
+          >
+            <section class="agreement-generator" aria-labelledby="my-agreements-heading">
+              <div class="agreement-generator-heading">
+                <div>
+                  <h2 id="my-agreements-heading">My agreements</h2>
+                  <p>
+                    Agreements are private to their participants. Everyone must approve the current version
+                    before it becomes active.
+                  </p>
+                </div>
+                <button class="secondary-button" id="agreement-refresh" type="button">Refresh</button>
+              </div>
+              <p id="my-agreements-feedback" class="agreement-feedback" role="status" aria-live="polite"></p>
+              <div id="my-agreements-list" class="my-agreements-list">
+                <p class="agreement-friends-status">Your saved agreements will appear here.</p>
+              </div>
             </section>
           </section>
           <section
@@ -1660,9 +1724,8 @@
                 </div>
               </div>
               <p class="trust-score-hint">
-                If you have several agreements with one person, NFD would count that person once. The current
-                app does not yet save tracked agreements or calculate a score, so this preview does not show
-                sample counts as real activity.
+                Agreements can now be saved in NFD and approved by each participant. Outcome tracking and a
+                trust score are not enabled yet, so this preview does not show sample counts as real activity.
               </p>
             </article>
             <article class="agreement-generator trust-record-card" aria-labelledby="trust-outcomes-heading">

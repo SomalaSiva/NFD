@@ -4,13 +4,23 @@ import test from "node:test";
 
 const html = await readFile(new URL("../web/index.html", import.meta.url), "utf8");
 const normalizedHtml = html.replace(/\s+/g, " ");
+const appJs = await readFile(new URL("../web/assets/app.js", import.meta.url), "utf8");
 
 test("Trust Score exposes an accessible people-based track record tab", () => {
   assert.match(normalizedHtml, /data-trust-tab="record"/);
   assert.match(normalizedHtml, /aria-controls="trust-panel-record"/);
   assert.match(normalizedHtml, /id="trust-panel-record"[\s\S]*?aria-labelledby="trust-tab-record"/);
   assert.match(normalizedHtml, /Distinct people, not agreement totals/);
-  assert.match(normalizedHtml, /The current app does not yet save tracked agreements or calculate a score/);
+  assert.match(normalizedHtml, /Agreements can now be saved in NFD and approved by each participant/);
+  assert.match(normalizedHtml, /Outcome tracking and a trust score are not enabled yet/);
+});
+
+test("Trust Score provides in-app agreement storage and participant approval controls", () => {
+  assert.match(normalizedHtml, /data-trust-tab="my-agreements"/);
+  assert.match(normalizedHtml, /Save in NFD &amp; request approval/);
+  assert.match(normalizedHtml, /Any later change needs approval from everyone again/);
+  assert.match(appJs, /Approve this version/);
+  assert.match(appJs, /propose-change/);
 });
 
 test("Trust record scenarios keep disputes and safety reports separate from commitment outcomes", () => {

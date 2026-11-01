@@ -84,7 +84,12 @@ const experienceRoutes = createExperienceRoutes({
   moderationEnabled,
   reviewWithGemini,
 });
-const agreementRoutes = createAgreementRoutes({ getCurrentUser, json });
+const agreementRoutes = createAgreementRoutes({
+  getCurrentUser,
+  recordActivity,
+  json,
+  availableIdentitySql: AVAILABLE_IDENTITY_SQL,
+});
 
 const worker = {
   async fetch(request, env) {
@@ -217,6 +222,23 @@ const worker = {
     }
     if (request.method === "POST" && url.pathname === "/api/trust-score/agreement-draft") {
       return agreementRoutes.generateDraft(request, env);
+    }
+    if (request.method === "GET" && url.pathname === "/api/trust-score/agreements") {
+      return agreementRoutes.listStoredAgreements(request, env);
+    }
+    if (request.method === "POST" && url.pathname === "/api/trust-score/agreements") {
+      return agreementRoutes.createStoredAgreement(request, env);
+    }
+    const trustAgreementMatch = url.pathname.match(
+      /^\/api\/trust-score\/agreements\/([0-9a-f-]{36})(?:\/(respond|propose-change))?$/i,
+    );
+    if (trustAgreementMatch && request.method === "POST") {
+      const agreementId = trustAgreementMatch[1];
+      return trustAgreementMatch[2] === "respond"
+        ? agreementRoutes.respondToStoredAgreement(request, env, agreementId)
+        : trustAgreementMatch[2] === "propose-change"
+          ? agreementRoutes.proposeAgreementChange(request, env, agreementId)
+          : json({ error: "That agreement action could not be found." }, 404);
     }
     if (request.method === "GET" && url.pathname === "/api/session-timeout") {
       return json({ minutes: await getSessionIdleMinutes(env) });
