@@ -141,7 +141,6 @@ const adminPage = document.getElementById("admin-page");
 const mainNav = document.getElementById("main-nav");
 const mainNavRow = document.getElementById("main-nav-row");
 const accountMenuWrap = document.getElementById("account-menu-wrap");
-const adminNavLink = document.getElementById("admin-nav-link");
 const accountAdminLink = document.getElementById("account-admin-link");
 const ghostModeSetupLink = document.getElementById("ghost-mode-setup");
 const ghostModeToggle = document.getElementById("ghost-mode-toggle");
@@ -4332,7 +4331,6 @@ async function updateNavigation() {
     currentUserId = result.userId || currentUserId;
     syncFeedTagline(currentUserId);
     setProfilePhotoEverywhere(result.profilePhotoUrl || "", result.displayName || "NFD member");
-    adminNavLink.hidden = !result.isAdmin;
     accountAdminLink.hidden = !result.isAdmin;
     setMainNavigationVisible(true);
     clearInterval(sessionTimeoutRefreshTimer);
