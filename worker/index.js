@@ -2,6 +2,7 @@ import { createAdminRoutes } from "./routes/admin.js";
 import { createSocialRoutes } from "./routes/social.js";
 import { createStoryRoutes } from "./routes/stories.js";
 import { createExperienceRoutes } from "./routes/experiences.js";
+import { createAgreementRoutes } from "./routes/agreements.js";
 import { ADMIN_PAGE_SIZE, getPageMetadata, getPageOffset } from "./lib/pagination.js";
 import { getSessionIdleMinutes, isSessionIdle } from "./lib/session.js";
 import { getQuickStoriesEnabled } from "./lib/quick-stories.js";
@@ -83,6 +84,7 @@ const experienceRoutes = createExperienceRoutes({
   moderationEnabled,
   reviewWithGemini,
 });
+const agreementRoutes = createAgreementRoutes({ getCurrentUser, json });
 
 const worker = {
   async fetch(request, env) {
@@ -212,6 +214,9 @@ const worker = {
         ghostMode: await getGhostModeState(request, env, user),
         sessionIdleMinutes: await getSessionIdleMinutes(env),
       });
+    }
+    if (request.method === "POST" && url.pathname === "/api/trust-score/agreement-draft") {
+      return agreementRoutes.generateDraft(request, env);
     }
     if (request.method === "GET" && url.pathname === "/api/session-timeout") {
       return json({ minutes: await getSessionIdleMinutes(env) });

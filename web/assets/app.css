@@ -3634,6 +3634,162 @@ textarea.control::placeholder {
 .message-inbox-empty[hidden] {
   display: none !important;
 }
+.agreement-generator {
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+  padding: 24px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+}
+.agreement-generator-heading,
+.agreement-result-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.agreement-generator-heading h2,
+.agreement-result-heading h3 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 20px;
+  line-height: 1.25;
+}
+.agreement-generator-heading p,
+.agreement-result-heading p {
+  margin: 7px 0 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+.agreement-ai-badge {
+  flex: none;
+  padding: 7px 10px;
+  color: var(--accent);
+  background: var(--mint);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 750;
+}
+#agreement-form {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+#agreement-form > label:first-child {
+  font-weight: 700;
+}
+.agreement-generator .control {
+  width: 100%;
+  min-width: 0;
+  resize: vertical;
+  line-height: 1.55;
+}
+.agreement-description {
+  min-height: 112px;
+}
+.agreement-input-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.agreement-consent {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+.agreement-consent input {
+  width: 18px;
+  height: 18px;
+  margin: 2px 0 0;
+  accent-color: var(--green);
+}
+.agreement-consent a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.agreement-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 4px;
+}
+.agreement-actions .submit,
+.agreement-actions .secondary-button {
+  min-height: 46px;
+}
+.agreement-feedback,
+#agreement-download-feedback {
+  min-height: 20px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.agreement-feedback.error,
+#agreement-download-feedback.error {
+  color: var(--danger);
+}
+.agreement-result {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+  scroll-margin-top: 150px;
+}
+.agreement-result[hidden] {
+  display: none !important;
+}
+.agreement-draft {
+  min-height: 360px;
+  white-space: pre-wrap;
+}
+.agreement-download-actions {
+  justify-content: flex-start;
+}
+.agreement-download-actions span {
+  color: var(--muted);
+  font-size: 13px;
+}
+@media (max-width: 600px) {
+  .agreement-generator {
+    padding: 17px;
+    gap: 15px;
+  }
+  .agreement-generator-heading,
+  .agreement-result-heading {
+    gap: 10px;
+  }
+  .agreement-generator-heading h2 {
+    font-size: 18px;
+  }
+  .agreement-ai-badge {
+    font-size: 11px;
+  }
+  .agreement-input-meta {
+    align-items: flex-start;
+  }
+  .agreement-draft {
+    min-height: 300px;
+  }
+  .agreement-actions .submit,
+  .agreement-actions .secondary-button {
+    width: 100%;
+  }
+}
 .messages-layout {
   display: grid;
   grid-template-columns: minmax(210px, 0.75fr) minmax(0, 1.5fr);

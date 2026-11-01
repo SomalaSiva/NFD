@@ -387,6 +387,16 @@ const ghostProfileToggle = document.getElementById("ghost-profile-toggle");
 const ghostProfileDeactivate = document.getElementById("ghost-profile-deactivate");
 const messagesPage = document.getElementById("messages-page");
 const trustScorePage = document.getElementById("trust-score-page");
+const agreementForm = document.getElementById("agreement-form");
+const agreementDescription = document.getElementById("agreement-description");
+const agreementDescriptionCount = document.getElementById("agreement-description-count");
+const agreementGeminiConsent = document.getElementById("agreement-gemini-consent");
+const agreementGenerateButton = document.getElementById("agreement-generate");
+const agreementFeedback = document.getElementById("agreement-feedback");
+const agreementResult = document.getElementById("agreement-result");
+const agreementDraft = document.getElementById("agreement-draft");
+const agreementDownloadButton = document.getElementById("agreement-download");
+const agreementDownloadFeedback = document.getElementById("agreement-download-feedback");
 const messageThreadList = document.getElementById("message-thread-list");
 const messageInboxStatus = document.getElementById("message-inbox-status");
 const messageInboxEmpty = document.getElementById("message-inbox-empty");
@@ -4674,6 +4684,70 @@ form.addEventListener("submit", (event) => {
   if (validateStep(experienceDetailsStep)) showReview();
 });
 document.getElementById("edit-experience").addEventListener("click", backToEdit);
+agreementDescription?.addEventListener("input", () => {
+  agreementDescriptionCount.textContent = `${agreementDescription.value.length} / 3000`;
+});
+agreementForm?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  agreementFeedback.textContent = "";
+  agreementFeedback.classList.remove("error");
+  agreementDownloadFeedback.textContent = "";
+  if (!agreementDescription.value.trim()) {
+    agreementFeedback.textContent = "Describe the agreement you want to draft.";
+    agreementFeedback.classList.add("error");
+    agreementDescription.focus();
+    return;
+  }
+  if (!agreementGeminiConsent.checked) {
+    agreementFeedback.textContent = "Confirm that your description can be sent to Google Gemini.";
+    agreementFeedback.classList.add("error");
+    agreementGeminiConsent.focus();
+    return;
+  }
+
+  agreementGenerateButton.disabled = true;
+  agreementGenerateButton.setAttribute("aria-busy", "true");
+  agreementGenerateButton.textContent = "Generating…";
+  agreementFeedback.textContent = "Creating your draft…";
+  try {
+    const response = await fetch("/api/trust-score/agreement-draft", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ description: agreementDescription.value.trim(), geminiConsent: true }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || "NFD couldn’t generate a draft right now.");
+    if (typeof result.draft !== "string" || !result.draft.trim())
+      throw new Error("Gemini returned an empty draft. Please try again.");
+    agreementDraft.value = result.draft;
+    agreementResult.hidden = false;
+    agreementFeedback.textContent = "Draft ready. Review and edit it before you download.";
+    agreementResult.scrollIntoView({ behavior: "smooth", block: "start" });
+    agreementDraft.focus({ preventScroll: true });
+  } catch (error) {
+    agreementFeedback.textContent = error.message || "NFD couldn’t generate a draft right now.";
+    agreementFeedback.classList.add("error");
+  } finally {
+    agreementGenerateButton.disabled = false;
+    agreementGenerateButton.removeAttribute("aria-busy");
+    agreementGenerateButton.textContent = "Generate draft";
+  }
+});
+agreementDownloadButton?.addEventListener("click", () => {
+  const draft = agreementDraft.value.trim();
+  if (!draft) {
+    agreementDownloadFeedback.textContent = "Add agreement text before downloading.";
+    return;
+  }
+  const blob = new Blob([draft], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "NFD-agreement-draft.txt";
+  link.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  agreementDownloadFeedback.textContent = "Downloaded your edited agreement draft.";
+});
 document.getElementById("confirm-review").addEventListener("click", async (event) => {
   const button = event.currentTarget;
   if (!aiReviewConsent.hidden && !aiReviewConsentCheckbox.checked) {
