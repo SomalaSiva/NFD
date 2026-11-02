@@ -33,7 +33,11 @@ test("Every self and friend profile shows the same animated 40-point starter sco
   assert.match(appCss, /grid-template-columns:\s*52px minmax\(0, 1fr\) minmax\(108px, 135px\)/);
   assert.match(appJs, /if \(compact\) section\.append\(track, scale\)/);
   assert.match(appJs, /profile-trust-score-current/);
-  assert.match(appCss, /\.profile-trust-score-compact\s*\{\s*justify-self:\s*end;/);
+  assert.match(appCss, /\.profile-trust-score-compact\s*\{\s*width:\s*min\(100%, 150px\);/);
+  assert.match(
+    appCss,
+    /\.profile-summary-score\s*\{\s*min-width:\s*0;\s*width:\s*100%;\s*display:\s*flex;\s*justify-content:\s*flex-end;/,
+  );
   assert.doesNotMatch(appJs, /profileSummary\.insertBefore\(createTrustScorePreview/);
   assert.doesNotMatch(appJs, /profileSummary\.innerHTML\s*=/);
   assert.match(appCss, /\.profile-photo-form \[hidden\]\s*\{\s*display:\s*none !important;/);
