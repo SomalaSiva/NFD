@@ -5,6 +5,7 @@ import test from "node:test";
 const html = await readFile(new URL("../web/index.html", import.meta.url), "utf8");
 const normalizedHtml = html.replace(/\s+/g, " ");
 const appJs = await readFile(new URL("../web/assets/app.js", import.meta.url), "utf8");
+const appCss = await readFile(new URL("../web/assets/app.css", import.meta.url), "utf8");
 
 test("Trust Score exposes agreement-based, confirmed outcome tracking", () => {
   assert.match(normalizedHtml, /data-trust-tab="record"/);
@@ -30,6 +31,7 @@ test("Every self and friend profile shows the same animated 40-point starter sco
   assert.match(appJs, /profileSummaryContent\.append\(createTrustScorePreview/);
   assert.doesNotMatch(appJs, /profileSummary\.insertBefore\(createTrustScorePreview/);
   assert.doesNotMatch(appJs, /profileSummary\.innerHTML\s*=/);
+  assert.match(appCss, /\.profile-photo-form \[hidden\]\s*\{\s*display:\s*none !important;/);
 });
 
 test("Profile loading keeps the photo controls mounted while replacing summary content", () => {
