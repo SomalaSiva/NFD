@@ -32,6 +32,15 @@ test("Every self and friend profile shows the same animated 40-point starter sco
   assert.doesNotMatch(appJs, /profileSummary\.innerHTML\s*=/);
 });
 
+test("Profile loading keeps the photo controls mounted while replacing summary content", () => {
+  const loadProfile = appJs.slice(
+    appJs.indexOf("async function loadProfile"),
+    appJs.indexOf("function activateProfileTab"),
+  );
+  assert.match(loadProfile, /profileSummaryContent\.replaceChildren/);
+  assert.doesNotMatch(loadProfile, /profileSummary\.innerHTML/);
+});
+
 test("Trust Score provides in-app agreement storage and participant approval controls", () => {
   assert.match(normalizedHtml, /data-trust-tab="my-agreements"/);
   assert.match(normalizedHtml, /Save in NFD &amp; request approval/);
