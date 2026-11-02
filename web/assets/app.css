@@ -1924,7 +1924,6 @@ textarea.control::placeholder {
   min-width: 0;
 }
 .profile-trust-score-compact {
-  justify-self: end;
   width: min(100%, 150px);
   max-width: 150px;
   gap: 3px;
@@ -2077,7 +2076,9 @@ textarea.control::placeholder {
 }
 .profile-summary-score {
   min-width: 0;
-  justify-self: end;
+  width: 100%;
+  display: flex;
+  justify-content: flex-end;
 }
 .profile-photo-form {
   justify-content: flex-end;
