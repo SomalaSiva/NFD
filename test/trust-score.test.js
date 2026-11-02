@@ -30,7 +30,10 @@ test("Every self and friend profile shows the same animated 40-point starter sco
   assert.match(appJs, /aria-valuenow", "40"/);
   assert.match(appJs, /createTrustScorePreview\(friend\.name/);
   assert.match(appJs, /profileSummaryScore\.replaceChildren\(createTrustScorePreview/);
-  assert.match(appCss, /grid-template-columns:\s*52px minmax\(0, 1fr\) minmax\(102px, 135px\)/);
+  assert.match(appCss, /grid-template-columns:\s*52px minmax\(0, 1fr\) minmax\(108px, 135px\)/);
+  assert.match(appJs, /if \(compact\) section\.append\(track, scale\)/);
+  assert.match(appJs, /profile-trust-score-current/);
+  assert.match(appCss, /\.profile-trust-score-compact\s*\{\s*justify-self:\s*end;/);
   assert.doesNotMatch(appJs, /profileSummary\.insertBefore\(createTrustScorePreview/);
   assert.doesNotMatch(appJs, /profileSummary\.innerHTML\s*=/);
   assert.match(appCss, /\.profile-photo-form \[hidden\]\s*\{\s*display:\s*none !important;/);

@@ -2191,14 +2191,14 @@ function createTrustScorePreview(profileName, compact = false) {
   const section = document.createElement("section");
   section.className = `profile-trust-score${compact ? " profile-trust-score-compact" : ""}`;
   section.setAttribute("aria-label", `${profileName}’s Trust Score`);
-  const heading = document.createElement("div");
-  heading.className = "profile-trust-score-heading";
-  addText(heading, "strong", "profile-trust-score-label", "Trust score");
   const value = document.createElement("span");
   value.className = "profile-trust-score-value";
   addText(value, "strong", "", "40");
   addText(value, "span", "", "/100");
   value.setAttribute("aria-label", "40 out of 100");
+  const heading = document.createElement("div");
+  heading.className = "profile-trust-score-heading";
+  addText(heading, "strong", "profile-trust-score-label", "Trust score");
   heading.append(value);
   const track = document.createElement("div");
   track.className = "profile-trust-score-track";
@@ -2218,9 +2218,17 @@ function createTrustScorePreview(profileName, compact = false) {
   scale.className = "profile-trust-score-scale";
   scale.setAttribute("aria-hidden", "true");
   addText(scale, "span", "", "1");
+  if (compact) {
+    const current = addText(scale, "span", "profile-trust-score-current", "");
+    current.append(document.createTextNode("Trust score "));
+    const compactValue = document.createElement("strong");
+    compactValue.textContent = "40/100";
+    current.append(compactValue);
+  }
   addText(scale, "span", "", "100");
   if (!compact) addText(section, "p", "profile-trust-score-note", "Starting score");
-  section.append(heading, track, scale);
+  if (compact) section.append(track, scale);
+  else section.append(heading, track, scale);
   return section;
 }
 function setFriendsFeedback(message, error = false) {
