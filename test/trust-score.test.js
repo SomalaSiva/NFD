@@ -27,6 +27,9 @@ test("Every self and friend profile shows the same animated 40-point starter sco
   assert.match(appJs, /"40"/);
   assert.match(appJs, /aria-valuenow", "40"/);
   assert.match(appJs, /createTrustScorePreview\(friend\.name/);
+  assert.match(appJs, /profileSummaryContent\.append\(createTrustScorePreview/);
+  assert.doesNotMatch(appJs, /profileSummary\.insertBefore\(createTrustScorePreview/);
+  assert.doesNotMatch(appJs, /profileSummary\.innerHTML\s*=/);
 });
 
 test("Trust Score provides in-app agreement storage and participant approval controls", () => {

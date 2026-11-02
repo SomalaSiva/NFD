@@ -1753,8 +1753,7 @@ function renderProfile(data) {
   if (user.provider === "ghost" && user.ghostHandle) {
     addText(identity, "p", "", `@${user.ghostHandle}`);
   }
-  profileSummary.querySelector(".profile-trust-score")?.remove();
-  profileSummary.insertBefore(createTrustScorePreview(displayName, true), profilePhotoFile);
+  profileSummaryContent.append(createTrustScorePreview(displayName, true));
   profilePostList.replaceChildren();
   const posts = data.experiences || [];
   profilePostCount.textContent = `${data.total || 0} ${Number(data.total) === 1 ? "post" : "posts"} shared`;
@@ -1915,7 +1914,12 @@ async function loadProfile() {
   if (profileParams.has("removed")) setFriendsFeedback("Friend removed.");
   profileMessage.hidden = true;
   profilePostList.replaceChildren();
-  profileSummary.innerHTML = '<div class="profile-loading">Loading your profile…</div>';
+  profileSummaryContent.replaceChildren(
+    Object.assign(document.createElement("div"), {
+      className: "profile-loading",
+      textContent: "Loading your profile…",
+    }),
+  );
   profilePostCount.textContent = "Loading your posts…";
   try {
     const response = await fetch("/api/profile", {
@@ -1929,7 +1933,7 @@ async function loadProfile() {
     loadFriends();
     await loadGhostSettings();
   } catch (error) {
-    profileSummary.innerHTML = "";
+    profileSummaryContent.replaceChildren();
     profilePostList.replaceChildren();
     profilePostCount.textContent = "";
     const message = addText(
