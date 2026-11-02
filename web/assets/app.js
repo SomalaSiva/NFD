@@ -120,6 +120,7 @@ const profilePhotoSave = document.getElementById("profile-photo-save");
 const profilePhotoRemove = document.getElementById("profile-photo-remove");
 const profilePhotoFeedback = document.getElementById("profile-photo-feedback");
 const profilePhotoPreview = document.getElementById("profile-photo-preview");
+const profileSummaryContent = document.getElementById("profile-summary-content");
 const accountProfilePhoto = document.getElementById("account-profile-photo");
 const feedState = document.getElementById("feed-state");
 const feedPlaceSearch = document.getElementById("feed-place-search");
@@ -1745,32 +1746,15 @@ function renderProfile(data) {
     user.provider === "ghost"
       ? "This Ghost identity has its own friends, messages, and posts, separate from your personal NFD profile."
       : "Your account details and the experiences you’ve shared. Your profile details are visible only to you.";
-  const initials =
-    displayName
-      .split(/\s+/)
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((part) => part[0])
-      .join("")
-      .toUpperCase() || "N";
-  profileSummary.replaceChildren();
-  addText(profileSummary, "div", "profile-avatar", initials);
+  profileSummaryContent.replaceChildren();
   setProfilePhotoEverywhere(user.photoUrl || "", displayName);
-  const identity = addText(profileSummary, "div", "profile-identity", "");
+  const identity = addText(profileSummaryContent, "div", "profile-identity", "");
   addText(identity, "h2", "", displayName);
   if (user.provider === "ghost" && user.ghostHandle) {
     addText(identity, "p", "", `@${user.ghostHandle}`);
   }
-  addText(
-    profileSummary,
-    "span",
-    "profile-provider",
-    user.provider === "ghost"
-      ? "Ghost profile"
-      : user.provider === "google"
-        ? "Google account"
-        : "ChatGPT account",
-  );
+  profileSummary.querySelector(".profile-trust-score")?.remove();
+  profileSummary.insertBefore(createTrustScorePreview(displayName, true), profilePhotoFile);
   profilePostList.replaceChildren();
   const posts = data.experiences || [];
   profilePostCount.textContent = `${data.total || 0} ${Number(data.total) === 1 ? "post" : "posts"} shared`;
@@ -2096,7 +2080,7 @@ async function loadFriendProfile(friendId) {
     const feedback = addText(friendProfileView, "p", "friend-profile-feedback", "");
     feedback.setAttribute("role", "status");
     header.append(actions);
-    friendProfileView.append(back, header, feedback);
+    friendProfileView.append(back, header, feedback, createTrustScorePreview(friend.name || "This member"));
     const postsHeading = addText(
       friendProfileView,
       "h2",
@@ -2194,6 +2178,43 @@ async function loadFriendProfile(friendId) {
     const message = addText(friendProfileView, "p", "profile-error", error.message);
     message.setAttribute("role", "alert");
   }
+}
+
+function createTrustScorePreview(profileName, compact = false) {
+  const section = document.createElement("section");
+  section.className = `profile-trust-score${compact ? " profile-trust-score-compact" : ""}`;
+  section.setAttribute("aria-label", `${profileName}’s Trust Score`);
+  const heading = document.createElement("div");
+  heading.className = "profile-trust-score-heading";
+  addText(heading, "strong", "profile-trust-score-label", "Trust score");
+  const value = document.createElement("span");
+  value.className = "profile-trust-score-value";
+  addText(value, "strong", "", "40");
+  addText(value, "span", "", "/100");
+  value.setAttribute("aria-label", "40 out of 100");
+  heading.append(value);
+  const track = document.createElement("div");
+  track.className = "profile-trust-score-track";
+  track.setAttribute("role", "meter");
+  track.setAttribute("aria-label", `${profileName}’s Trust Score`);
+  track.setAttribute("aria-valuemin", "1");
+  track.setAttribute("aria-valuemax", "100");
+  track.setAttribute("aria-valuenow", "40");
+  const fill = document.createElement("span");
+  fill.className = "profile-trust-score-fill";
+  fill.style.width = "0%";
+  track.append(fill);
+  requestAnimationFrame(() => {
+    fill.style.width = "40%";
+  });
+  const scale = document.createElement("div");
+  scale.className = "profile-trust-score-scale";
+  scale.setAttribute("aria-hidden", "true");
+  addText(scale, "span", "", "1");
+  addText(scale, "span", "", "100");
+  addText(section, "p", "profile-trust-score-note", "Starting score");
+  section.append(heading, track, scale);
+  return section;
 }
 function setFriendsFeedback(message, error = false) {
   friendsFeedback.textContent = message;
@@ -2700,6 +2721,12 @@ profilePhotoFile.addEventListener("change", () => {
   const file = profilePhotoFile.files?.[0];
   profilePhotoFeedback.textContent = "";
   profilePhotoSave.disabled = !file;
+  profilePhotoSave.hidden = !file;
+});
+document.querySelector(".profile-photo-camera")?.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter" && event.key !== " ") return;
+  event.preventDefault();
+  profilePhotoFile.click();
 });
 profilePhotoForm.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -2719,10 +2746,12 @@ profilePhotoForm.addEventListener("submit", async (event) => {
     );
     profilePhotoFeedback.textContent = "Profile photo updated.";
     profilePhotoFile.value = "";
+    profilePhotoSave.hidden = true;
     await loadStories();
   } catch (error) {
     profilePhotoFeedback.textContent = error.message;
     profilePhotoSave.disabled = false;
+    profilePhotoSave.hidden = false;
   }
 });
 profilePhotoRemove.addEventListener("click", async () => {
