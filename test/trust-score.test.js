@@ -16,7 +16,17 @@ test("Trust Score exposes agreement-based, confirmed outcome tracking", () => {
   assert.match(normalizedHtml, /id="trust-record-disputed-count"/);
   assert.match(normalizedHtml, /id="trust-record-completed-count"/);
   assert.match(normalizedHtml, /id="trust-record-awaiting-count"/);
-  assert.match(normalizedHtml, /A trust score is not enabled yet/);
+  assert.match(normalizedHtml, /Everyone currently starts at 40 \/ 100/);
+});
+
+test("Every self and friend profile shows the same animated 40-point starter score", () => {
+  assert.match(normalizedHtml, /id="profile-summary"[\s\S]*?id="profile-summary-content"/);
+  assert.match(normalizedHtml, /profile-photo-camera[\s\S]*?for="profile-photo-file"/);
+  assert.doesNotMatch(normalizedHtml, /Google account/);
+  assert.doesNotMatch(normalizedHtml, /profile-photo-choose/);
+  assert.match(appJs, /"40"/);
+  assert.match(appJs, /aria-valuenow", "40"/);
+  assert.match(appJs, /createTrustScorePreview\(friend\.name/);
 });
 
 test("Trust Score provides in-app agreement storage and participant approval controls", () => {
