@@ -8,6 +8,12 @@ const appJs = await readFile(new URL("../web/assets/app.js", import.meta.url), "
 const appCss = await readFile(new URL("../web/assets/app.css", import.meta.url), "utf8");
 
 test("Trust Score exposes agreement-based, confirmed outcome tracking", () => {
+  assert.match(normalizedHtml, /id="trust-score-overview-meter"/);
+  assert.match(normalizedHtml, /Everyone currently starts at 40\/100/);
+  assert.match(
+    appJs,
+    /trustScoreOverviewMeter\.replaceChildren\(createTrustScorePreview\("Your profile", true\)\)/,
+  );
   assert.match(normalizedHtml, /data-trust-tab="record"/);
   assert.match(normalizedHtml, /aria-controls="trust-panel-record"/);
   assert.match(normalizedHtml, /id="trust-panel-record"[\s\S]*?aria-labelledby="trust-tab-record"/);

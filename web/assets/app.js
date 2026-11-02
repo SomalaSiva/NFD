@@ -389,6 +389,7 @@ const ghostProfileToggle = document.getElementById("ghost-profile-toggle");
 const ghostProfileDeactivate = document.getElementById("ghost-profile-deactivate");
 const messagesPage = document.getElementById("messages-page");
 const trustScorePage = document.getElementById("trust-score-page");
+const trustScoreOverviewMeter = document.getElementById("trust-score-overview-meter");
 const trustScoreTabs = [...document.querySelectorAll("[data-trust-tab]")];
 const trustScorePanels = [...document.querySelectorAll(".trust-score-panel")];
 const openAgreementTabButton = document.getElementById("open-agreement-tab");
@@ -4740,6 +4741,7 @@ if (location.pathname === "/login") {
   profilePage.hidden = true;
   messagesPage.hidden = true;
   trustScorePage.hidden = false;
+  trustScoreOverviewMeter.replaceChildren(createTrustScorePreview("Your profile", true));
   activateTrustScoreTab(new URLSearchParams(location.search).get("tab"), false);
   document.title = "Trust Score — NFD";
 } else if (location.pathname === "/feed" || location.pathname === "/feed/") {
