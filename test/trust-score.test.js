@@ -22,13 +22,15 @@ test("Trust Score exposes agreement-based, confirmed outcome tracking", () => {
 
 test("Every self and friend profile shows the same animated 40-point starter score", () => {
   assert.match(normalizedHtml, /id="profile-summary"[\s\S]*?id="profile-summary-content"/);
+  assert.match(normalizedHtml, /id="profile-summary-score"/);
   assert.match(normalizedHtml, /profile-photo-camera[\s\S]*?for="profile-photo-file"/);
   assert.doesNotMatch(normalizedHtml, /Google account/);
   assert.doesNotMatch(normalizedHtml, /profile-photo-choose/);
   assert.match(appJs, /"40"/);
   assert.match(appJs, /aria-valuenow", "40"/);
   assert.match(appJs, /createTrustScorePreview\(friend\.name/);
-  assert.match(appJs, /profileSummaryContent\.append\(createTrustScorePreview/);
+  assert.match(appJs, /profileSummaryScore\.replaceChildren\(createTrustScorePreview/);
+  assert.match(appCss, /grid-template-columns:\s*52px minmax\(0, 1fr\) minmax\(102px, 135px\)/);
   assert.doesNotMatch(appJs, /profileSummary\.insertBefore\(createTrustScorePreview/);
   assert.doesNotMatch(appJs, /profileSummary\.innerHTML\s*=/);
   assert.match(appCss, /\.profile-photo-form \[hidden\]\s*\{\s*display:\s*none !important;/);

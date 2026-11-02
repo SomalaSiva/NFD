@@ -1924,12 +1924,16 @@ textarea.control::placeholder {
   min-width: 0;
 }
 .profile-trust-score-compact {
-  width: min(100%, 240px);
-  margin-left: auto;
-  padding: 10px 12px;
+  width: 100%;
+  max-width: 220px;
+  padding: 8px 10px;
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: 12px;
   background: var(--surface-raised);
+  gap: 5px;
+}
+.profile-trust-score-compact .profile-trust-score-note {
+  display: none;
 }
 .profile-trust-score-heading {
   display: flex;
@@ -2063,6 +2067,9 @@ textarea.control::placeholder {
   outline-offset: 2px;
 }
 .profile-summary-main {
+  min-width: 0;
+}
+.profile-summary-score {
   min-width: 0;
 }
 .profile-photo-form {
@@ -2326,7 +2333,7 @@ textarea.control::placeholder {
     font-size: 30px;
   }
   .profile-summary {
-    grid-template-columns: 52px minmax(0, 1fr);
+    grid-template-columns: 52px minmax(0, 1fr) minmax(102px, 135px);
     padding: 16px;
     gap: 12px;
     align-items: flex-start;
@@ -2339,10 +2346,23 @@ textarea.control::placeholder {
   .profile-summary-main {
     align-self: center;
   }
+  .profile-summary-score {
+    align-self: center;
+  }
   .profile-trust-score-compact {
-    grid-column: 1 / -1;
-    width: 100%;
-    margin: 0;
+    max-width: none;
+    padding: 6px 7px;
+    gap: 4px;
+  }
+  .profile-trust-score-compact .profile-trust-score-label,
+  .profile-trust-score-compact .profile-trust-score-scale {
+    font-size: 9px;
+  }
+  .profile-trust-score-compact .profile-trust-score-value strong {
+    font-size: 16px;
+  }
+  .profile-trust-score-compact .profile-trust-score-track {
+    height: 7px;
   }
   .profile-photo-form {
     grid-column: 2;

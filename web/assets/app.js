@@ -121,6 +121,7 @@ const profilePhotoRemove = document.getElementById("profile-photo-remove");
 const profilePhotoFeedback = document.getElementById("profile-photo-feedback");
 const profilePhotoPreview = document.getElementById("profile-photo-preview");
 const profileSummaryContent = document.getElementById("profile-summary-content");
+const profileSummaryScore = document.getElementById("profile-summary-score");
 const accountProfilePhoto = document.getElementById("account-profile-photo");
 const feedState = document.getElementById("feed-state");
 const feedPlaceSearch = document.getElementById("feed-place-search");
@@ -1753,7 +1754,7 @@ function renderProfile(data) {
   if (user.provider === "ghost" && user.ghostHandle) {
     addText(identity, "p", "", `@${user.ghostHandle}`);
   }
-  profileSummaryContent.append(createTrustScorePreview(displayName, true));
+  profileSummaryScore.replaceChildren(createTrustScorePreview(displayName, true));
   profilePostList.replaceChildren();
   const posts = data.experiences || [];
   profilePostCount.textContent = `${data.total || 0} ${Number(data.total) === 1 ? "post" : "posts"} shared`;
@@ -1920,6 +1921,7 @@ async function loadProfile() {
       textContent: "Loading your profile…",
     }),
   );
+  profileSummaryScore.replaceChildren();
   profilePostCount.textContent = "Loading your posts…";
   try {
     const response = await fetch("/api/profile", {
@@ -1934,6 +1936,7 @@ async function loadProfile() {
     await loadGhostSettings();
   } catch (error) {
     profileSummaryContent.replaceChildren();
+    profileSummaryScore.replaceChildren();
     profilePostList.replaceChildren();
     profilePostCount.textContent = "";
     const message = addText(
@@ -2216,7 +2219,7 @@ function createTrustScorePreview(profileName, compact = false) {
   scale.setAttribute("aria-hidden", "true");
   addText(scale, "span", "", "1");
   addText(scale, "span", "", "100");
-  addText(section, "p", "profile-trust-score-note", "Starting score");
+  if (!compact) addText(section, "p", "profile-trust-score-note", "Starting score");
   section.append(heading, track, scale);
   return section;
 }
