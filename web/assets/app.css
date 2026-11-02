@@ -2068,6 +2068,9 @@ textarea.control::placeholder {
 .profile-photo-form {
   justify-content: flex-end;
 }
+.profile-photo-form [hidden] {
+  display: none !important;
+}
 .profile-photo-form .submit,
 .profile-photo-form .secondary-button {
   min-height: 34px;
