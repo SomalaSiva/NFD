@@ -407,6 +407,13 @@ const trustProfileClassifications = document.getElementById("trust-profile-class
 const trustProfilePositiveClassifications = document.getElementById("trust-profile-positive-classifications");
 const trustAllegationList = document.getElementById("trust-allegation-list");
 const trustRecognitionList = document.getElementById("trust-recognition-list");
+const trustPositiveDuplicateCategories = new Set([
+  "timeline",
+  "wordkeep",
+  "payment_property",
+  "communication",
+  "respect_safety",
+]);
 const trustAdminSummary = document.getElementById("trust-admin-summary");
 const trustScoreTabs = [...document.querySelectorAll("[data-trust-tab]")];
 const trustScorePanels = [...document.querySelectorAll(".trust-score-panel")];
@@ -2068,10 +2075,12 @@ function activateTrustScoreTab(tab, updateUrl = true) {
 }
 let activeTrustProfileId = "";
 let trustPeopleSearchTimer;
-function renderTrustClassificationCards(container, classifications = {}) {
+function renderTrustClassificationCards(container, classifications = {}, excludedCategories = new Set()) {
   if (!container) return;
   container.replaceChildren();
-  const entries = Object.values(classifications).filter((classification) => Number(classification.total) > 0);
+  const entries = Object.values(classifications).filter(
+    (classification) => !excludedCategories.has(classification.key),
+  );
   if (!entries.length) {
     addText(
       container,
@@ -2203,12 +2212,20 @@ async function loadTrustDashboard(userId = activeTrustProfileId) {
     if (!response.ok) throw new Error(result.error || "Trust Score could not be loaded.");
     activeTrustProfileId = result.profile?.userId || "";
     if (trustProfileSearch && !userId) trustProfileSearch.value = "";
-    renderTrustClassificationCards(trustOverviewPositiveClassifications, result.positiveClassifications);
+    renderTrustClassificationCards(
+      trustOverviewPositiveClassifications,
+      result.positiveClassifications,
+      trustPositiveDuplicateCategories,
+    );
     renderTrustClassificationCards(
       trustOverviewClassifications,
       result.negativeClassifications || result.classifications,
     );
-    renderTrustClassificationCards(trustProfilePositiveClassifications, result.positiveClassifications);
+    renderTrustClassificationCards(
+      trustProfilePositiveClassifications,
+      result.positiveClassifications,
+      trustPositiveDuplicateCategories,
+    );
     renderTrustClassificationCards(
       trustProfileClassifications,
       result.negativeClassifications || result.classifications,

@@ -55,11 +55,14 @@ test("positive recognition and unverified allegations are shown as separate Trus
   assert.match(appJs, /Positive recognition · unverified/);
   assert.match(appJs, /result\.positiveClassifications/);
   assert.match(appJs, /renderTrustRecords\(trustRecognitionList, result\.recognitions, true\)/);
+  assert.match(appJs, /trustPositiveDuplicateCategories = new Set/);
   assert.match(
     appJs,
-    /Object\.values\(classifications\)\.filter\(\(classification\) => Number\(classification\.total\) > 0\)/,
+    /"timeline"[\s\S]*"wordkeep"[\s\S]*"payment_property"[\s\S]*"communication"[\s\S]*"respect_safety"/,
   );
-  assert.match(appJs, /No positive recognition has been recorded yet/);
+  assert.match(appJs, /classification\) => !excludedCategories\.has\(classification\.key\)/);
+  assert.match(appJs, /trustOverviewPositiveClassifications,[\s\S]*trustPositiveDuplicateCategories/);
+  assert.match(appJs, /trustProfilePositiveClassifications,[\s\S]*trustPositiveDuplicateCategories/);
   assert.match(normalizedHtml, /Neither changes anyone’s score/);
 });
 
