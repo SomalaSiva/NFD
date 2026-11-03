@@ -5258,6 +5258,6 @@ textarea.control::placeholder {
 /* Scale typography down on phone layouts while preserving its size hierarchy. */
 @media (max-width: 720px) {
   html {
-    font-size: 60%;
+    font-size: 72%;
   }
 }
