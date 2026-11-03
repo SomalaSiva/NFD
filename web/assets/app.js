@@ -1221,13 +1221,6 @@ function renderFeed(experiences, { append = false, nextCursor = "" } = {}) {
     shared.append(document.createTextNode(prettyDate(experience.createdAt)));
     meta.append(shared);
     card.append(main);
-    if (experience.isMine) {
-      const actions = document.createElement("div");
-      actions.className = "feed-owner-actions";
-      const editLink = addText(actions, "a", "feed-edit-post", "Edit post");
-      editLink.href = `/share?edit=${encodeURIComponent(experience.id)}`;
-      card.append(actions);
-    }
     const images = (experience.evidence || []).filter((file) => file.contentType?.startsWith("image/"));
     const videos = (experience.evidence || []).filter((file) => file.contentType?.startsWith("video/"));
     const documents = (experience.evidence || []).filter(
