@@ -97,7 +97,7 @@ a {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 20px;
+  font-size: 1.25rem;
   font-weight: 760;
   letter-spacing: -0.7px;
 }
@@ -122,13 +122,13 @@ a {
   gap: 3px;
 }
 .brand-name {
-  font-size: 18px;
+  font-size: 1.125rem;
   line-height: 1;
   font-weight: 790;
   letter-spacing: -0.45px;
 }
 .brand-subtitle {
-  font-size: 9px;
+  font-size: 0.5625rem;
   line-height: 1;
   color: var(--muted);
   font-weight: 650;
@@ -139,7 +139,7 @@ a {
   gap: 24px;
   align-items: center;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-weight: 600;
 }
 .top-actions a:hover {
@@ -154,7 +154,7 @@ a {
   background: var(--surface-raised);
   color: var(--green);
   font-weight: 750;
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 .layout {
   display: grid;
@@ -172,7 +172,7 @@ a {
   align-items: center;
   gap: 8px;
   color: var(--ink);
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-weight: 620;
   margin-bottom: 39px;
 }
@@ -210,7 +210,7 @@ a {
   color: var(--muted);
   display: grid;
   place-items: center;
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 700;
   z-index: 1;
 }
@@ -229,7 +229,7 @@ a {
   padding-top: 2px;
 }
 .step-title {
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-weight: 680;
   color: var(--muted);
 }
@@ -237,7 +237,7 @@ a {
   color: var(--ink);
 }
 .step-sub {
-  font-size: 11px;
+  font-size: 0.6875rem;
   color: var(--muted);
   margin-top: 4px;
 }
@@ -261,12 +261,12 @@ a {
   width: 15px;
 }
 .help-card strong {
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 .help-card p {
   margin: 6px 0 0;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 0.6875rem;
   line-height: 1.6;
 }
 .main {
@@ -277,7 +277,7 @@ a {
   align-items: center;
   gap: 8px;
   color: var(--green);
-  font-size: 11px;
+  font-size: 0.6875rem;
   text-transform: uppercase;
   letter-spacing: 1.15px;
   font-weight: 780;
@@ -295,7 +295,7 @@ a {
   gap: 16px;
 }
 .heading-row h1 {
-  font-size: 36px;
+  font-size: 2.25rem;
   line-height: 1.14;
   letter-spacing: -1.5px;
   margin: 12px 0 10px;
@@ -303,7 +303,7 @@ a {
 }
 .intro {
   color: var(--muted);
-  font-size: 14px;
+  font-size: 0.875rem;
   line-height: 1.6;
   margin: 0 0 28px;
   max-width: 580px;
@@ -315,7 +315,7 @@ a {
   background: var(--paper);
   border-radius: 999px;
   padding: 8px 12px;
-  font-size: 11px;
+  font-size: 0.6875rem;
   white-space: nowrap;
   font-weight: 600;
 }
@@ -363,13 +363,13 @@ a {
   height: 16px;
 }
 .section-title {
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 730;
   letter-spacing: -0.2px;
 }
 .section-hint {
   margin-left: auto;
-  font-size: 11px;
+  font-size: 0.6875rem;
   color: var(--muted);
 }
 .grid {
@@ -388,18 +388,18 @@ label,
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 670;
   margin-bottom: 7px;
   color: var(--ink);
 }
 .required {
   color: var(--danger);
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 .optional {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 0.625rem;
   font-weight: 500;
   margin-left: 2px;
 }
@@ -415,7 +415,7 @@ label,
   transition:
     border-color 0.15s,
     box-shadow 0.15s;
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 .control:focus,
 textarea.control:focus {
@@ -446,7 +446,7 @@ textarea.control::placeholder {
   padding-right: 35px;
 }
 .helper {
-  font-size: 10px;
+  font-size: 0.625rem;
   color: var(--muted);
   margin: 6px 0 0;
   line-height: 1.45;
@@ -493,7 +493,7 @@ textarea.control::placeholder {
   justify-content: space-between;
   margin-top: 5px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 0.625rem;
 }
 .char-row .count {
   font-variant-numeric: tabular-nums;
@@ -536,14 +536,14 @@ textarea.control::placeholder {
 }
 .upload-copy strong {
   display: block;
-  font-size: 12px;
+  font-size: 0.75rem;
   margin-bottom: 5px;
 }
 .upload-copy strong span {
   color: var(--green);
 }
 .upload-copy small {
-  font-size: 10px;
+  font-size: 0.625rem;
   color: var(--muted);
 }
 .upload-button {
@@ -554,7 +554,7 @@ textarea.control::placeholder {
   border: 1px solid var(--line);
   border-radius: 7px;
   color: var(--ink);
-  font-size: 10px;
+  font-size: 0.625rem;
   font-weight: 650;
 }
 .camera-actions {
@@ -602,7 +602,7 @@ textarea.control::placeholder {
   flex: 0 0 auto;
   white-space: nowrap;
   padding: 7px 10px;
-  font-size: 10px;
+  font-size: 0.625rem;
 }
 .file-thumb {
   width: 39px;
@@ -628,14 +628,14 @@ textarea.control::placeholder {
   flex: 1;
 }
 .file-name {
-  font-size: 10px;
+  font-size: 0.625rem;
   font-weight: 650;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .file-size {
-  font-size: 9px;
+  font-size: 0.5625rem;
   color: var(--muted);
   margin-top: 4px;
 }
@@ -644,7 +644,7 @@ textarea.control::placeholder {
   background: transparent;
   color: var(--muted);
   padding: 5px;
-  font-size: 16px;
+  font-size: 1rem;
   line-height: 1;
 }
 .remove-file:hover {
@@ -655,7 +655,7 @@ textarea.control::placeholder {
   align-items: flex-start;
   gap: 8px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 0.625rem;
   line-height: 1.5;
   margin: 11px 0 0;
 }
@@ -678,7 +678,7 @@ textarea.control::placeholder {
   display: none;
 }
 .terms {
-  font-size: 10px;
+  font-size: 0.625rem;
   color: var(--muted);
   line-height: 1.45;
 }
@@ -697,7 +697,7 @@ textarea.control::placeholder {
   color: #fff;
   border-radius: 10px;
   padding: 12px 17px;
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 700;
   box-shadow: 0 4px 10px rgba(13, 105, 79, 0.17);
   transition: 0.18s;
@@ -717,7 +717,7 @@ textarea.control::placeholder {
   border: 1px solid var(--line);
   border-radius: 11px;
   color: var(--ink);
-  font-size: 12px;
+  font-size: 0.75rem;
   line-height: 1.5;
 }
 .notice.show {
@@ -737,7 +737,7 @@ textarea.control::placeholder {
   align-items: center;
   gap: 7px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 0.625rem;
   margin-top: 19px;
 }
 .trust-note svg {
@@ -766,7 +766,7 @@ textarea.control::placeholder {
   align-items: flex-start;
   gap: 10px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 0.6875rem;
   line-height: 1.45;
 }
 .ai-review-consent-label strong {
@@ -784,7 +784,7 @@ textarea.control::placeholder {
   gap: 16px;
 }
 .review-label {
-  font-size: 10px;
+  font-size: 0.625rem;
   color: var(--muted);
   font-weight: 700;
   letter-spacing: 0.45px;
@@ -792,7 +792,7 @@ textarea.control::placeholder {
 }
 .review-value {
   margin-top: 6px;
-  font-size: 13px;
+  font-size: 0.8125rem;
   color: var(--ink);
   font-weight: 650;
   line-height: 1.45;
@@ -806,7 +806,7 @@ textarea.control::placeholder {
   border: 1px solid var(--line);
   border-radius: 999px;
   color: var(--accent);
-  font-size: 10px;
+  font-size: 0.625rem;
   font-weight: 650;
   text-align: right;
 }
@@ -819,7 +819,7 @@ textarea.control::placeholder {
 .review-full-description {
   margin: 8px 0 0;
   color: var(--ink);
-  font-size: 13px;
+  font-size: 0.8125rem;
   line-height: 1.7;
   overflow-wrap: anywhere;
 }
@@ -838,7 +838,7 @@ textarea.control::placeholder {
 }
 .review-file-reference a {
   color: var(--accent);
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 650;
 }
 .review-file-reference.is-removing {
@@ -846,7 +846,7 @@ textarea.control::placeholder {
   text-decoration: line-through;
 }
 .review-empty {
-  font-size: 12px;
+  font-size: 0.75rem;
   color: var(--muted);
   margin: 11px 0 0;
 }
@@ -862,7 +862,7 @@ textarea.control::placeholder {
   max-width: 300px;
   margin: 0;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 0.625rem;
   line-height: 1.55;
 }
 .review-actions {
@@ -879,7 +879,7 @@ textarea.control::placeholder {
   border-radius: 10px;
   background: var(--paper);
   color: var(--ink);
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 680;
 }
 .secondary-button:hover {
@@ -917,7 +917,7 @@ textarea.control::placeholder {
   gap: 20px;
 }
 .feed-heading h1 {
-  font-size: 36px;
+  font-size: 2.25rem;
   line-height: 1.14;
   letter-spacing: -1.5px;
   margin: 12px 0 10px;
@@ -930,12 +930,12 @@ textarea.control::placeholder {
   text-decoration: none;
 }
 .feed-cta span {
-  font-size: 16px;
+  font-size: 1rem;
 }
 .feed-state {
   margin: 24px 0;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 0.8125rem;
 }
 .feed-list {
   display: grid;
@@ -965,7 +965,7 @@ textarea.control::placeholder {
   border: 1px solid var(--line);
   border-radius: 9px;
   color: var(--accent);
-  font-size: 10px;
+  font-size: 0.625rem;
   font-weight: 700;
   text-decoration: none;
 }
@@ -979,7 +979,7 @@ textarea.control::placeholder {
   gap: 14px;
 }
 .feed-category {
-  font-size: 16px;
+  font-size: 1rem;
   font-weight: 740;
   letter-spacing: -0.35px;
   color: var(--ink);
@@ -993,7 +993,7 @@ textarea.control::placeholder {
   border-radius: 999px;
   background: var(--surface-raised);
   color: var(--accent);
-  font-size: 10px;
+  font-size: 0.625rem;
   font-weight: 660;
   line-height: 1.35;
   text-align: right;
@@ -1005,7 +1005,7 @@ textarea.control::placeholder {
   gap: 8px 20px;
   margin: 13px 0 0;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 0.6875rem;
 }
 .feed-meta strong {
   color: var(--ink);
@@ -1042,7 +1042,7 @@ textarea.control::placeholder {
 .feed-caption {
   padding: 14px 23px 4px;
   color: var(--ink);
-  font-size: 13px;
+  font-size: 0.8125rem;
   line-height: 1.65;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -1050,7 +1050,7 @@ textarea.control::placeholder {
 .feed-caption strong {
   margin-right: 8px;
   color: var(--ink);
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 760;
 }
 .feed-full {
@@ -1060,7 +1060,7 @@ textarea.control::placeholder {
 }
 .feed-full summary {
   color: var(--green);
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 700;
   cursor: pointer;
 }
@@ -1070,7 +1070,7 @@ textarea.control::placeholder {
 .feed-full p {
   margin: 10px 0 0;
   color: var(--ink);
-  font-size: 12px;
+  font-size: 0.75rem;
   line-height: 1.75;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -1081,7 +1081,7 @@ textarea.control::placeholder {
   background: var(--surface-raised);
 }
 .feed-evidence-title {
-  font-size: 10px;
+  font-size: 0.625rem;
   font-weight: 700;
   color: var(--muted);
   text-transform: uppercase;
@@ -1102,7 +1102,7 @@ textarea.control::placeholder {
   border: 1px solid var(--line);
   border-radius: 9px;
   padding: 7px 10px;
-  font-size: 10px;
+  font-size: 0.625rem;
   font-weight: 650;
   text-decoration: none;
 }
@@ -1110,7 +1110,7 @@ textarea.control::placeholder {
   border-color: #9bbba4;
 }
 .feed-file-icon {
-  font-size: 18px;
+  font-size: 1.125rem;
   line-height: 1;
   color: var(--accent);
 }
@@ -1124,12 +1124,12 @@ textarea.control::placeholder {
 .feed-empty strong {
   display: block;
   color: var(--ink);
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 .feed-empty p {
   margin: 8px 0 17px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 .feed-empty .submit {
   display: inline-flex;
@@ -1140,7 +1140,7 @@ textarea.control::placeholder {
   background: var(--danger-surface);
   border: 1px solid var(--danger-border);
   color: var(--danger);
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 .feed-error .secondary-button {
   display: block;
@@ -1163,20 +1163,20 @@ textarea.control::placeholder {
 }
 .auth-kicker {
   color: var(--green);
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 760;
   letter-spacing: 1.15px;
   text-transform: uppercase;
 }
 .auth-panel h1 {
-  font-size: 34px;
+  font-size: 2.125rem;
   letter-spacing: -1.2px;
   margin: 12px 0 9px;
 }
 .auth-panel > p {
   max-width: 480px;
   color: var(--muted);
-  font-size: 14px;
+  font-size: 0.875rem;
   line-height: 1.7;
   margin: 0;
 }
@@ -1198,13 +1198,13 @@ textarea.control::placeholder {
   background: var(--surface-raised);
 }
 .auth-option h2 {
-  font-size: 14px;
+  font-size: 0.875rem;
   margin: 0 0 7px;
 }
 .auth-option p {
   flex: 1;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 0.6875rem;
   line-height: 1.6;
   margin: 0 0 17px;
 }
@@ -1215,7 +1215,7 @@ textarea.control::placeholder {
   gap: 9px;
   width: 100%;
   min-height: 42px;
-  font-size: 11px;
+  font-size: 0.6875rem;
   border: 1px solid var(--line);
   border-radius: 10px;
   background: var(--paper);
@@ -1235,7 +1235,7 @@ textarea.control::placeholder {
   color: var(--green);
 }
 .google-mark {
-  font-size: 15px;
+  font-size: 0.9375rem;
   font-weight: 800;
   color: #4285f4;
 }
@@ -1244,7 +1244,7 @@ textarea.control::placeholder {
   gap: 8px;
   align-items: flex-start;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 0.625rem;
   line-height: 1.55;
   margin: 19px 0 0;
 }
@@ -1262,7 +1262,7 @@ textarea.control::placeholder {
   background: var(--danger-surface);
   border-radius: 10px;
   color: var(--danger);
-  font-size: 12px;
+  font-size: 0.75rem;
   line-height: 1.5;
 }
 .google-feedback {
@@ -1287,13 +1287,13 @@ textarea.control::placeholder {
   box-shadow: var(--shadow);
 }
 .admin-card h1 {
-  font-size: 30px;
+  font-size: 1.875rem;
   letter-spacing: -1px;
   margin: 12px 0;
 }
 .admin-card p {
   color: var(--muted);
-  font-size: 13px;
+  font-size: 0.8125rem;
   line-height: 1.7;
 }
 .admin-links {
@@ -1319,10 +1319,10 @@ textarea.control::placeholder {
     gap: 32px;
   }
   .heading-row h1 {
-    font-size: 32px;
+    font-size: 2rem;
   }
   .side {
-    font-size: 12px;
+    font-size: 0.75rem;
   }
 }
 @media (max-width: 680px) {
@@ -1378,7 +1378,7 @@ textarea.control::placeholder {
     padding-top: 0;
   }
   .step-title {
-    font-size: 10px;
+    font-size: 0.625rem;
   }
   .step-sub,
   .help-card {
@@ -1386,15 +1386,15 @@ textarea.control::placeholder {
   }
   .heading-row h1,
   .feed-heading h1 {
-    font-size: 30px;
+    font-size: 1.875rem;
     margin-top: 9px;
   }
   .intro {
-    font-size: 13px;
+    font-size: 0.8125rem;
     margin-bottom: 20px;
   }
   .save-status {
-    font-size: 9px;
+    font-size: 0.5625rem;
     padding: 7px 9px;
   }
   .section {
@@ -1407,7 +1407,7 @@ textarea.control::placeholder {
     gap: 14px 11px;
   }
   .control {
-    font-size: 11px;
+    font-size: 0.6875rem;
   }
   .form-footer {
     padding: 15px 17px;
@@ -1471,13 +1471,13 @@ textarea.control::placeholder {
     max-width: 45%;
   }
   .feed-title-group .feed-category {
-    font-size: clamp(14px, 4vw, 17px);
+    font-size: clamp(0.875rem, 2.4vw, 1.0625rem);
   }
   .feed-incident {
     flex: 0 1 55%;
     max-width: 55%;
     padding: 6px 7px;
-    font-size: clamp(8px, 2.4vw, 10px);
+    font-size: clamp(0.5rem, 1.44vw, 0.625rem);
     line-height: 1.2;
     text-align: right;
     overflow: hidden;
@@ -1503,7 +1503,7 @@ textarea.control::placeholder {
     padding: 25px 20px;
   }
   .auth-panel h1 {
-    font-size: 29px;
+    font-size: 1.8125rem;
   }
   .auth-options {
     grid-template-columns: 1fr;
@@ -1547,14 +1547,14 @@ textarea.control::placeholder {
     width: 100%;
   }
   .heading-row h1 {
-    font-size: 28px;
+    font-size: 1.75rem;
   }
 }
 .feed-title-group {
   min-width: 0;
 }
 .feed-title-group .feed-category {
-  font-size: 17px;
+  font-size: 1.0625rem;
   line-height: 1.45;
   overflow-wrap: anywhere;
   margin: 0;
@@ -1566,7 +1566,7 @@ textarea.control::placeholder {
   border-radius: 999px;
   background: var(--surface-raised);
   color: var(--muted);
-  font-size: 9px;
+  font-size: 0.5625rem;
   font-weight: 680;
   line-height: 1.3;
 }
@@ -1628,7 +1628,7 @@ textarea.control::placeholder {
   border-radius: 999px;
   background: #176a4e;
   color: #fff;
-  font-size: 10px;
+  font-size: 0.625rem;
   font-weight: 700;
 }
 .feed-filter-count[hidden] {
@@ -1647,10 +1647,10 @@ textarea.control::placeholder {
   gap: 14px;
 }
 .feed-filter-grid label {
-  font-size: 11px;
+  font-size: 0.6875rem;
 }
 .feed-filter-grid .control {
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 .feed-filter-footer {
   display: flex;
@@ -1662,7 +1662,7 @@ textarea.control::placeholder {
 .feed-filter-note {
   margin: 0;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 0.625rem;
   line-height: 1.55;
 }
 .feed-filter-footer .secondary-button {
@@ -1671,7 +1671,7 @@ textarea.control::placeholder {
 .feed-result-count {
   margin: 18px 0 0;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 0.6875rem;
 }
 .feed-list {
   margin-top: 15px;
@@ -1697,7 +1697,7 @@ textarea.control::placeholder {
   border-radius: 9px;
   background: var(--surface-raised);
   color: var(--ink);
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 .admin-feedback.error {
   background: var(--danger-surface);
@@ -1709,11 +1709,11 @@ textarea.control::placeholder {
   border-top: 1px solid var(--line);
 }
 .admin-user-management h2 {
-  font-size: 17px;
+  font-size: 1.0625rem;
   margin: 0 0 7px;
 }
 .admin-user-management h3 {
-  font-size: 13px;
+  font-size: 0.8125rem;
   margin: 22px 0 10px;
 }
 .admin-user-management > p {
@@ -1750,7 +1750,7 @@ textarea.control::placeholder {
   border-radius: 9px;
 }
 .admin-user-email {
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 650;
   overflow-wrap: anywhere;
 }
@@ -1758,7 +1758,7 @@ textarea.control::placeholder {
   display: block;
   margin-top: 3px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 0.625rem;
   font-weight: 400;
 }
 .admin-remove {
@@ -1768,7 +1768,7 @@ textarea.control::placeholder {
   background: var(--paper);
   color: var(--danger);
   padding: 7px 10px;
-  font-size: 10px;
+  font-size: 0.625rem;
   font-weight: 650;
 }
 .admin-remove:hover {
@@ -1843,7 +1843,7 @@ textarea.control::placeholder {
   background: var(--paper);
   color: var(--ink);
   font: inherit;
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 650;
   white-space: nowrap;
 }
@@ -1869,12 +1869,12 @@ textarea.control::placeholder {
 .profile-tab-description {
   margin: 5px 0 14px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 0.75rem;
   line-height: 1.5;
 }
 .friend-list-heading {
   margin: 18px 0 9px;
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 .friend-profile-view {
   margin-top: 8px;
@@ -1891,7 +1891,7 @@ textarea.control::placeholder {
   display: inline-block;
   margin-bottom: 18px;
   color: var(--green);
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-weight: 700;
 }
 .friend-profile-header {
@@ -1908,13 +1908,13 @@ textarea.control::placeholder {
 }
 .friend-profile-identity h1 {
   margin: 0;
-  font-size: 24px;
+  font-size: 1.5rem;
   overflow-wrap: anywhere;
 }
 .friend-profile-identity p {
   margin: 5px 0 0;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 .friend-profile-actions {
   display: flex;
@@ -1933,7 +1933,7 @@ textarea.control::placeholder {
   background: var(--paper);
   color: var(--green-dark);
   font: inherit;
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 700;
 }
 .friend-profile-remove {
@@ -1945,7 +1945,7 @@ textarea.control::placeholder {
 }
 .friend-profile-feedback {
   color: var(--green);
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 .friend-profile-feedback.error {
   color: var(--danger);
@@ -1972,7 +1972,7 @@ textarea.control::placeholder {
 }
 .profile-trust-score-label {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 .profile-trust-score-value {
   display: inline-flex;
@@ -1982,12 +1982,12 @@ textarea.control::placeholder {
   white-space: nowrap;
 }
 .profile-trust-score-value strong {
-  font-size: 18px;
+  font-size: 1.125rem;
   line-height: 1;
 }
 .profile-trust-score-value span {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 0.625rem;
 }
 .profile-trust-score-track {
   position: relative;
@@ -2008,14 +2008,14 @@ textarea.control::placeholder {
   display: flex;
   justify-content: space-between;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 0.5625rem;
 }
 .profile-trust-score-current {
   display: flex;
   justify-content: center;
   gap: 3px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 0.5625rem;
   white-space: nowrap;
 }
 .profile-trust-score-current strong {
@@ -2029,7 +2029,7 @@ textarea.control::placeholder {
 }
 .friend-profile-posts-heading {
   margin: 20px 0 12px;
-  font-size: 18px;
+  font-size: 1.125rem;
 }
 .friend-profile-post {
   display: grid;
@@ -2049,7 +2049,7 @@ textarea.control::placeholder {
   text-decoration: underline;
 }
 .profile-heading h1 {
-  font-size: 36px;
+  font-size: 2.25rem;
   line-height: 1.14;
   letter-spacing: -1.5px;
   margin: 12px 0 9px;
@@ -2122,7 +2122,7 @@ textarea.control::placeholder {
 .profile-photo-form .secondary-button {
   min-height: 34px;
   padding: 7px 10px;
-  font-size: 11px;
+  font-size: 0.6875rem;
 }
 .profile-photo-feedback {
   grid-column: 1 / -1;
@@ -2136,7 +2136,7 @@ textarea.control::placeholder {
   place-items: center;
   background: var(--surface-raised);
   color: var(--green);
-  font-size: 20px;
+  font-size: 1.25rem;
   font-weight: 750;
 }
 .profile-identity {
@@ -2145,13 +2145,13 @@ textarea.control::placeholder {
 .profile-identity h2 {
   margin: 0;
   color: var(--ink);
-  font-size: 17px;
+  font-size: 1.0625rem;
   overflow-wrap: anywhere;
 }
 .profile-identity p {
   margin: 5px 0 0;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 0.75rem;
   overflow-wrap: anywhere;
 }
 .profile-post-heading {
@@ -2163,13 +2163,13 @@ textarea.control::placeholder {
 }
 .profile-post-heading h2 {
   margin: 0;
-  font-size: 21px;
+  font-size: 1.3125rem;
   letter-spacing: -0.4px;
 }
 .profile-post-heading p {
   margin: 5px 0 0;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 0.6875rem;
 }
 .profile-post-heading .secondary-button {
   flex: none;
@@ -2195,7 +2195,7 @@ textarea.control::placeholder {
 .profile-post-title {
   margin: 0;
   color: var(--ink);
-  font-size: 15px;
+  font-size: 0.9375rem;
   line-height: 1.45;
   overflow-wrap: anywhere;
 }
@@ -2203,12 +2203,12 @@ textarea.control::placeholder {
   display: block;
   margin-top: 6px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 0.625rem;
 }
 .profile-post-date {
   flex: none;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 0.625rem;
 }
 .profile-post-meta {
   display: flex;
@@ -2216,7 +2216,7 @@ textarea.control::placeholder {
   gap: 7px 15px;
   margin-top: 13px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 0.625rem;
 }
 .profile-post-meta strong {
   color: var(--ink);
@@ -2228,14 +2228,14 @@ textarea.control::placeholder {
 }
 .profile-post-full summary {
   color: var(--green);
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 700;
   cursor: pointer;
 }
 .profile-post-full p {
   margin: 8px 0 0;
   color: var(--ink);
-  font-size: 11px;
+  font-size: 0.6875rem;
   line-height: 1.65;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -2257,7 +2257,7 @@ textarea.control::placeholder {
   color: var(--accent);
   background: var(--surface-raised);
   text-decoration: none;
-  font-size: 10px;
+  font-size: 0.625rem;
   font-weight: 650;
   overflow-wrap: anywhere;
 }
@@ -2281,7 +2281,7 @@ textarea.control::placeholder {
   border-radius: 9px;
   background: var(--paper);
   font: inherit;
-  font-size: 10px;
+  font-size: 0.625rem;
   font-weight: 700;
   cursor: pointer;
   text-decoration: none;
@@ -2311,7 +2311,7 @@ textarea.control::placeholder {
   background: var(--paper);
   border: 1px solid var(--line);
   color: var(--muted);
-  font-size: 12px;
+  font-size: 0.75rem;
   line-height: 1.6;
 }
 .profile-empty {
@@ -2321,7 +2321,7 @@ textarea.control::placeholder {
 .profile-empty strong {
   display: block;
   color: var(--ink);
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 .profile-empty p {
   margin: 7px 0 15px;
@@ -2370,7 +2370,7 @@ textarea.control::placeholder {
     flex-wrap: wrap;
   }
   .profile-heading h1 {
-    font-size: 30px;
+    font-size: 1.875rem;
   }
   .profile-summary {
     grid-template-columns: 52px minmax(0, 1fr) minmax(108px, 135px);
@@ -2381,7 +2381,7 @@ textarea.control::placeholder {
   .profile-avatar-wrap .profile-avatar {
     width: 52px;
     height: 52px;
-    font-size: 17px;
+    font-size: 1.0625rem;
   }
   .profile-summary-main {
     align-self: center;
@@ -2432,12 +2432,12 @@ textarea.control::placeholder {
   display: block;
   margin-top: 4px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 450;
   overflow-wrap: anywhere;
 }
 .brand-name {
-  font-size: 19px;
+  font-size: 1.1875rem;
   letter-spacing: -0.65px;
 }
 .brand-name:after {
@@ -2445,7 +2445,7 @@ textarea.control::placeholder {
   color: var(--green);
 }
 .brand-subtitle {
-  font-size: 8px;
+  font-size: 0.5rem;
   text-transform: uppercase;
   letter-spacing: 0.75px;
 }
@@ -2528,7 +2528,7 @@ textarea.control::placeholder {
   padding: 10px 12px;
   border-radius: 8px;
   color: var(--ink);
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 650;
 }
 .account-menu a:hover {
@@ -2536,7 +2536,7 @@ textarea.control::placeholder {
   color: var(--green);
 }
 .feed-heading h1 {
-  font-size: 40px;
+  font-size: 2.5rem;
   font-weight: 800;
   letter-spacing: -1.7px;
 }
@@ -2545,7 +2545,7 @@ textarea.control::placeholder {
   border-radius: 999px;
   background: #e7f4c8;
   color: #000;
-  font-size: 10px;
+  font-size: 0.625rem;
   letter-spacing: 0.7px;
 }
 .feed-heading .eyebrow:before {
@@ -2561,11 +2561,11 @@ textarea.control::placeholder {
 }
 .feed-cta span,
 .feed-empty .submit span {
-  font-size: 13px;
+  font-size: 0.8125rem;
 }
 @media (max-width: 680px) {
   .feed-heading h1 {
-    font-size: 32px;
+    font-size: 2rem;
   }
   .feed-heading-actions {
     width: 100%;
@@ -2589,7 +2589,7 @@ textarea.control::placeholder {
 }
 @media (max-width: 420px) {
   .feed-heading h1 {
-    font-size: 28px;
+    font-size: 1.75rem;
   }
   .brand-subtitle {
     display: none;
@@ -2603,7 +2603,7 @@ textarea.control::placeholder {
   .top-actions a.nav-share-link {
     gap: 5px;
     padding: 6px 8px;
-    font-size: 11px;
+    font-size: 0.6875rem;
   }
   .nav-share-link img {
     width: 21px;
@@ -2659,11 +2659,11 @@ textarea.control::placeholder {
   min-width: 0;
 }
 .audience-option strong {
-  font-size: 11px;
+  font-size: 0.6875rem;
   color: var(--ink);
 }
 .audience-option small {
-  font-size: 10px;
+  font-size: 0.625rem;
   line-height: 1.5;
   color: var(--muted);
   font-weight: 450;
@@ -2671,7 +2671,7 @@ textarea.control::placeholder {
 .audience-note {
   margin: 10px 0 0;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 0.625rem;
   line-height: 1.5;
 }
 @media (max-width: 680px) {
@@ -2688,7 +2688,7 @@ textarea.control::placeholder {
     margin: 0;
   }
   .audience-option strong {
-    font-size: 10px;
+    font-size: 0.625rem;
   }
 }
 .friends-panel {
@@ -2701,12 +2701,12 @@ textarea.control::placeholder {
 }
 .friends-panel-heading h2 {
   margin: 0;
-  font-size: 18px;
+  font-size: 1.125rem;
 }
 .friends-panel-heading p {
   margin: 5px 0 0;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 0.6875rem;
   line-height: 1.55;
 }
 .friend-request-form {
@@ -2723,7 +2723,7 @@ textarea.control::placeholder {
 .friends-feedback {
   margin: 9px 0 0;
   color: var(--accent);
-  font-size: 11px;
+  font-size: 0.6875rem;
   line-height: 1.5;
 }
 .friends-feedback:empty {
@@ -2747,7 +2747,7 @@ textarea.control::placeholder {
 }
 .friends-lists h3 {
   margin: 0 0 9px;
-  font-size: 11px;
+  font-size: 0.6875rem;
 }
 .friend-list {
   display: grid;
@@ -2779,11 +2779,11 @@ textarea.control::placeholder {
   white-space: nowrap;
 }
 .friend-person strong {
-  font-size: 10px;
+  font-size: 0.625rem;
   color: var(--ink);
 }
 .friend-person span {
-  font-size: 9px;
+  font-size: 0.5625rem;
   color: var(--muted);
 }
 .friend-actions {
@@ -2797,7 +2797,7 @@ textarea.control::placeholder {
   border-radius: 7px;
   background: var(--paper);
   color: var(--green);
-  font-size: 9px;
+  font-size: 0.5625rem;
   font-weight: 700;
   cursor: pointer;
 }
@@ -2811,7 +2811,7 @@ textarea.control::placeholder {
 .friend-empty {
   margin: 0;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 0.625rem;
 }
 .friend-empty[hidden] {
   display: none;
@@ -2822,7 +2822,7 @@ textarea.control::placeholder {
   gap: 6px;
   margin-top: 9px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 0.625rem;
 }
 .feed-author-icon {
   width: 19px;
@@ -2832,7 +2832,7 @@ textarea.control::placeholder {
   border-radius: 50%;
   background: var(--surface-raised);
   color: var(--green);
-  font-size: 9px;
+  font-size: 0.5625rem;
   font-weight: 750;
 }
 .feed-author.anonymous .feed-author-icon {
@@ -2847,7 +2847,7 @@ textarea.control::placeholder {
   border-radius: 999px;
   background: var(--surface-raised);
   color: var(--ink);
-  font-size: 9px;
+  font-size: 0.5625rem;
   font-weight: 680;
 }
 @media (max-width: 720px) {
@@ -2911,7 +2911,7 @@ textarea.control::placeholder {
   border: 0;
   background: transparent;
   color: var(--ink);
-  font-size: 9px;
+  font-size: 0.5625rem;
 }
 .story-avatar {
   display: grid;
@@ -2923,7 +2923,7 @@ textarea.control::placeholder {
   border-radius: 50%;
   background: var(--surface-raised);
   color: var(--green);
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 750;
 }
 .story-avatar img,
@@ -2981,7 +2981,7 @@ textarea.control::placeholder {
   border-radius: 50%;
   background: var(--green);
   color: #fff;
-  font-size: 15px;
+  font-size: 0.9375rem;
   line-height: 1;
 }
 .account-profile-photo {
@@ -3009,14 +3009,14 @@ textarea.control::placeholder {
 .profile-photo-form .secondary-button {
   min-height: 36px;
   padding: 8px 12px;
-  font-size: 11px;
+  font-size: 0.6875rem;
 }
 .profile-photo-feedback,
 .story-compose-feedback {
   min-height: 0;
   margin: 6px 0 0 !important;
   color: var(--green);
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 .profile-avatar {
   overflow: hidden;
@@ -3073,18 +3073,18 @@ textarea.control::placeholder {
 }
 .story-dialog-heading h2 {
   margin: 5px 0 0;
-  font-size: 22px;
+  font-size: 1.375rem;
 }
 .story-composer > form > .helper {
   color: var(--muted);
-  font-size: 13px;
+  font-size: 0.8125rem;
   line-height: 1.55;
 }
 .story-composer label:not(.secondary-button) {
   display: block;
   margin: 14px 0 6px;
   color: var(--ink);
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 700;
 }
 .story-dialog-close {
@@ -3097,7 +3097,7 @@ textarea.control::placeholder {
   border-radius: 50%;
   background: var(--paper);
   color: var(--ink);
-  font-size: 24px;
+  font-size: 1.5rem;
 }
 .story-media-preview {
   display: grid;
@@ -3155,11 +3155,11 @@ textarea.control::placeholder {
   gap: 2px;
 }
 .story-viewer-author strong {
-  font-size: 13px;
+  font-size: 0.8125rem;
 }
 .story-viewer-author small {
   color: #bdc8c1;
-  font-size: 10px;
+  font-size: 0.625rem;
 }
 .story-viewer-avatar {
   display: grid;
@@ -3193,7 +3193,7 @@ textarea.control::placeholder {
   min-height: 23px;
   margin: 8px 4px;
   color: #f4f7f5;
-  font-size: 13px;
+  font-size: 0.8125rem;
 }
 .story-viewer-controls {
   justify-content: flex-start;
@@ -3205,7 +3205,7 @@ textarea.control::placeholder {
   border-color: #52615a;
   background: #202a25;
   color: #fff;
-  font-size: 10px;
+  font-size: 0.625rem;
 }
 .story-viewer-controls .story-delete-button {
   margin-left: auto;
@@ -3229,7 +3229,7 @@ textarea.control::placeholder {
   }
   .story-name {
     max-width: 50px;
-    font-size: 8px;
+    font-size: 0.5rem;
   }
   .profile-photo-form {
     gap: 6px;
@@ -3270,7 +3270,7 @@ textarea.control::placeholder {
 }
 .friend-email-option summary {
   color: var(--green);
-  font-size: 10px;
+  font-size: 0.625rem;
   font-weight: 700;
   cursor: pointer;
 }
@@ -3349,7 +3349,7 @@ textarea.control::placeholder {
 .feed-gallery-hint {
   margin: 5px 2px 0;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 0.625rem;
 }
 .feed-engagement {
   margin: 12px 23px 16px;
@@ -3368,7 +3368,7 @@ textarea.control::placeholder {
   background: var(--paper);
   color: var(--ink);
   padding: 7px 10px;
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 650;
 }
 .feed-reaction:hover,
@@ -3382,7 +3382,7 @@ textarea.control::placeholder {
   border: 0;
   background: transparent;
   color: var(--accent);
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 700;
   padding: 8px;
 }
@@ -3403,24 +3403,24 @@ textarea.control::placeholder {
   border-bottom: 1px solid var(--line);
 }
 .feed-comment strong {
-  font-size: 10px;
+  font-size: 0.625rem;
   color: var(--ink);
 }
 .feed-comment time {
   margin-left: 8px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 0.5625rem;
 }
 .feed-comment p {
   margin: 4px 0 0;
   color: var(--ink);
-  font-size: 11px;
+  font-size: 0.6875rem;
   line-height: 1.55;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 .feed-comment-empty {
-  font-size: 11px;
+  font-size: 0.6875rem;
   color: var(--muted);
   margin: 0 0 10px;
 }
@@ -3437,7 +3437,7 @@ textarea.control::placeholder {
   border: 1px solid var(--line);
   border-radius: 9px;
   padding: 9px;
-  font-size: 11px;
+  font-size: 0.6875rem;
 }
 .feed-comment-submit {
   border: 0;
@@ -3445,11 +3445,11 @@ textarea.control::placeholder {
   background: #0d694f;
   color: white;
   padding: 0 13px;
-  font-size: 10px;
+  font-size: 0.625rem;
   font-weight: 700;
 }
 .feed-comment-feedback {
-  font-size: 10px;
+  font-size: 0.625rem;
   color: var(--muted);
   margin: 7px 0 0;
 }
@@ -3460,17 +3460,17 @@ textarea.control::placeholder {
   display: block;
   margin-top: 4px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 0.625rem;
   font-weight: 400;
 }
 .audit-details {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 0.625rem;
   text-align: right;
 }
 .member-identifiers {
   margin-top: 7px;
-  font-size: 9px;
+  font-size: 0.5625rem;
   font-weight: 550;
   color: var(--ink);
 }
@@ -3480,7 +3480,7 @@ textarea.control::placeholder {
 .member-identifiers p {
   margin: 5px 0 0;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 0.5625rem;
   font-weight: 450;
   overflow-wrap: anywhere;
 }
@@ -3492,7 +3492,7 @@ textarea.control::placeholder {
   background: var(--surface-raised);
   color: var(--ink);
   font:
-    9px ui-monospace,
+    0.5625rem ui-monospace,
     monospace;
   overflow-wrap: anywhere;
   word-break: break-all;
@@ -3509,7 +3509,7 @@ textarea.control::placeholder {
   }
   .feed-reaction {
     padding: 7px 8px;
-    font-size: 10px;
+    font-size: 0.625rem;
   }
   .feed-comments-toggle {
     margin-left: 0;
@@ -3531,7 +3531,7 @@ textarea.control::placeholder {
   gap: 9px;
   margin: 2px 0 0;
   color: var(--ink);
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 650;
   cursor: pointer;
 }
@@ -3590,7 +3590,7 @@ textarea.control::placeholder {
   border-radius: 50%;
   background: var(--paper);
   color: var(--accent);
-  font-size: 20px;
+  font-size: 1.25rem;
   line-height: 1;
   cursor: pointer;
 }
@@ -3612,12 +3612,12 @@ textarea.control::placeholder {
 }
 .feed-gallery-count {
   color: var(--ink);
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 700;
 }
 .feed-gallery-hint {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 0.625rem;
 }
 .feed-gallery-progress {
   grid-column: 1/-1;
@@ -3640,7 +3640,7 @@ textarea.control::placeholder {
   background: var(--paper);
   color: var(--ink);
   padding: 5px 8px;
-  font-size: 9px;
+  font-size: 0.5625rem;
   font-weight: 650;
   cursor: pointer;
 }
@@ -3683,7 +3683,7 @@ textarea.control::placeholder {
   }
   .control,
   .feed-comment-input {
-    font-size: 16px !important;
+    font-size: 1rem !important;
     min-height: 46px;
   }
   .feed-comment-input {
@@ -3706,24 +3706,24 @@ textarea.control::placeholder {
     padding: 8px 10px;
   }
   .feed-meta {
-    font-size: 13px;
+    font-size: 0.8125rem;
     gap: 8px 14px;
   }
   .feed-category,
   .feed-title-group .feed-category {
-    font-size: 18px;
+    font-size: 1.125rem;
   }
   .feed-incident {
-    font-size: 11px;
+    font-size: 0.6875rem;
   }
   .feed-full summary,
   .feed-full p,
   .feed-caption {
-    font-size: 14px;
+    font-size: 0.875rem;
   }
   .feed-file-link {
     min-height: 44px;
-    font-size: 12px;
+    font-size: 0.75rem;
   }
   .feed-card {
     content-visibility: auto;
@@ -3755,7 +3755,7 @@ textarea.control::placeholder {
     gap: 6px;
   }
   .feed-reaction {
-    font-size: 12px;
+    font-size: 0.75rem;
   }
   .feed-heading-actions .feed-filter-toggle {
     width: 46px;
@@ -3812,7 +3812,7 @@ textarea.control::placeholder {
 }
 .trust-self-score-copy h2 {
   margin: 0;
-  font-size: 20px;
+  font-size: 1.25rem;
 }
 .trust-self-score-copy p {
   margin: 0;
@@ -3847,7 +3847,7 @@ textarea.control::placeholder {
 }
 .trust-feature-copy h2 {
   margin: 2px 0 0;
-  font-size: 19px;
+  font-size: 1.1875rem;
 }
 .trust-feature-copy p,
 .trust-score-hint {
@@ -3859,7 +3859,7 @@ textarea.control::placeholder {
   flex: none;
 }
 .trust-score-hint {
-  font-size: 13px;
+  font-size: 0.8125rem;
 }
 .trust-record-card {
   gap: 16px;
@@ -3881,7 +3881,7 @@ textarea.control::placeholder {
 }
 .trust-record-label {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 .trust-record-summary strong {
   overflow-wrap: anywhere;
@@ -3961,7 +3961,7 @@ textarea.control::placeholder {
 .agreement-result-heading h3 {
   margin: 0;
   color: var(--ink);
-  font-size: 20px;
+  font-size: 1.25rem;
   line-height: 1.25;
 }
 .agreement-generator-heading p,
@@ -3976,7 +3976,7 @@ textarea.control::placeholder {
   color: var(--accent);
   background: var(--mint);
   border-radius: 999px;
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 750;
 }
 #agreement-form {
@@ -4001,7 +4001,7 @@ textarea.control::placeholder {
   justify-content: space-between;
   gap: 12px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 0.75rem;
   line-height: 1.45;
 }
 .agreement-consent {
@@ -4011,7 +4011,7 @@ textarea.control::placeholder {
   gap: 10px;
   margin-top: 5px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 0.8125rem;
   line-height: 1.55;
 }
 .agreement-consent input {
@@ -4041,12 +4041,12 @@ textarea.control::placeholder {
   min-height: 20px;
   margin: 0;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 0.8125rem;
   line-height: 1.5;
 }
 #agreement-save-feedback {
   color: var(--muted);
-  font-size: 13px;
+  font-size: 0.8125rem;
   line-height: 1.5;
 }
 #agreement-save-feedback.error {
@@ -4079,7 +4079,7 @@ textarea.control::placeholder {
 .agreement-save-panel h3 {
   margin: 0;
   color: var(--ink);
-  font-size: 17px;
+  font-size: 1.0625rem;
 }
 .agreement-save-panel > p {
   margin: 0;
@@ -4111,7 +4111,7 @@ textarea.control::placeholder {
 .agreement-outcome-guidance {
   margin: 0;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 0.8125rem;
   line-height: 1.45;
 }
 .agreement-selected-people {
@@ -4142,7 +4142,7 @@ textarea.control::placeholder {
   border: 0;
   border-radius: 50%;
   font: inherit;
-  font-size: 20px;
+  font-size: 1.25rem;
   line-height: 1;
   cursor: pointer;
 }
@@ -4206,7 +4206,7 @@ textarea.control::placeholder {
   min-width: 0;
   margin: 0;
   color: var(--ink);
-  font-size: 18px;
+  font-size: 1.125rem;
   overflow-wrap: anywhere;
 }
 .agreement-status-badge {
@@ -4216,7 +4216,7 @@ textarea.control::placeholder {
   color: var(--accent);
   background: var(--mint);
   border-radius: 999px;
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 750;
 }
 .agreement-status-badge.status-declined {
@@ -4267,7 +4267,7 @@ textarea.control::placeholder {
   border-radius: 12px;
 }
 .agreement-outcome-summary strong {
-  font-size: 15px;
+  font-size: 0.9375rem;
 }
 .agreement-outcome-summary small {
   grid-column: 1 / -1;
@@ -4285,7 +4285,7 @@ textarea.control::placeholder {
 }
 .agreement-outcome-heading h4 {
   margin: 0;
-  font-size: 15px;
+  font-size: 0.9375rem;
 }
 .agreement-outcome-note,
 .agreement-outcome-response-summary,
@@ -4335,7 +4335,7 @@ textarea.control::placeholder {
 }
 .agreement-download-actions span {
   color: var(--muted);
-  font-size: 13px;
+  font-size: 0.8125rem;
 }
 @media (max-width: 600px) {
   .trust-score-tabs {
@@ -4371,10 +4371,10 @@ textarea.control::placeholder {
     flex-direction: column;
   }
   .agreement-generator-heading h2 {
-    font-size: 18px;
+    font-size: 1.125rem;
   }
   .agreement-ai-badge {
-    font-size: 11px;
+    font-size: 0.6875rem;
   }
   .agreement-input-meta {
     align-items: flex-start;
@@ -4403,13 +4403,13 @@ textarea.control::placeholder {
   background: var(--surface-raised);
 }
 .message-inbox-title {
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 750;
   color: var(--ink);
 }
 .message-inbox-status,
 .message-inbox-empty {
-  font-size: 11px;
+  font-size: 0.6875rem;
   line-height: 1.55;
   color: var(--muted);
 }
@@ -4445,7 +4445,7 @@ textarea.control::placeholder {
   background: var(--surface-raised);
 }
 .message-thread-name {
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 720;
   color: var(--ink);
   overflow: hidden;
@@ -4457,7 +4457,7 @@ textarea.control::placeholder {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 10px;
+  font-size: 0.625rem;
   color: var(--muted);
 }
 .message-unread {
@@ -4468,7 +4468,7 @@ textarea.control::placeholder {
   background: #0d7054;
   color: #fff;
   text-align: center;
-  font-size: 9px;
+  font-size: 0.5625rem;
   font-weight: 750;
 }
 .message-conversation {
@@ -4483,7 +4483,7 @@ textarea.control::placeholder {
   place-items: center;
   padding: 24px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 0.8125rem;
   text-align: center;
 }
 .message-thread-header {
@@ -4499,11 +4499,11 @@ textarea.control::placeholder {
   gap: 4px;
 }
 .message-thread-header strong {
-  font-size: 14px;
+  font-size: 0.875rem;
   color: var(--ink);
 }
 .message-thread-header span {
-  font-size: 10px;
+  font-size: 0.625rem;
   color: var(--muted);
 }
 .message-expiry-note {
@@ -4527,7 +4527,7 @@ textarea.control::placeholder {
 .message-empty-conversation {
   margin: auto;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 0.75rem;
   text-align: center;
 }
 .message-bubble {
@@ -4551,13 +4551,13 @@ textarea.control::placeholder {
   border-bottom-left-radius: 5px;
 }
 .message-bubble-text {
-  font-size: 13px;
+  font-size: 0.8125rem;
   line-height: 1.55;
   color: var(--ink);
   white-space: pre-wrap;
 }
 .message-bubble-meta {
-  font-size: 9px;
+  font-size: 0.5625rem;
   color: var(--muted);
   text-align: right;
 }
@@ -4575,7 +4575,7 @@ textarea.control::placeholder {
   max-height: 140px;
   resize: vertical;
   padding: 10px 12px;
-  font-size: 13px;
+  font-size: 0.8125rem;
 }
 .message-compose .submit {
   width: auto;
@@ -4586,7 +4586,7 @@ textarea.control::placeholder {
   margin: 0;
   padding: 0 15px 10px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 0.625rem;
 }
 .message-feedback.error {
   color: var(--danger);
@@ -4665,7 +4665,7 @@ textarea.control::placeholder {
   border-radius: 999px;
   background: #0d7054;
   color: #fff;
-  font-size: 10px;
+  font-size: 0.625rem;
   line-height: 1;
   font-weight: 750;
 }
@@ -4685,7 +4685,7 @@ textarea.control::placeholder {
   color: var(--ink);
   text-align: left;
   font: inherit;
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 650;
   cursor: pointer;
 }
@@ -4702,7 +4702,7 @@ textarea.control::placeholder {
   background: var(--surface-raised);
   color: var(--ink);
   border-bottom: 1px solid var(--line);
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 .ghost-mode-banner[hidden] {
   display: none;
@@ -4731,19 +4731,19 @@ textarea.control::placeholder {
 .ghost-panel h2 {
   margin: 0;
   color: var(--ink);
-  font-size: 17px;
+  font-size: 1.0625rem;
 }
 .ghost-settings-copy {
   max-width: 680px;
   margin: 8px 0 13px;
   color: var(--ink);
-  font-size: 12px;
+  font-size: 0.75rem;
   line-height: 1.6;
 }
 .ghost-settings-feedback {
   margin: 0 0 10px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 0.6875rem;
 }
 .ghost-profile-ready {
   display: grid;
@@ -4753,16 +4753,16 @@ textarea.control::placeholder {
 }
 .ghost-profile-ready strong {
   color: var(--ink);
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 .ghost-profile-ready span {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 0.6875rem;
 }
 .ghost-profile-state {
   grid-column: 1;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 0.6875rem;
 }
 .ghost-profile-actions {
   grid-column: 2;
@@ -4788,7 +4788,7 @@ textarea.control::placeholder {
 .ghost-create-form label {
   margin-top: 5px;
   color: var(--ink);
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 700;
 }
 .ghost-create-form .helper {
@@ -4824,7 +4824,7 @@ textarea.control::placeholder {
 .admin-post-copy p {
   margin: 6px 0 0;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 0.6875rem;
   line-height: 1.55;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -4850,7 +4850,7 @@ textarea.control::placeholder {
   border-radius: 999px;
   background: var(--paper);
   color: var(--ink);
-  font-size: 10px;
+  font-size: 0.625rem;
   font-weight: 680;
 }
 .admin-navigation a:hover,
@@ -4868,7 +4868,7 @@ textarea.control::placeholder {
 }
 .admin-overview h2 {
   margin: 0;
-  font-size: 16px;
+  font-size: 1rem;
 }
 .admin-overview p {
   margin: 7px 0 0;
@@ -4884,14 +4884,14 @@ textarea.control::placeholder {
   gap: 5px;
   min-width: 0;
   color: var(--ink);
-  font-size: 10px;
+  font-size: 0.625rem;
   font-weight: 650;
 }
 .admin-list-filters .control {
   width: 100%;
   max-width: none;
   height: 39px;
-  font-size: 11px;
+  font-size: 0.6875rem;
 }
 .admin-user-filter-row {
   grid-template-columns: minmax(0, 2fr) minmax(120px, 1fr);
@@ -4976,7 +4976,7 @@ textarea.control::placeholder {
   border-radius: 999px;
   color: var(--muted);
   background: var(--surface-raised);
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 700;
   text-decoration: none;
 }
@@ -5039,7 +5039,7 @@ textarea.control::placeholder {
     min-height: 52px;
     gap: 0;
     padding: 0 14px;
-    font-size: 12px;
+    font-size: 0.75rem;
     overflow-x: visible;
   }
   .topbar-navigation .messages-nav-link {
@@ -5055,7 +5055,7 @@ textarea.control::placeholder {
   .topbar-navigation .nav-share-link {
     gap: 5px;
     padding: 6px 9px;
-    font-size: 11px;
+    font-size: 0.6875rem;
   }
   .topbar-navigation .nav-share-link img {
     width: 21px;
@@ -5072,7 +5072,7 @@ textarea.control::placeholder {
     gap: 0;
     padding-right: 8px;
     padding-left: 8px;
-    font-size: 10px;
+    font-size: 0.625rem;
   }
   .topbar-navigation .nav-utility-links {
     gap: 6px;
@@ -5080,7 +5080,7 @@ textarea.control::placeholder {
   .topbar-navigation .nav-share-link {
     gap: 4px;
     padding: 5px 6px;
-    font-size: 10px;
+    font-size: 0.625rem;
   }
   .topbar-navigation .nav-share-link img {
     width: 18px;
@@ -5144,7 +5144,7 @@ textarea.control::placeholder {
 .location-suggestions-heading {
   padding: 9px 11px 7px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 0.5625rem;
   font-weight: 800;
   letter-spacing: 1px;
 }
@@ -5176,7 +5176,7 @@ textarea.control::placeholder {
   border-radius: 50%;
   background: color-mix(in srgb, var(--green) 22%, var(--paper));
   color: var(--accent);
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-weight: 800;
 }
 .location-suggestion-icon svg {
@@ -5196,12 +5196,12 @@ textarea.control::placeholder {
 }
 .location-suggestion-copy strong {
   color: var(--ink);
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 750;
 }
 .location-suggestion-copy small {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 0.625rem;
 }
 .location-suggestion-type {
   max-width: 92px;
@@ -5210,14 +5210,14 @@ textarea.control::placeholder {
   border-radius: 999px;
   padding: 5px 8px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 0.5625rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .location-suggestion-status {
   padding: 13px 11px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 0.6875rem;
   line-height: 1.5;
 }
 .location-suggestion-status.loading {
@@ -5244,7 +5244,7 @@ textarea.control::placeholder {
   .location-suggestion-type {
     max-width: 67px;
     padding-inline: 6px;
-    font-size: 8px;
+    font-size: 0.5rem;
   }
 }
 
@@ -5252,5 +5252,12 @@ textarea.control::placeholder {
   body::before,
   .story-bubble .story-avatar {
     animation: none !important;
+  }
+}
+
+/* Scale typography down on phone layouts while preserving its size hierarchy. */
+@media (max-width: 720px) {
+  html {
+    font-size: 60%;
   }
 }
