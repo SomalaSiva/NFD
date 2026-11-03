@@ -73,6 +73,16 @@ test("feed polls use styled compact controls, a results bar, and a right-aligned
   assert.match(appCss, /\.feed-media-drift|@keyframes feed-media-drift/);
 });
 
+test("mobile shortcut icons stay compact and the Trust Score overview stacks cleanly", () => {
+  assert.match(normalizedHtml, /id="mobile-bottom-nav"[^>]*hidden/);
+  assert.match(appJs, /mobileBottomNav\.hidden = !visible/);
+  assert.match(appCss, /\.mobile-bottom-nav\[hidden\]\s*\{\s*display:\s*none !important/);
+  assert.match(appCss, /\.mobile-bottom-nav svg\s*\{\s*display:\s*block;\s*width:\s*20px;\s*height:\s*20px/);
+  assert.match(appCss, /\.mobile-bottom-nav:not\(\[hidden\]\)\s*\{\s*position:\s*fixed/);
+  assert.match(appCss, /body\.has-mobile-bottom-nav\s*\{\s*padding-bottom:/);
+  assert.match(appCss, /\.trust-self-score-card\s*\{\s*grid-template-columns:\s*minmax\(0, 1fr\)/);
+});
+
 test("Trust post target uses search and offers a safe unlinked option when no NFD profile matches", () => {
   assert.match(normalizedHtml, /id="trust-subject-search"[\s\S]*type="search"/);
   assert.match(normalizedHtml, /id="trust-subject-results"[\s\S]*role="listbox"[\s\S]*hidden/);
