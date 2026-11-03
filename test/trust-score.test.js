@@ -113,7 +113,7 @@ test("Self profile and friend Trust Score tabs show the audience-visible score d
   assert.match(appJs, /audience-visible positive experiences and unverified allegations/i);
   assert.match(appJs, /profileSummaryScore\.replaceChildren\(createTrustScorePreview/);
   assert.match(appJs, /About: \$\{experience\.trustReport\.subjectName/);
-  assert.match(appCss, /\.trust-feed-report \.trust-feed-report-detail[\s\S]*font-weight: 600/);
+  assert.match(appCss, /\.trust-feed-report \.trust-feed-report-detail[\s\S]*font-weight: 500/);
   assert.match(appCss, /grid-template-columns:\s*52px minmax\(0, 1fr\) minmax\(108px, 135px\)/);
   assert.match(appJs, /if \(compact\) section\.append\(track, scale\)/);
   assert.match(appJs, /profile-trust-score-current/);

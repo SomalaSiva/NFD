@@ -3820,27 +3820,29 @@ textarea.control::placeholder {
 .trust-feed-report {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 6px 10px;
-  margin-top: 10px;
-  padding: 9px 11px;
-  color: #243b36;
-  background: #fff5e3;
-  border: 1px solid #ecd8b5;
-  border-radius: 10px;
-  font-size: 12px;
+  align-items: baseline;
+  gap: 3px 8px;
+  margin-top: 8px;
+  padding: 5px 8px;
+  color: var(--muted);
+  background: color-mix(in srgb, #d59b59 7%, var(--surface-raised));
+  border: 1px solid color-mix(in srgb, #d59b59 20%, var(--line));
+  border-radius: 8px;
+  font-size: 11px;
+  line-height: 1.4;
 }
 .trust-feed-report strong {
-  color: #75430f;
+  color: color-mix(in srgb, #e5b778 78%, var(--ink));
+  font-weight: 650;
   white-space: nowrap;
 }
 .trust-feed-report span {
   min-width: 0;
   overflow-wrap: anywhere;
-  color: #243b36;
+  color: var(--muted);
 }
 .trust-feed-report .trust-feed-report-detail {
-  font-weight: 600;
+  font-weight: 500;
 }
 .friend-trust-dashboard {
   margin-block: 28px;
