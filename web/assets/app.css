@@ -3823,16 +3823,16 @@ textarea.control::placeholder {
   align-items: baseline;
   gap: 3px 8px;
   margin-top: 8px;
-  padding: 5px 8px;
+  padding: 0;
   color: var(--muted);
-  background: color-mix(in srgb, #d59b59 7%, var(--surface-raised));
-  border: 1px solid color-mix(in srgb, #d59b59 20%, var(--line));
-  border-radius: 8px;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
   font-size: 11px;
   line-height: 1.4;
 }
 .trust-feed-report strong {
-  color: color-mix(in srgb, #e5b778 78%, var(--ink));
+  color: color-mix(in srgb, #e5b778 55%, var(--ink));
   font-weight: 650;
   white-space: nowrap;
 }
