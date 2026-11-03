@@ -45,7 +45,7 @@ test("feed returns anonymous allegation poll totals and the viewer's own vote", 
     },
   };
   const routes = createExperienceRoutes({
-    getCurrentUser: async () => ({ id: "voter-1" }),
+    getCurrentUser: async () => ({ id: "creator-1" }),
     ensureGhostTables: async () => {},
     ensureStoryTables: async () => {},
     ensureTrustScoreTables: async () => {},
@@ -63,7 +63,7 @@ test("feed returns anonymous allegation poll totals and the viewer's own vote", 
   assert.equal(response.status, 200);
   assert.deepEqual(report.poll, { total: 4, believe: 3, notBelieve: 1, believePercent: 75 });
   assert.equal(report.myVote, "believe");
-  assert.equal(report.canVote, true);
+  assert.equal(report.canVote, true, "the allegation creator can vote, but the named person cannot");
   assert.equal("voterIds" in report, false);
   assert.equal(body.experiences[0].engagement.commentCount, 0);
 });

@@ -346,9 +346,7 @@ export function createExperienceRoutes(services) {
                 myVote: myTrustVotesByAllegation.get(experience.trust_allegation_id) || "",
                 canVote:
                   getTrustOutcome(experience.trust_classification, experience.trust_outcome)?.polarity !==
-                    "positive" &&
-                  experience.author_id !== user.id &&
-                  experience.trust_subject_user_id !== user.id,
+                    "positive" && experience.trust_subject_user_id !== user.id,
               }
             : null,
           engagement: engagementByExperience.get(experience.id) || {

@@ -122,7 +122,6 @@ export function createTrustScoreRoutes({
         poll: pollAggregates.get(row.id) || emptyPollAggregate(),
         canVote:
           getTrustOutcome(row.classification, row.outcome)?.polarity !== "positive" &&
-          row.author_user_id !== viewer.id &&
           profile.id !== viewer.id,
       }));
       const positiveRecords = allegations.filter((record) => record.polarity === "positive");
@@ -197,8 +196,8 @@ export function createTrustScoreRoutes({
       if (getTrustOutcome(allegation.classification, allegation.outcome)?.polarity === "positive") {
         return json({ error: "Positive recognition posts do not use allegation polls." }, 400);
       }
-      if (voter.id === allegation.author_user_id || voter.id === allegation.subject_user_id) {
-        return json({ error: "The people directly involved cannot vote in this poll." }, 403);
+      if (voter.id === allegation.subject_user_id) {
+        return json({ error: "The person named in the allegation cannot vote in this poll." }, 403);
       }
       const canSee =
         allegation.visibility !== "friends" || (await areFriends(env, allegation.author_user_id, voter.id));

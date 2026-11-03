@@ -44,3 +44,56 @@ test("all allegation review data is restricted to administrators", async () => {
 
   assert.equal(response.status, 403);
 });
+
+test("allegation creator may vote but the person named in the allegation may not", async () => {
+  const routes = setup({ user: { id: "creator-1" } });
+  const db = {
+    prepare(sql) {
+      return {
+        bind() {
+          return this;
+        },
+        async first() {
+          if (sql.includes("SELECT a.id, a.author_user_id")) {
+            return {
+              id: "allegation-1",
+              author_user_id: "creator-1",
+              subject_user_id: "subject-1",
+              classification: "communication",
+              outcome: "did_not_respond",
+              visibility: "public",
+            };
+          }
+          if (sql.includes("SELECT COUNT(*) AS total")) return { total: 1, believe: 1, not_believe: 0 };
+          return null;
+        },
+        async run() {
+          return { success: true };
+        },
+      };
+    },
+  };
+  const response = await routes.vote(
+    new Request("https://nfd.test/api/trust-score/allegations/allegation-1/vote", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ choice: "believe" }),
+    }),
+    { DB: db },
+    "allegation-1",
+  );
+
+  assert.equal(response.status, 200);
+
+  const subjectRoutes = setup({ user: { id: "subject-1" } });
+  const subjectResponse = await subjectRoutes.vote(
+    new Request("https://nfd.test/api/trust-score/allegations/allegation-1/vote", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ choice: "believe" }),
+    }),
+    { DB: db },
+    "allegation-1",
+  );
+  assert.equal(subjectResponse.status, 403);
+});

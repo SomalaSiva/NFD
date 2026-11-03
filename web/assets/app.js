@@ -1696,8 +1696,8 @@ function renderEngagement(card, experience) {
       const believePercent = pollState.total ? Math.round((pollState.believe * 100) / pollState.total) : 0;
       const notBelievePercent = pollState.total ? 100 - believePercent : 0;
       pollResult.textContent = pollState.total
-        ? `${pollState.believe} believe (${believePercent}%) · ${pollState.notBelieve} don’t believe (${notBelievePercent}%) · ${pollState.total} votes`
-        : "No votes yet.";
+        ? `${pollState.believe} believe (${believePercent}%) · ${pollState.notBelieve} don’t believe (${notBelievePercent}%) · ${pollState.total} votes · Private`
+        : "No votes yet · Private";
       pollButtons.forEach(({ button, choice, label }) => {
         const count = choice === "believe" ? pollState.believe : pollState.notBelieve;
         button.textContent = pollState.total ? `${label} · ${count}` : label;
@@ -1751,14 +1751,7 @@ function renderEngagement(card, experience) {
         poll,
         "p",
         "feed-allegation-poll-privacy",
-        "Only other NFD members can vote. Voter identities stay private.",
-      );
-    } else {
-      addText(
-        poll,
-        "p",
-        "feed-allegation-poll-privacy",
-        "Your response is private. Only poll totals are shown.",
+        "The person named in this allegation can’t vote. Voter identities stay private.",
       );
     }
     section.append(poll);
