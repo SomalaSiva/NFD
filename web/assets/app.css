@@ -5020,7 +5020,7 @@ textarea.control::placeholder {
   justify-self: center;
   white-space: nowrap;
 }
-.topbar-navigation .nav-share-link {
+.topbar-navigation .top-actions a.nav-share-link {
   display: none;
 }
 .topbar-navigation .top-actions::-webkit-scrollbar {
