@@ -5507,66 +5507,61 @@ textarea.control::placeholder {
   }
 }
 
-/* Compact app shortcuts stay fixed at the bottom on phone-sized screens. */
+/* Keep the app shortcut bar in the same place on desktop and phone layouts. */
 .mobile-bottom-nav {
-  display: none;
+  position: fixed;
+  z-index: 80;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 4px;
+  padding: 6px 10px calc(6px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--line);
+  background: color-mix(in srgb, var(--paper) 94%, transparent);
+  box-shadow: 0 -8px 24px rgb(28 56 46 / 10%);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
 }
 .mobile-bottom-nav[hidden] {
   display: none !important;
 }
-@media (max-width: 680px) {
-  body.has-mobile-bottom-nav {
-    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
-  }
-  .mobile-bottom-nav:not([hidden]) {
-    position: fixed;
-    z-index: 80;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    align-items: stretch;
-    gap: 4px;
-    padding: 6px 10px calc(6px + env(safe-area-inset-bottom, 0px));
-    border-top: 1px solid var(--line);
-    background: color-mix(in srgb, var(--paper) 94%, transparent);
-    box-shadow: 0 -8px 24px rgb(28 56 46 / 10%);
-    -webkit-backdrop-filter: blur(16px);
-    backdrop-filter: blur(16px);
-  }
-  .mobile-bottom-nav a {
-    display: grid;
-    min-width: 0;
-    min-height: 54px;
-    align-content: center;
-    justify-items: center;
-    gap: 3px;
-    padding: 4px;
-    border-radius: 13px;
-    color: var(--muted);
-    font-size: 0.75rem;
-    font-weight: 650;
-    line-height: 1.1;
-    text-align: center;
-    text-decoration: none;
-  }
-  .mobile-bottom-nav svg {
-    display: block;
-    width: 20px;
-    height: 20px;
-    flex: none;
-  }
-  .mobile-bottom-nav a[aria-current="page"] {
-    color: var(--green);
-    background: linear-gradient(120deg, rgb(222 245 238 / 92%), rgb(237 232 251 / 92%));
-  }
-  .mobile-bottom-nav a[data-mobile-nav="post"] svg {
-    width: 30px;
-    height: 30px;
-    padding: 5px;
-    color: #fff;
-    background: linear-gradient(135deg, #8c7cce, #087b67);
-    border-radius: 10px;
-  }
+body.has-mobile-bottom-nav {
+  padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+}
+.mobile-bottom-nav a {
+  display: grid;
+  min-width: 0;
+  min-height: 54px;
+  align-content: center;
+  justify-items: center;
+  gap: 3px;
+  padding: 4px;
+  border-radius: 13px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 650;
+  line-height: 1.1;
+  text-align: center;
+  text-decoration: none;
+}
+.mobile-bottom-nav svg {
+  display: block;
+  width: 20px;
+  height: 20px;
+  flex: none;
+}
+.mobile-bottom-nav a[aria-current="page"] {
+  color: var(--green);
+  background: linear-gradient(120deg, rgb(222 245 238 / 92%), rgb(237 232 251 / 92%));
+}
+.mobile-bottom-nav a[data-mobile-nav="post"] svg {
+  width: 30px;
+  height: 30px;
+  padding: 5px;
+  color: #fff;
+  background: linear-gradient(135deg, #8c7cce, #087b67);
+  border-radius: 10px;
 }
