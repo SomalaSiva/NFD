@@ -3,6 +3,7 @@ import { createSocialRoutes } from "./routes/social.js";
 import { createStoryRoutes } from "./routes/stories.js";
 import { createExperienceRoutes } from "./routes/experiences.js";
 import { createAgreementRoutes } from "./routes/agreements.js";
+import { createTrustScoreRoutes } from "./routes/trust-score.js";
 import { ADMIN_PAGE_SIZE, getPageMetadata, getPageOffset } from "./lib/pagination.js";
 import { getSessionIdleMinutes, isSessionIdle } from "./lib/session.js";
 import { getQuickStoriesEnabled } from "./lib/quick-stories.js";
@@ -14,6 +15,7 @@ import {
   ensureIdentityTables,
   ensureModerationTable,
   ensureStoryTables,
+  ensureTrustScoreTables,
 } from "./db/ensure.js";
 
 const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
@@ -76,6 +78,7 @@ const experienceRoutes = createExperienceRoutes({
   ensureStoryTables,
   ensureExperienceOptionColumns,
   ensureEngagementTables,
+  ensureTrustScoreTables,
   recordActivity,
   json,
   cleanSearchTerm,
@@ -90,6 +93,13 @@ const agreementRoutes = createAgreementRoutes({
   json,
   cleanSearchTerm,
   availableIdentitySql: AVAILABLE_IDENTITY_SQL,
+});
+const trustScoreRoutes = createTrustScoreRoutes({
+  getCurrentUser,
+  isAdmin: (request, env) => adminRoutes.isAdmin(request, env),
+  ensureTrustScoreTables,
+  json,
+  cleanSearchTerm,
 });
 
 const worker = {
@@ -223,6 +233,22 @@ const worker = {
     }
     if (request.method === "POST" && url.pathname === "/api/trust-score/agreement-draft") {
       return agreementRoutes.generateDraft(request, env);
+    }
+    if (request.method === "GET" && url.pathname === "/api/trust-score/rules") {
+      return trustScoreRoutes.getRules(request, env);
+    }
+    if (request.method === "GET" && url.pathname === "/api/trust-score/people") {
+      return trustScoreRoutes.searchPeople(request, env);
+    }
+    if (request.method === "GET" && url.pathname === "/api/trust-score/dashboard") {
+      return trustScoreRoutes.getDashboard(request, env);
+    }
+    if (request.method === "GET" && url.pathname === "/api/admin/trust-score/allegations") {
+      return trustScoreRoutes.adminSummary(request, env);
+    }
+    const trustPollMatch = url.pathname.match(/^\/api\/trust-score\/allegations\/([0-9a-f-]{36})\/vote$/i);
+    if (trustPollMatch && request.method === "POST") {
+      return trustScoreRoutes.vote(request, env, trustPollMatch[1]);
     }
     if (request.method === "GET" && url.pathname === "/api/trust-score/agreement-people") {
       return agreementRoutes.searchAgreementParticipants(request, env);

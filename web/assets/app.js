@@ -8,6 +8,12 @@ const fullDescription = document.getElementById("full-description");
 const experienceCategoryInput = document.getElementById("experience-category");
 const incidentCategoryInput = document.getElementById("incident-category");
 const incidentCategoryHelper = document.getElementById("incident-category-helper");
+const trustClassificationInput = document.getElementById("trust-classification");
+const trustOutcomeInput = document.getElementById("trust-outcome");
+const trustSubjectInput = document.getElementById("trust-subject");
+const trustSubjectField = document.getElementById("trust-subject-field");
+const trustClassFeedback = document.getElementById("trust-classification-feedback");
+let trustPostOptionsPromise;
 const incidentCategoriesByExperience = {
   "Personal relationships": [
     "Trust broken or deception",
@@ -390,6 +396,13 @@ const ghostProfileDeactivate = document.getElementById("ghost-profile-deactivate
 const messagesPage = document.getElementById("messages-page");
 const trustScorePage = document.getElementById("trust-score-page");
 const trustScoreOverviewMeter = document.getElementById("trust-score-overview-meter");
+const trustOverviewClassifications = document.getElementById("trust-overview-classifications");
+const trustProfileSearch = document.getElementById("trust-profile-search");
+const trustProfileSearchResults = document.getElementById("trust-profile-search-results");
+const trustProfileHeading = document.getElementById("trust-profile-heading");
+const trustProfileClassifications = document.getElementById("trust-profile-classifications");
+const trustAllegationList = document.getElementById("trust-allegation-list");
+const trustAdminSummary = document.getElementById("trust-admin-summary");
 const trustScoreTabs = [...document.querySelectorAll("[data-trust-tab]")];
 const trustScorePanels = [...document.querySelectorAll(".trust-score-panel")];
 const openAgreementTabButton = document.getElementById("open-agreement-tab");
@@ -602,6 +615,11 @@ function showReview() {
       : "Not provided";
   document.getElementById("review-experience-category").textContent = selected("experience-category");
   document.getElementById("review-incident-category").textContent = selected("incident-category");
+  const trustReportSection = document.getElementById("review-trust-report-section");
+  trustReportSection.hidden = !trustClassificationInput.value;
+  document.getElementById("review-trust-report").textContent = trustClassificationInput.value
+    ? `${selected("trust-classification")} · ${selected("trust-outcome")} · About ${trustSubjectInput.selectedOptions[0]?.textContent || "NFD friend"}`
+    : "";
   document.getElementById("review-place").textContent = value("place") || "Not provided";
   document.getElementById("review-place-category").textContent = selected("place-category");
   const when = value("incident-time");
@@ -757,6 +775,50 @@ function updateIncidentCategoryOptions() {
     ? `${options.length - 1} matching options, plus “Other or not sure.”`
     : "Optional. Choose an experience category to see incident options.";
 }
+async function loadTrustPostOptions() {
+  if (trustPostOptionsPromise) return trustPostOptionsPromise;
+  trustPostOptionsPromise = (async () => {
+    const [rulesResponse, friendsResponse] = await Promise.all([
+      fetch("/api/trust-score/rules", { headers: { accept: "application/json" }, cache: "no-store" }),
+      fetch("/api/friends", { headers: { accept: "application/json" }, cache: "no-store" }),
+    ]);
+    const rules = await rulesResponse.json().catch(() => ({}));
+    const friends = await friendsResponse.json().catch(() => ({}));
+    if (!rulesResponse.ok) throw new Error(rules.error || "Trust Score categories are unavailable.");
+    trustClassificationInput.replaceChildren(new Option("Regular post — no Trust Score report", ""));
+    for (const classification of rules.classifications || []) {
+      trustClassificationInput.add(new Option(classification.label, classification.key));
+    }
+    const friendOptions = (friends.friends || []).map((friend) => ({
+      value: friend.userId,
+      label: friend.name,
+    }));
+    trustSubjectInput.replaceChildren(new Option("Choose an accepted NFD friend", ""));
+    for (const friend of friendOptions) trustSubjectInput.add(new Option(friend.label, friend.value));
+    trustSubjectInput.disabled = friendOptions.length === 0;
+    return { classifications: rules.classifications || [], friends: friendOptions };
+  })().catch((error) => {
+    trustClassificationInput.disabled = true;
+    trustOutcomeInput.disabled = true;
+    trustSubjectInput.disabled = true;
+    trustClassFeedback.textContent = error.message;
+    throw error;
+  });
+  return trustPostOptionsPromise;
+}
+function updateTrustOutcomeOptions(classifications, selectedOutcome = "") {
+  const selected = classifications.find((entry) => entry.key === trustClassificationInput.value);
+  trustOutcomeInput.replaceChildren(
+    new Option(selected ? "Choose an outcome" : "Choose a classification first", ""),
+  );
+  for (const outcome of selected?.outcomes || [])
+    trustOutcomeInput.add(new Option(outcome.label, outcome.value));
+  trustOutcomeInput.disabled = !selected;
+  trustOutcomeInput.required = Boolean(selected);
+  trustSubjectField.hidden = !selected;
+  trustSubjectInput.required = Boolean(selected);
+  if (selectedOutcome) trustOutcomeInput.value = selectedOutcome;
+}
 function backToEdit() {
   reviewPage.hidden = true;
   form.hidden = false;
@@ -843,6 +905,7 @@ async function loadPostForEditing() {
     controller.abort();
   }, 15000);
   try {
+    const trustOptions = await loadTrustPostOptions();
     const response = await fetch(`/api/experiences/${encodeURIComponent(editingPostId)}`, {
       headers: { accept: "application/json" },
       cache: "no-store",
@@ -858,6 +921,9 @@ async function loadPostForEditing() {
     updateIncidentCategoryOptions();
     incidentCategoryInput.value =
       experience.incidentCategory === "Not provided" ? "" : experience.incidentCategory;
+    trustClassificationInput.value = experience.trustClassification || "";
+    updateTrustOutcomeOptions(trustOptions.classifications, experience.trustOutcome || "");
+    trustSubjectInput.value = experience.trustSubjectUserId || "";
     postPlaceInput.value = experience.place === "Not provided" ? "" : experience.place;
     document.getElementById("place-category").value =
       experience.placeCategory === "Not provided" ? "" : experience.placeCategory;
@@ -1199,6 +1265,18 @@ function renderFeed(experiences, { append = false, nextCursor = "" } = {}) {
         : `Shared by ${experience.authorName || "NFD member"}`,
     );
     main.append(author);
+    if (experience.trustReport) {
+      const trustNotice = document.createElement("div");
+      trustNotice.className = "trust-feed-report";
+      addText(trustNotice, "strong", "", "Unverified allegation");
+      addText(
+        trustNotice,
+        "span",
+        "",
+        `${experience.trustReport.classificationLabel} · ${experience.trustReport.outcomeLabel} · About ${experience.trustReport.subjectName}`,
+      );
+      main.append(trustNotice);
+    }
     const meta = document.createElement("div");
     meta.className = "feed-meta";
     const place = document.createElement("span");
@@ -1979,7 +2057,277 @@ function activateTrustScoreTab(tab, updateUrl = true) {
     history.replaceState(null, "", url);
   }
   if (activeTab === "my-agreements" || activeTab === "record") loadStoredAgreements();
+  if (activeTab === "allegations") loadTrustDashboard();
 }
+let activeTrustProfileId = "";
+let trustPeopleSearchTimer;
+function renderTrustClassificationCards(container, classifications = {}) {
+  if (!container) return;
+  container.replaceChildren();
+  const entries = Object.values(classifications);
+  if (!entries.length) {
+    addText(container, "p", "trust-score-hint", "No classification totals are available yet.");
+    return;
+  }
+  for (const classification of entries) {
+    const card = document.createElement("article");
+    card.className = "trust-classification-card";
+    const header = document.createElement("div");
+    header.className = "trust-classification-heading";
+    addText(header, "h3", "", classification.label);
+    addText(header, "strong", "trust-classification-total", String(classification.total || 0));
+    card.append(header);
+    const outcomes = document.createElement("ul");
+    outcomes.className = "trust-classification-outcomes";
+    for (const outcome of classification.outcomes || []) {
+      const item = document.createElement("li");
+      addText(item, "span", "", outcome.label);
+      addText(item, "strong", "", String(outcome.count || 0));
+      outcomes.append(item);
+    }
+    card.append(outcomes);
+    container.append(card);
+  }
+}
+function renderTrustAllegations(allegations = []) {
+  if (!trustAllegationList) return;
+  trustAllegationList.replaceChildren();
+  if (!allegations.length) {
+    addText(
+      trustAllegationList,
+      "p",
+      "trust-score-hint",
+      "No audience-visible allegations are recorded for this profile.",
+    );
+    return;
+  }
+  for (const allegation of allegations) {
+    const card = document.createElement("article");
+    card.className = "trust-allegation-card";
+    const header = document.createElement("div");
+    header.className = "trust-allegation-heading";
+    addText(header, "span", "trust-allegation-status", "Unverified allegation");
+    addText(header, "time", "", prettyDate(allegation.createdAt));
+    card.append(header);
+    addText(card, "h3", "", `${allegation.classificationLabel} · ${allegation.outcomeLabel}`);
+    addText(card, "p", "", allegation.shortDescription || "No short description.");
+    addText(
+      card,
+      "p",
+      "trust-allegation-author",
+      `Shared by ${allegation.authorName || "Anonymous NFD member"}`,
+    );
+    addText(
+      card,
+      "p",
+      "trust-poll-note",
+      `Poll: ${allegation.poll?.believePercent || 0}% Believe · ${100 - (allegation.poll?.believePercent || 0)}% Don’t believe · ${allegation.poll?.total || 0} responses. Weighted result: ${allegation.poll?.weightedBelieve || 0} to ${allegation.poll?.weightedNotBelieve || 0}. Voter identities are not shown.`,
+    );
+    if (allegation.canVote) {
+      const actions = document.createElement("div");
+      actions.className = "trust-poll-actions";
+      for (const [choice, label] of [
+        ["believe", "Believe"],
+        ["not_believe", "Don’t believe"],
+      ]) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = choice === "believe" ? "secondary-button" : "secondary-button trust-poll-disagree";
+        button.textContent = label;
+        button.addEventListener("click", async () => {
+          button.disabled = true;
+          try {
+            const response = await fetch(
+              `/api/trust-score/allegations/${encodeURIComponent(allegation.id)}/vote`,
+              {
+                method: "POST",
+                headers: { "content-type": "application/json", accept: "application/json" },
+                body: JSON.stringify({ choice }),
+              },
+            );
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(result.error || "Your poll response could not be saved.");
+            await loadTrustDashboard(activeTrustProfileId);
+          } catch (error) {
+            addText(
+              card,
+              "p",
+              "trust-score-error",
+              error.message || "Your poll response could not be saved.",
+            );
+          } finally {
+            button.disabled = false;
+          }
+        });
+        actions.append(button);
+      }
+      card.append(actions);
+    }
+    trustAllegationList.append(card);
+  }
+}
+async function loadTrustDashboard(userId = activeTrustProfileId) {
+  if (!trustScorePage || trustScorePage.hidden) return;
+  if (trustOverviewClassifications) trustOverviewClassifications.setAttribute("aria-busy", "true");
+  try {
+    const query = userId ? `?userId=${encodeURIComponent(userId)}` : "";
+    const response = await fetch(`/api/trust-score/dashboard${query}`, {
+      headers: { accept: "application/json" },
+      cache: "no-store",
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || "Trust Score could not be loaded.");
+    activeTrustProfileId = result.profile?.userId || "";
+    if (trustProfileSearch && !userId) trustProfileSearch.value = "";
+    renderTrustClassificationCards(trustOverviewClassifications, result.classifications);
+    renderTrustClassificationCards(trustProfileClassifications, result.classifications);
+    trustProfileHeading.replaceChildren();
+    const identity = document.createElement("div");
+    identity.className = "trust-profile-identity";
+    addText(
+      identity,
+      "h3",
+      "",
+      result.profile?.isSelf ? "Your Trust profile" : result.profile?.name || "NFD member",
+    );
+    const score = createTrustScorePreview(result.profile?.name || "NFD member", true);
+    identity.append(score);
+    trustProfileHeading.append(identity);
+    addText(
+      trustProfileHeading,
+      "p",
+      "trust-score-hint",
+      result.scoreNote || "Unverified reports do not affect the current score.",
+    );
+    renderTrustAllegations(result.allegations);
+    void loadTrustAdminSummary();
+  } catch (error) {
+    const message = error.message || "Trust Score could not be loaded right now.";
+    if (trustOverviewClassifications)
+      trustOverviewClassifications.replaceChildren(
+        addText(document.createElement("div"), "p", "trust-score-error", message),
+      );
+    if (trustAllegationList)
+      trustAllegationList.replaceChildren(
+        addText(document.createElement("div"), "p", "trust-score-error", message),
+      );
+  } finally {
+    trustOverviewClassifications?.removeAttribute("aria-busy");
+  }
+}
+async function loadTrustAdminSummary() {
+  if (!trustAdminSummary) return;
+  try {
+    const response = await fetch("/api/admin/trust-score/allegations", {
+      headers: { accept: "application/json" },
+      cache: "no-store",
+    });
+    if (response.status === 403 || response.status === 401) return;
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) return;
+    const weights = result.rules?.pollWeights || {};
+    trustAdminSummary.hidden = false;
+    trustAdminSummary.replaceChildren();
+    addText(trustAdminSummary, "h3", "", "Administrator allegation review");
+    addText(
+      trustAdminSummary,
+      "p",
+      "trust-score-hint",
+      "All reports are unverified. Poll voter identities are not displayed.",
+    );
+    for (const allegation of result.allegations || []) {
+      const row = document.createElement("article");
+      row.className = "trust-admin-poll-row";
+      addText(row, "strong", "", `${allegation.classificationLabel} · ${allegation.outcomeLabel}`);
+      addText(
+        row,
+        "p",
+        "",
+        `Reported by ${allegation.authorName || "NFD member"} about ${allegation.subjectName || "NFD member"}`,
+      );
+      addText(row, "p", "", allegation.postSummary || "No short description provided.");
+      addText(
+        row,
+        "p",
+        "",
+        `Status: ${allegation.status === "unverified" ? "Unverified allegation" : allegation.status}`,
+      );
+      const groups = allegation.votes?.groups || {};
+      addText(
+        row,
+        "p",
+        "",
+        `Receiver’s friends (${weights.receiverFriend ?? "—"}×): ${groups.receiverFriends?.believe || 0} Believe / ${groups.receiverFriends?.notBelieve || 0} Don’t believe`,
+      );
+      addText(
+        row,
+        "p",
+        "",
+        `Creator’s friends (${weights.creatorFriend ?? "—"}×): ${groups.creatorFriends?.believe || 0} Believe / ${groups.creatorFriends?.notBelieve || 0} Don’t believe`,
+      );
+      addText(
+        row,
+        "p",
+        "",
+        `Other members (${weights.other ?? "—"}×): ${groups.others?.believe || 0} Believe / ${groups.others?.notBelieve || 0} Don’t believe`,
+      );
+      addText(
+        row,
+        "p",
+        "",
+        `Weighted totals: ${allegation.votes?.weighted?.believe || 0} Believe / ${allegation.votes?.weighted?.notBelieve || 0} Don’t believe`,
+      );
+      trustAdminSummary.append(row);
+    }
+  } catch {}
+}
+async function searchTrustPeople() {
+  const query = trustProfileSearch?.value.trim() || "";
+  if (!trustProfileSearchResults) return;
+  trustProfileSearchResults.replaceChildren();
+  if (query.length < 2) {
+    trustProfileSearchResults.hidden = true;
+    return;
+  }
+  try {
+    const response = await fetch(`/api/trust-score/people?q=${encodeURIComponent(query)}`, {
+      headers: { accept: "application/json" },
+      cache: "no-store",
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || "Profiles could not be searched.");
+    for (const person of result.people || []) {
+      const option = document.createElement("button");
+      option.type = "button";
+      option.className = "trust-profile-search-option";
+      option.setAttribute("role", "option");
+      option.textContent = person.name;
+      option.addEventListener("click", () => {
+        trustProfileSearch.value = person.name;
+        trustProfileSearchResults.hidden = true;
+        loadTrustDashboard(person.userId);
+      });
+      trustProfileSearchResults.append(option);
+    }
+    if (!result.people?.length)
+      addText(trustProfileSearchResults, "p", "trust-score-hint", "No matching NFD profiles.");
+    trustProfileSearchResults.hidden = false;
+  } catch (error) {
+    trustProfileSearchResults.replaceChildren(
+      addText(document.createElement("div"), "p", "trust-score-error", error.message),
+    );
+    trustProfileSearchResults.hidden = false;
+  }
+}
+trustProfileSearch?.addEventListener("input", () => {
+  clearTimeout(trustPeopleSearchTimer);
+  trustPeopleSearchTimer = setTimeout(searchTrustPeople, 220);
+});
+document.addEventListener("click", (event) => {
+  if (!trustProfileSearchResults?.contains(event.target) && event.target !== trustProfileSearch) {
+    trustProfileSearchResults.hidden = true;
+  }
+});
 profileTabs.forEach((button, index) => {
   button.addEventListener("click", () => activateProfileTab(button.dataset.profileTab));
   button.addEventListener("keydown", (event) => {
@@ -4735,7 +5083,9 @@ if (location.pathname === "/login") {
   messagesPage.hidden = true;
   trustScorePage.hidden = false;
   trustScoreOverviewMeter.replaceChildren(createTrustScorePreview("Your profile", true));
-  activateTrustScoreTab(new URLSearchParams(location.search).get("tab"), false);
+  const initialTrustTab = new URLSearchParams(location.search).get("tab");
+  activateTrustScoreTab(initialTrustTab, false);
+  if (initialTrustTab !== "allegations") void loadTrustDashboard();
   document.title = "Trust Score — NFD";
 } else if (location.pathname === "/feed" || location.pathname === "/feed/") {
   appLayout.classList.add("feed-mode");
@@ -4752,6 +5102,14 @@ if (location.pathname === "/login") {
 experienceCategoryInput.addEventListener("change", updateIncidentCategoryOptions);
 if (location.pathname === "/share") {
   updateIncidentCategoryOptions();
+  void loadTrustPostOptions()
+    .then((options) => {
+      trustClassificationInput.addEventListener("change", () =>
+        updateTrustOutcomeOptions(options.classifications),
+      );
+      if (trustClassificationInput.value) updateTrustOutcomeOptions(options.classifications);
+    })
+    .catch(() => {});
   const editId = new URLSearchParams(location.search).get("edit");
   if (editId) {
     editingPostId = editId;
@@ -5423,6 +5781,9 @@ document.getElementById("confirm-review").addEventListener("click", async (event
   payload.append("shortDescription", shortDescription.value.trim());
   payload.append("fullDescription", fullDescription.value.trim());
   payload.append("visibility", document.querySelector('input[name="visibility"]:checked')?.value || "public");
+  payload.append("trustClassification", trustClassificationInput.value);
+  payload.append("trustOutcome", trustOutcomeInput.value);
+  payload.append("trustSubjectUserId", trustSubjectInput.value);
   if (!aiReviewConsent.hidden && aiReviewConsentCheckbox.checked) payload.append("aiReviewConsent", "yes");
   selectedFiles.forEach((file) => payload.append("evidence", file, file.name));
   if (savingEdit) removedEditingEvidenceIds.forEach((id) => payload.append("removeEvidence", id));

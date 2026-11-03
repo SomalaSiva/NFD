@@ -1,3 +1,5 @@
+import { getTrustClassification, TRUST_CLASSIFICATIONS } from "../lib/trust-score-rules.js";
+
 export function createExperienceRoutes(services) {
   const {
     getCurrentUser,
@@ -10,6 +12,7 @@ export function createExperienceRoutes(services) {
     cleanSearchTerm,
     deleteEvidenceObjects,
     retryEvidenceCleanup,
+    ensureTrustScoreTables,
     moderationEnabled,
     reviewWithGemini,
   } = services;
@@ -109,6 +112,7 @@ export function createExperienceRoutes(services) {
     if (!env.DB) return json({ error: "The NFD experience database is not available right now." }, 503);
     try {
       await ensureExperienceOptionColumns(env);
+      await ensureTrustScoreTables(env);
       await ensureEngagementTables(env);
       await ensureGhostTables(env);
       const url = new URL(request.url);
@@ -162,12 +166,18 @@ export function createExperienceRoutes(services) {
         SELECT e.id, e.author_id, e.experience_category, e.incident_category, e.place, e.place_category,
           e.location_details, e.incident_time, e.incident_time_end, e.incident_time_zone, e.short_description,
           e.full_description, e.visibility, e.comments_enabled, e.created_at,
+          ta.id AS trust_allegation_id, ta.classification AS trust_classification,
+          ta.outcome AS trust_outcome,
+          COALESCE(NULLIF(trim(subject.display_name), ''), 'NFD member') AS trust_subject_name,
           CASE WHEN e.visibility = 'anonymous' OR u.active != 1 OR (u.provider = 'ghost' AND NOT EXISTS (
             SELECT 1 FROM nfd_ghost_profiles gp
             INNER JOIN nfd_users owner ON owner.id = gp.owner_user_id
             WHERE gp.ghost_user_id = u.id AND gp.active = 1 AND owner.active = 1
           )) THEN NULL ELSE u.display_name END AS author_name
-        FROM experiences e LEFT JOIN nfd_users u ON u.id = e.author_id
+        FROM experiences e
+        LEFT JOIN nfd_users u ON u.id = e.author_id
+        LEFT JOIN nfd_trust_allegations ta ON ta.experience_id = e.id
+        LEFT JOIN nfd_users subject ON subject.id = ta.subject_user_id AND subject.active = 1
         WHERE ${pageConditions.join(" AND ")}
         ORDER BY e.created_at DESC, e.id DESC
         LIMIT ${EXPERIENCE_PAGE_SIZE + 1}
@@ -262,6 +272,21 @@ export function createExperienceRoutes(services) {
           authorName: experience.visibility === "anonymous" ? "" : experience.author_name || "NFD member",
           createdAt: experience.created_at,
           evidence: evidenceByExperience.get(experience.id) || [],
+          trustReport: experience.trust_allegation_id
+            ? {
+                id: experience.trust_allegation_id,
+                classification: experience.trust_classification,
+                classificationLabel:
+                  TRUST_CLASSIFICATIONS[experience.trust_classification]?.label || "Trust Score",
+                outcome: experience.trust_outcome,
+                outcomeLabel:
+                  TRUST_CLASSIFICATIONS[experience.trust_classification]?.outcomes.find(
+                    (item) => item.value === experience.trust_outcome,
+                  )?.label || "Reported outcome",
+                subjectName: experience.trust_subject_name || "NFD member",
+                status: "unverified",
+              }
+            : null,
           engagement: engagementByExperience.get(experience.id) || {
             counts: { like: 0, dislike: 0, love: 0, hate: 0 },
             myReaction: "",
@@ -365,12 +390,16 @@ export function createExperienceRoutes(services) {
     if (!env.DB) return json({ error: "Your post is not available right now." }, 503);
     try {
       await ensureExperienceOptionColumns(env);
+      await ensureTrustScoreTables(env);
       const experience = await env.DB.prepare(
-        `SELECT id, experience_category, incident_category, place, place_category,
-          location_details, incident_time, incident_time_end, incident_time_zone,
-          short_description, full_description, visibility
-        FROM experiences
-        WHERE id = ? AND author_id = ? AND status = ?
+        `SELECT e.id, e.experience_category, e.incident_category, e.place, e.place_category,
+          e.location_details, e.incident_time, e.incident_time_end, e.incident_time_zone,
+          e.short_description, e.full_description, e.visibility,
+          ta.classification AS trust_classification, ta.outcome AS trust_outcome,
+          ta.subject_user_id AS trust_subject_user_id
+        FROM experiences e
+        LEFT JOIN nfd_trust_allegations ta ON ta.experience_id = e.id
+        WHERE e.id = ? AND e.author_id = ? AND e.status = ?
         LIMIT 1`,
       )
         .bind(experienceId, user.id, "shared")
@@ -396,6 +425,9 @@ export function createExperienceRoutes(services) {
           shortDescription: experience.short_description,
           fullDescription: experience.full_description || "",
           visibility: experience.visibility,
+          trustClassification: experience.trust_classification || "",
+          trustOutcome: experience.trust_outcome || "",
+          trustSubjectUserId: experience.trust_subject_user_id || "",
           evidence: (evidence.results || []).map((file) => ({
             id: file.id,
             originalFilename: file.original_filename,
@@ -489,8 +521,13 @@ export function createExperienceRoutes(services) {
       shortDescription: textField(form, "shortDescription", 240),
       fullDescription: textField(form, "fullDescription", 4000),
       visibility: textField(form, "visibility", 20) || "public",
+      trustClassification: textField(form, "trustClassification", 40),
+      trustOutcome: textField(form, "trustOutcome", 40),
+      trustSubjectUserId: textField(form, "trustSubjectUserId", 200),
     };
     if (!fields.shortDescription) return json({ error: "Add a quick version before saving your post." }, 400);
+    const trustInputError = validateTrustInput(fields);
+    if (trustInputError) return json({ error: trustInputError }, 400);
     if (
       fields.experienceCategory !== "Not provided" &&
       fields.incidentCategory !== "Not provided" &&
@@ -523,12 +560,15 @@ export function createExperienceRoutes(services) {
 
     try {
       await ensureExperienceOptionColumns(env);
+      await ensureTrustScoreTables(env);
       const current = await env.DB.prepare(
         `SELECT id FROM experiences WHERE id = ? AND author_id = ? AND status = ? LIMIT 1`,
       )
         .bind(experienceId, user.id, "shared")
         .first();
       if (!current) return json({ error: "That post was not found in your profile." }, 404);
+      const trustInputResult = await validateTrustSubject(env, user.id, fields, experienceId);
+      if (trustInputResult) return json({ error: trustInputResult }, 400);
 
       const attachmentResult = await env.DB.prepare(
         `SELECT id, original_filename, content_type, size_bytes, object_key, preview_object_key
@@ -624,6 +664,34 @@ export function createExperienceRoutes(services) {
         "shared",
       );
       const statements = [updateStatement];
+      if (fields.trustClassification) {
+        statements.push(
+          env.DB.prepare(
+            `
+            INSERT INTO nfd_trust_allegations
+              (id, experience_id, author_user_id, subject_user_id, classification, outcome, status, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, 'unverified', ?)
+            ON CONFLICT(experience_id) DO UPDATE SET
+              subject_user_id = excluded.subject_user_id,
+              classification = excluded.classification,
+              outcome = excluded.outcome,
+              status = 'unverified'
+          `,
+          ).bind(
+            crypto.randomUUID(),
+            experienceId,
+            user.id,
+            fields.trustSubjectUserId,
+            fields.trustClassification,
+            fields.trustOutcome,
+            updatedAt,
+          ),
+        );
+      } else {
+        statements.push(
+          env.DB.prepare("DELETE FROM nfd_trust_allegations WHERE experience_id = ?").bind(experienceId),
+        );
+      }
       for (const file of evidenceToRemove) {
         statements.push(
           env.DB.prepare("DELETE FROM experience_evidence WHERE id = ? AND experience_id = ?").bind(
@@ -968,9 +1036,14 @@ export function createExperienceRoutes(services) {
       shortDescription: textField(form, "shortDescription", 240),
       fullDescription: textField(form, "fullDescription", 4000),
       visibility: textField(form, "visibility", 20) || "public",
+      trustClassification: textField(form, "trustClassification", 40),
+      trustOutcome: textField(form, "trustOutcome", 40),
+      trustSubjectUserId: textField(form, "trustSubjectUserId", 200),
     };
     if (!fields.shortDescription)
       return json({ error: "Add a quick version before sharing your story." }, 400);
+    const trustInputError = validateTrustInput(fields);
+    if (trustInputError) return json({ error: trustInputError }, 400);
     if (
       fields.experienceCategory !== "Not provided" &&
       fields.incidentCategory !== "Not provided" &&
@@ -1091,6 +1164,9 @@ export function createExperienceRoutes(services) {
     const storedFiles = [];
     try {
       await ensureExperienceOptionColumns(env);
+      await ensureTrustScoreTables(env);
+      const trustInputResult = await validateTrustSubject(env, user.id, fields);
+      if (trustInputResult) return json({ error: trustInputResult }, 400);
       await retryEvidenceCleanup(env);
       for (let index = 0; index < files.length; index++) {
         const file = files[index];
@@ -1161,6 +1237,25 @@ export function createExperienceRoutes(services) {
           ),
         ),
       ];
+      if (fields.trustClassification) {
+        statements.push(
+          env.DB.prepare(
+            `
+            INSERT INTO nfd_trust_allegations
+              (id, experience_id, author_user_id, subject_user_id, classification, outcome, status, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, 'unverified', ?)
+          `,
+          ).bind(
+            crypto.randomUUID(),
+            experienceId,
+            user.id,
+            fields.trustSubjectUserId,
+            fields.trustClassification,
+            fields.trustOutcome,
+            createdAt,
+          ),
+        );
+      }
       await env.DB.batch(statements);
     } catch (error) {
       await deleteEvidenceObjects(
@@ -1181,6 +1276,7 @@ export function createExperienceRoutes(services) {
       visibility: fields.visibility,
       automaticReview,
       attachmentCount: storedFiles.length,
+      trustClassification: fields.trustClassification || undefined,
       photoCount: storedFiles.filter((file) => file.contentType.startsWith("image/")).length,
       videoCount: storedFiles.filter((file) => file.contentType.startsWith("video/")).length,
       documentCount: storedFiles.filter(
@@ -1194,6 +1290,36 @@ export function createExperienceRoutes(services) {
     const value = form.get(name);
     if (typeof value !== "string") return "";
     return value.trim().slice(0, maxLength);
+  }
+
+  function validateTrustInput(fields) {
+    if (!fields.trustClassification && !fields.trustOutcome && !fields.trustSubjectUserId) return "";
+    if (!getTrustClassification(fields.trustClassification, fields.trustOutcome))
+      return "Choose a Trust Score category and matching outcome, or clear the Trust Score category.";
+    if (!fields.trustSubjectUserId) return "Choose an accepted NFD friend for this Trust Score report.";
+    return "";
+  }
+
+  async function validateTrustSubject(env, authorId, fields, existingExperienceId = "") {
+    if (!fields.trustClassification) return "";
+    const existing = existingExperienceId
+      ? await env.DB.prepare(
+          "SELECT subject_user_id FROM nfd_trust_allegations WHERE experience_id = ? AND author_user_id = ? LIMIT 1",
+        )
+          .bind(existingExperienceId, authorId)
+          .first()
+      : null;
+    if (existing?.subject_user_id === fields.trustSubjectUserId) return "";
+    const accepted = await env.DB.prepare(
+      `
+      SELECT 1 AS yes FROM nfd_friend_requests
+      WHERE status = 'accepted' AND ((from_user_id = ? AND to_user_id = ?) OR (from_user_id = ? AND to_user_id = ?))
+      LIMIT 1
+    `,
+    )
+      .bind(authorId, fields.trustSubjectUserId, fields.trustSubjectUserId, authorId)
+      .first();
+    return accepted ? "" : "Trust Score reports can only name an accepted NFD friend.";
   }
 
   function safeFilename(value) {

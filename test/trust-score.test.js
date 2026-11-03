@@ -1,11 +1,43 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import {
+  TRUST_CLASSIFICATIONS,
+  TRUST_SCORE_BASE,
+  TRUST_SCORE_DRAFT_POLICY,
+  getTrustClassification,
+  getTrustScoreDisplay,
+} from "../worker/lib/trust-score-rules.js";
 
 const html = await readFile(new URL("../web/index.html", import.meta.url), "utf8");
 const normalizedHtml = html.replace(/\s+/g, " ");
 const appJs = await readFile(new URL("../web/assets/app.js", import.meta.url), "utf8");
 const appCss = await readFile(new URL("../web/assets/app.css", import.meta.url), "utf8");
+
+test("Trust Score policy and editable classification source stay centralized", async () => {
+  assert.equal(TRUST_SCORE_BASE, 40);
+  assert.equal(getTrustScoreDisplay(0), 1);
+  assert.equal(getTrustScoreDisplay(140), 100);
+  assert.deepEqual(Object.keys(TRUST_CLASSIFICATIONS), [
+    "timeline",
+    "wordkeep",
+    "payment_property",
+    "communication",
+  ]);
+  assert.equal(getTrustClassification("timeline", "missed").label, "Timeline");
+  assert.equal(getTrustClassification("timeline", "kept"), null);
+  assert.deepEqual(TRUST_SCORE_DRAFT_POLICY.pollWeights, {
+    receiverFriend: 4,
+    creatorFriend: 2,
+    other: 1,
+  });
+  assert.equal(TRUST_SCORE_DRAFT_POLICY.allegationReceiverFriendsPenalty, -10);
+  assert.equal(TRUST_SCORE_DRAFT_POLICY.allegationStatus, "unverified");
+  assert.match(
+    await readFile(new URL("../worker/routes/trust-score.js", import.meta.url), "utf8"),
+    /from "\.\.\/lib\/trust-score-rules\.js"/,
+  );
+});
 
 test("Trust Score exposes agreement-based, confirmed outcome tracking", () => {
   assert.match(normalizedHtml, /id="trust-score-overview-meter"/);

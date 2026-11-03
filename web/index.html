@@ -843,6 +843,35 @@
                     Options will match the experience category you choose.
                   </p>
                 </div>
+                <div class="field full trust-allegation-fields">
+                  <label for="trust-classification"
+                    >Trust Score classification <span class="optional">Optional</span></label
+                  >
+                  <p class="helper">
+                    Keep this as a regular NFD post. To add an unverified Trust Score report, choose a
+                    category and an accepted NFD friend. The report is not a verified finding and does not
+                    change anyone’s score.
+                  </p>
+                  <p class="helper" id="trust-classification-feedback" role="status" aria-live="polite"></p>
+                  <div class="grid trust-allegation-grid">
+                    <div class="field">
+                      <select class="control" id="trust-classification" name="trustClassification">
+                        <option value="">Regular post — no Trust Score report</option>
+                      </select>
+                    </div>
+                    <div class="field">
+                      <select class="control" id="trust-outcome" name="trustOutcome" disabled>
+                        <option value="">Choose a classification first</option>
+                      </select>
+                    </div>
+                    <div class="field full" id="trust-subject-field" hidden>
+                      <label for="trust-subject">Person this report is about</label>
+                      <select class="control" id="trust-subject" name="trustSubjectUserId">
+                        <option value="">Choose an accepted NFD friend</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
                 <div class="field full">
                   <label for="place"
                     >Person, username, business, or place <span class="optional">Optional</span></label
@@ -1011,6 +1040,10 @@
                 </div>
                 <span class="review-tag" id="review-incident-category"></span>
               </div>
+            </div>
+            <div class="review-section" id="review-trust-report-section" hidden>
+              <div class="review-label">Trust Score report · Unverified</div>
+              <div class="review-value" id="review-trust-report"></div>
             </div>
             <div class="review-section">
               <div class="review-grid">
@@ -1556,6 +1589,18 @@
             >
               People &amp; track record
             </button>
+            <button
+              id="trust-tab-allegations"
+              class="profile-tab"
+              type="button"
+              role="tab"
+              aria-selected="false"
+              aria-controls="trust-panel-allegations"
+              data-trust-tab="allegations"
+              tabindex="-1"
+            >
+              Allegations
+            </button>
           </div>
           <section
             id="trust-panel-overview"
@@ -1574,6 +1619,21 @@
               </div>
               <div class="trust-self-score-meter" id="trust-score-overview-meter"></div>
             </article>
+            <section class="trust-allegation-dashboard" aria-labelledby="trust-dashboard-heading">
+              <div class="agreement-generator-heading">
+                <div>
+                  <h2 id="trust-dashboard-heading">Allegations about you</h2>
+                  <p>
+                    Reports remain unverified. This dashboard shows reports shared with you under their
+                    selected audience.
+                  </p>
+                </div>
+              </div>
+              <div id="trust-overview-classifications" class="trust-classification-grid" aria-live="polite">
+                <p class="trust-score-hint">Loading your Trust Score dashboard…</p>
+              </div>
+              <a class="secondary-button" href="/trust-score?tab=allegations">View allegation details</a>
+            </section>
             <article class="trust-feature-card">
               <div class="trust-feature-copy">
                 <span class="agreement-ai-badge">Available now</span>
@@ -1585,6 +1645,57 @@
               </button>
             </article>
             <p class="trust-score-hint">New Trust Score tools can be added here as separate tabs.</p>
+          </section>
+          <section
+            id="trust-panel-allegations"
+            class="trust-score-panel"
+            role="tabpanel"
+            aria-labelledby="trust-tab-allegations"
+            tabindex="0"
+            hidden
+          >
+            <section class="trust-allegation-dashboard" aria-labelledby="trust-allegations-heading">
+              <div class="agreement-generator-heading">
+                <div>
+                  <span class="agreement-ai-badge">Unverified reports</span>
+                  <h2 id="trust-allegations-heading">Trust profile &amp; allegations</h2>
+                  <p>
+                    Search an NFD display name or username. Email addresses are never shown. Reports are not
+                    proof of wrongdoing and do not affect the current score.
+                  </p>
+                </div>
+              </div>
+              <label for="trust-profile-search">Find an NFD profile</label>
+              <input
+                class="control"
+                id="trust-profile-search"
+                type="search"
+                autocomplete="off"
+                placeholder="Search by display name or NFD username"
+              />
+              <div
+                id="trust-profile-search-results"
+                class="trust-profile-search-results"
+                role="listbox"
+                aria-label="NFD profiles"
+                hidden
+              ></div>
+              <div id="trust-profile-heading" class="trust-profile-heading" aria-live="polite"></div>
+              <div
+                id="trust-profile-classifications"
+                class="trust-classification-grid"
+                aria-live="polite"
+              ></div>
+              <div id="trust-allegation-list" class="trust-allegation-list" aria-live="polite">
+                <p class="trust-score-hint">Loading allegations about you…</p>
+              </div>
+              <section
+                id="trust-admin-summary"
+                class="trust-admin-summary"
+                aria-label="Administrator aggregate poll review"
+                hidden
+              ></section>
+            </section>
           </section>
           <section
             id="trust-panel-agreements"

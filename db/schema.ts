@@ -392,3 +392,48 @@ export const nfdModerationUsage = sqliteTable("nfd_moderation_usage", {
   usageDay: text("usage_day").primaryKey().notNull(),
   requestCount: integer("request_count").notNull().default(0),
 });
+
+export const nfdTrustAllegations = sqliteTable(
+  "nfd_trust_allegations",
+  {
+    id: text("id").primaryKey().notNull(),
+    experienceId: text("experience_id")
+      .notNull()
+      .references(() => experiences.id, { onDelete: "cascade" }),
+    authorUserId: text("author_user_id")
+      .notNull()
+      .references(() => nfdUsers.id, { onDelete: "cascade" }),
+    subjectUserId: text("subject_user_id")
+      .notNull()
+      .references(() => nfdUsers.id, { onDelete: "cascade" }),
+    classification: text("classification").notNull(),
+    outcome: text("outcome").notNull(),
+    status: text("status").notNull().default("unverified"),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("nfd_trust_allegations_experience_unique").on(table.experienceId),
+    index("nfd_trust_allegations_subject_created_idx").on(table.subjectUserId, table.createdAt),
+  ],
+);
+
+export const nfdTrustAllegationVotes = sqliteTable(
+  "nfd_trust_allegation_votes",
+  {
+    allegationId: text("allegation_id")
+      .notNull()
+      .references(() => nfdTrustAllegations.id, { onDelete: "cascade" }),
+    voterUserId: text("voter_user_id")
+      .notNull()
+      .references(() => nfdUsers.id, { onDelete: "cascade" }),
+    choice: text("choice").notNull(),
+    voterGroup: text("voter_group").notNull(),
+    weight: integer("weight").notNull(),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("nfd_trust_votes_allegation_voter_unique").on(table.allegationId, table.voterUserId),
+    index("nfd_trust_votes_allegation_group_idx").on(table.allegationId, table.voterGroup, table.choice),
+  ],
+);
