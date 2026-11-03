@@ -92,6 +92,8 @@ test("Profile loading keeps the photo controls mounted while replacing summary c
 
 test("Trust Score provides in-app agreement storage and participant approval controls", () => {
   assert.match(normalizedHtml, /data-trust-tab="my-agreements"/);
+  assert.doesNotMatch(normalizedHtml, /trust-feature-card|open-agreement-tab|Available now/);
+  assert.match(normalizedHtml, /id="trust-panel-agreements"/);
   assert.match(normalizedHtml, /Save in NFD &amp; request approval/);
   assert.match(normalizedHtml, /Search by name, NFD ID, or Ghost ID/);
   assert.match(normalizedHtml, /Select one or more people; they do not need to be friends/);

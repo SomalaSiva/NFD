@@ -405,7 +405,6 @@ const trustAllegationList = document.getElementById("trust-allegation-list");
 const trustAdminSummary = document.getElementById("trust-admin-summary");
 const trustScoreTabs = [...document.querySelectorAll("[data-trust-tab]")];
 const trustScorePanels = [...document.querySelectorAll(".trust-score-panel")];
-const openAgreementTabButton = document.getElementById("open-agreement-tab");
 const agreementForm = document.getElementById("agreement-form");
 const agreementDescription = document.getElementById("agreement-description");
 const agreementDescriptionCount = document.getElementById("agreement-description-count");
@@ -2353,10 +2352,6 @@ trustScoreTabs.forEach((button, index) => {
     trustScoreTabs[next].focus();
     activateTrustScoreTab(trustScoreTabs[next].dataset.trustTab);
   });
-});
-openAgreementTabButton?.addEventListener("click", () => {
-  activateTrustScoreTab("agreements");
-  document.getElementById("trust-tab-agreements")?.focus();
 });
 async function loadFriendProfile(friendId) {
   friendProfileView.replaceChildren();
