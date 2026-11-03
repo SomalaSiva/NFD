@@ -580,7 +580,7 @@ export function createExperienceRoutes(services) {
       incidentTimeEnd: textField(form, "incidentTimeEndUtc", 40),
       incidentTimeZone: textField(form, "incidentTimeZone", 80) || "UTC",
       locationDetails: textField(form, "locationDetail", 300),
-      shortDescription: textField(form, "shortDescription", 240),
+      shortDescription: textField(form, "shortDescription", 150),
       fullDescription: textField(form, "fullDescription", 4000),
       visibility: textField(form, "visibility", 20) || "public",
       trustClassification: textField(form, "trustClassification", 40),
@@ -692,7 +692,7 @@ export function createExperienceRoutes(services) {
               moderation: {
                 suggestedShortDescription: String(result.review.suggestedShortDescription || "").slice(
                   0,
-                  240,
+                  150,
                 ),
                 suggestedFullDescription: String(result.review.suggestedFullDescription || "").slice(0, 4000),
                 flaggedFiles: [],
@@ -1095,7 +1095,7 @@ export function createExperienceRoutes(services) {
       incidentTimeEnd: textField(form, "incidentTimeEndUtc", 40),
       incidentTimeZone: textField(form, "incidentTimeZone", 80) || "UTC",
       locationDetails: textField(form, "locationDetail", 300),
-      shortDescription: textField(form, "shortDescription", 240),
+      shortDescription: textField(form, "shortDescription", 150),
       fullDescription: textField(form, "fullDescription", 4000),
       visibility: textField(form, "visibility", 20) || "public",
       trustClassification: textField(form, "trustClassification", 40),
@@ -1211,7 +1211,7 @@ export function createExperienceRoutes(services) {
             error:
               result.review.reviewNote.slice(0, 600) || "This draft needs a change before it can be shared.",
             moderation: {
-              suggestedShortDescription: String(result.review.suggestedShortDescription || "").slice(0, 240),
+              suggestedShortDescription: String(result.review.suggestedShortDescription || "").slice(0, 150),
               suggestedFullDescription: String(result.review.suggestedFullDescription || "").slice(0, 4000),
               flaggedFiles: flagged,
             },

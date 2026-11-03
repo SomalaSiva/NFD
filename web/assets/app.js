@@ -614,10 +614,10 @@ document.getElementById("capture-video-button").addEventListener("click", () => 
   }),
 );
 zone.addEventListener("drop", (event) => addFiles(event.dataTransfer.files));
-shortDescription.addEventListener(
-  "input",
-  () => (document.getElementById("short-char-count").textContent = shortDescription.value.length),
-);
+shortDescription.addEventListener("input", () => {
+  if (shortDescription.value.length > 150) shortDescription.value = shortDescription.value.slice(0, 150);
+  document.getElementById("short-char-count").textContent = shortDescription.value.length;
+});
 fullDescription.addEventListener(
   "input",
   () => (document.getElementById("full-char-count").textContent = fullDescription.value.length),
@@ -1401,10 +1401,18 @@ function renderFeed(experiences, { append = false, nextCursor = "" } = {}) {
     header.className = "feed-card-head";
     const titleGroup = document.createElement("div");
     titleGroup.className = "feed-title-group";
-    addText(titleGroup, "h2", "feed-category", experience.shortDescription || experience.experienceCategory);
-    addText(titleGroup, "span", "feed-experience-type", experience.experienceCategory || "Not provided");
-    header.append(titleGroup);
-    addText(header, "span", "feed-incident", experience.incidentCategory || "Not provided");
+    const categoryHeading = addText(
+      titleGroup,
+      "h2",
+      "feed-category",
+      String(experience.shortDescription || experience.experienceCategory || "NFD post").slice(0, 150),
+    );
+    categoryHeading.title = experience.shortDescription || experience.experienceCategory || "NFD post";
+    const headerLabels = document.createElement("div");
+    headerLabels.className = "feed-header-labels";
+    addText(headerLabels, "span", "feed-experience-type", experience.experienceCategory || "Not provided");
+    addText(headerLabels, "span", "feed-incident", experience.incidentCategory || "Not provided");
+    header.append(titleGroup, headerLabels);
     main.append(header);
     const author = document.createElement("div");
     author.className = `feed-author${experience.visibility === "anonymous" ? " anonymous" : ""}`;
@@ -1711,9 +1719,29 @@ function renderEngagement(card, experience) {
     const pollResult = addText(poll, "p", "feed-allegation-poll-result", "");
     const options = document.createElement("div");
     options.className = "feed-allegation-poll-options";
+    const pollSummary = document.createElement("div");
+    pollSummary.className = "feed-allegation-poll-summary";
+    const pollBar = document.createElement("div");
+    pollBar.className = "feed-allegation-poll-bar";
+    pollBar.setAttribute("role", "img");
+    const believeBar = document.createElement("span");
+    believeBar.className = "feed-allegation-poll-believe";
+    const notBelieveBar = document.createElement("span");
+    notBelieveBar.className = "feed-allegation-poll-disbelieve";
+    pollBar.append(believeBar, notBelieveBar);
+    pollSummary.append(pollBar, pollResult);
+    const pollRow = document.createElement("div");
+    pollRow.className = "feed-allegation-poll-row";
+    pollRow.append(options, pollSummary);
     const updatePoll = () => {
       const believePercent = pollState.total ? Math.round((pollState.believe * 100) / pollState.total) : 0;
       const notBelievePercent = pollState.total ? 100 - believePercent : 0;
+      believeBar.style.width = `${believePercent}%`;
+      notBelieveBar.style.width = `${notBelievePercent}%`;
+      pollBar.setAttribute(
+        "aria-label",
+        `Believe ${believePercent} percent; don’t believe ${notBelievePercent} percent`,
+      );
       pollResult.textContent = pollState.total
         ? `${pollState.believe} believe (${believePercent}%) · ${pollState.notBelieve} don’t believe (${notBelievePercent}%) · ${pollState.total} votes · Private`
         : "No votes yet · Private";
@@ -1764,7 +1792,7 @@ function renderEngagement(card, experience) {
       pollButtons.push({ button, choice, label });
       options.append(button);
     }
-    poll.append(options, pollResult);
+    poll.append(pollRow);
     if (!allegationPoll.canVote) {
       addText(
         poll,
@@ -6255,8 +6283,10 @@ document.getElementById("confirm-review").addEventListener("click", async (event
         apply.className = "secondary-button";
         apply.textContent = "Use the suggested wording";
         apply.addEventListener("click", () => {
-          if (result.moderation.suggestedShortDescription)
+          if (result.moderation.suggestedShortDescription) {
             shortDescription.value = result.moderation.suggestedShortDescription;
+            shortDescription.dispatchEvent(new Event("input", { bubbles: true }));
+          }
           if (result.moderation.suggestedFullDescription)
             fullDescription.value = result.moderation.suggestedFullDescription;
           backToEdit();

@@ -63,6 +63,16 @@ test("positive experiences and unverified allegations share one Trust activity s
   assert.match(normalizedHtml, /Neither changes anyone’s score/);
 });
 
+test("feed polls use styled compact controls, a results bar, and a right-aligned category chip", () => {
+  assert.match(normalizedHtml, /id="short-description"[^>]*maxlength="150"/);
+  assert.match(appJs, /headerLabels\.className = "feed-header-labels"/);
+  assert.match(appJs, /pollRow\.className = "feed-allegation-poll-row"/);
+  assert.match(appJs, /believeBar\.style\.width = `\$\{believePercent\}%`/);
+  assert.match(appCss, /\.feed-allegation-poll-option\s*\{/);
+  assert.match(appCss, /\.feed-allegation-poll-bar\s*\{/);
+  assert.match(appCss, /\.feed-media-drift|@keyframes feed-media-drift/);
+});
+
 test("Trust post target uses search and offers a safe unlinked option when no NFD profile matches", () => {
   assert.match(normalizedHtml, /id="trust-subject-search"[\s\S]*type="search"/);
   assert.match(normalizedHtml, /id="trust-subject-results"[\s\S]*role="listbox"[\s\S]*hidden/);
@@ -138,7 +148,9 @@ test("allegation feed cards use a private Believe poll while retaining comments"
   );
   assert.match(appJs, /Only poll totals are shown/);
   assert.match(appJs, /commentToggle\.textContent = `\$\{commentsEnabled \? "💬 Comment"/);
-  assert.match(appCss, /\.feed-allegation-poll-options\s*\{\s*display:\s*grid/);
+  assert.match(appCss, /\.feed-allegation-poll-options\s*\{\s*display:\s*flex/);
+  assert.match(appCss, /\.feed-allegation-poll-row\s*\{\s*display:\s*grid/);
+  assert.match(appCss, /\.feed-allegation-poll-bar/);
 });
 
 test("Profile loading keeps the photo controls mounted while replacing summary content", () => {

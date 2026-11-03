@@ -71,9 +71,9 @@ function setup() {
   return { routes, db, removedObjects, statements, activity };
 }
 
-function editRequest(removalIds = []) {
+function editRequest(removalIds = [], shortDescription = "Updated post") {
   const form = new FormData();
-  form.set("shortDescription", "Updated post");
+  form.set("shortDescription", shortDescription);
   form.set("visibility", "public");
   for (const id of removalIds) form.append("removeEvidence", id);
   return new Request("https://nfd.test/api/experiences/post-id", {
@@ -111,4 +111,16 @@ test("editing rejects an attachment ID that does not belong to the post", async 
   assert.equal(response.status, 409);
   assert.equal(statements.length, 0);
   assert.deepEqual(removedObjects, []);
+});
+
+test("editing limits the short description to 150 characters on the server", async () => {
+  const { routes, db, statements } = setup();
+  const response = await routes.updateOwnExperience(
+    editRequest([], "x".repeat(180)),
+    { DB: db, BUCKET: {} },
+    postId,
+  );
+
+  assert.equal(response.status, 200);
+  assert.equal(statements[0].values[8].length, 150);
 });
