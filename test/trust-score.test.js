@@ -46,23 +46,20 @@ test("Trust Score policy and editable classification source stay centralized", a
   );
 });
 
-test("positive recognition and unverified allegations are shown as separate Trust Score tracks", () => {
-  assert.match(normalizedHtml, /id="trust-overview-positive-classifications"/);
-  assert.match(normalizedHtml, /Positive experiences about you/);
-  assert.match(normalizedHtml, /Unverified allegations about you/);
-  assert.match(normalizedHtml, /id="trust-profile-positive-classifications"/);
-  assert.match(normalizedHtml, /id="trust-recognition-list"/);
+test("positive experiences and unverified allegations share one Trust activity section", () => {
+  assert.match(normalizedHtml, /id="trust-activity-overview-heading">Trust activity about you/);
+  assert.match(normalizedHtml, /id="trust-overview-classifications"/);
+  assert.doesNotMatch(normalizedHtml, /id="trust-overview-positive-classifications"/);
+  assert.doesNotMatch(normalizedHtml, /Positive experiences about you/);
+  assert.doesNotMatch(normalizedHtml, /Unverified allegations about you/);
+  assert.match(normalizedHtml, /id="trust-profile-activity-list"/);
+  assert.doesNotMatch(normalizedHtml, /id="trust-profile-positive-classifications"/);
   assert.match(appJs, /Positive recognition · unverified/);
   assert.match(appJs, /result\.positiveClassifications/);
-  assert.match(appJs, /renderTrustRecords\(trustRecognitionList, result\.recognitions, true\)/);
-  assert.match(appJs, /trustPositiveDuplicateCategories = new Set/);
-  assert.match(
-    appJs,
-    /"timeline"[\s\S]*"wordkeep"[\s\S]*"payment_property"[\s\S]*"communication"[\s\S]*"respect_safety"/,
-  );
-  assert.match(appJs, /classification\) => !excludedCategories\.has\(classification\.key\)/);
-  assert.match(appJs, /trustOverviewPositiveClassifications,[\s\S]*trustPositiveDuplicateCategories/);
-  assert.match(appJs, /trustProfilePositiveClassifications,[\s\S]*trustPositiveDuplicateCategories/);
+  assert.match(appJs, /mergeTrustClassificationSummaries\(positive = \{\}, negative = \{\}\)/);
+  assert.match(appJs, /"Positive" : "Unverified"/);
+  assert.match(appJs, /trustProfileActivityList,[\s\S]*result\.recognitions[\s\S]*result\.allegations/);
+  assert.match(appJs, /outcome\.polarity === "positive" \? "is-positive" : "is-allegation"/);
   assert.match(normalizedHtml, /Neither changes anyone’s score/);
 });
 

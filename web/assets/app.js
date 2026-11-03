@@ -397,23 +397,11 @@ const messagesPage = document.getElementById("messages-page");
 const trustScorePage = document.getElementById("trust-score-page");
 const trustScoreOverviewMeter = document.getElementById("trust-score-overview-meter");
 const trustOverviewClassifications = document.getElementById("trust-overview-classifications");
-const trustOverviewPositiveClassifications = document.getElementById(
-  "trust-overview-positive-classifications",
-);
 const trustProfileSearch = document.getElementById("trust-profile-search");
 const trustProfileSearchResults = document.getElementById("trust-profile-search-results");
 const trustProfileHeading = document.getElementById("trust-profile-heading");
 const trustProfileClassifications = document.getElementById("trust-profile-classifications");
-const trustProfilePositiveClassifications = document.getElementById("trust-profile-positive-classifications");
-const trustAllegationList = document.getElementById("trust-allegation-list");
-const trustRecognitionList = document.getElementById("trust-recognition-list");
-const trustPositiveDuplicateCategories = new Set([
-  "timeline",
-  "wordkeep",
-  "payment_property",
-  "communication",
-  "respect_safety",
-]);
+const trustProfileActivityList = document.getElementById("trust-profile-activity-list");
 const trustAdminSummary = document.getElementById("trust-admin-summary");
 const trustScoreTabs = [...document.querySelectorAll("[data-trust-tab]")];
 const trustScorePanels = [...document.querySelectorAll(".trust-score-panel")];
@@ -2075,21 +2063,28 @@ function activateTrustScoreTab(tab, updateUrl = true) {
 }
 let activeTrustProfileId = "";
 let trustPeopleSearchTimer;
-function renderTrustClassificationCards(container, classifications = {}, excludedCategories = new Set()) {
+function mergeTrustClassificationSummaries(positive = {}, negative = {}) {
+  return Object.fromEntries(
+    Object.entries(positive).map(([key, classification]) => {
+      const negativeClassification = negative[key];
+      const outcomes = [...(classification.outcomes || []), ...(negativeClassification?.outcomes || [])];
+      return [
+        key,
+        {
+          ...classification,
+          total: (classification.total || 0) + (negativeClassification?.total || 0),
+          outcomes,
+        },
+      ];
+    }),
+  );
+}
+function renderTrustClassificationCards(container, classifications = {}) {
   if (!container) return;
   container.replaceChildren();
-  const entries = Object.values(classifications).filter(
-    (classification) => !excludedCategories.has(classification.key),
-  );
+  const entries = Object.values(classifications);
   if (!entries.length) {
-    addText(
-      container,
-      "p",
-      "trust-score-hint",
-      container.id.includes("positive")
-        ? "No positive recognition has been recorded yet."
-        : "No allegations have been recorded for this profile yet.",
-    );
+    addText(container, "p", "trust-score-hint", "No Trust activity has been recorded for this profile yet.");
     return;
   }
   for (const classification of entries) {
@@ -2104,7 +2099,13 @@ function renderTrustClassificationCards(container, classifications = {}, exclude
     outcomes.className = "trust-classification-outcomes";
     for (const outcome of classification.outcomes || []) {
       const item = document.createElement("li");
-      addText(item, "span", "", outcome.label);
+      item.classList.add(outcome.polarity === "positive" ? "is-positive" : "is-allegation");
+      addText(
+        item,
+        "span",
+        "trust-classification-outcome-label",
+        `${outcome.polarity === "positive" ? "Positive" : "Unverified"} · ${outcome.label}`,
+      );
       addText(item, "strong", "", String(outcome.count || 0));
       outcomes.append(item);
     }
@@ -2112,21 +2113,20 @@ function renderTrustClassificationCards(container, classifications = {}, exclude
     container.append(card);
   }
 }
-function renderTrustRecords(container, allegations = [], positive = false) {
+function renderTrustRecords(container, records = []) {
   if (!container) return;
   container.replaceChildren();
-  if (!allegations.length) {
+  if (!records.length) {
     addText(
       container,
       "p",
       "trust-score-hint",
-      positive
-        ? "No audience-visible positive experiences are recorded for this profile yet."
-        : "No audience-visible allegations are recorded for this profile.",
+      "No audience-visible Trust activity is recorded for this profile yet.",
     );
     return;
   }
-  for (const allegation of allegations) {
+  for (const allegation of records) {
+    const positive = allegation.polarity === "positive";
     const card = document.createElement("article");
     card.className = "trust-allegation-card";
     const header = document.createElement("div");
@@ -2213,22 +2213,18 @@ async function loadTrustDashboard(userId = activeTrustProfileId) {
     activeTrustProfileId = result.profile?.userId || "";
     if (trustProfileSearch && !userId) trustProfileSearch.value = "";
     renderTrustClassificationCards(
-      trustOverviewPositiveClassifications,
-      result.positiveClassifications,
-      trustPositiveDuplicateCategories,
-    );
-    renderTrustClassificationCards(
       trustOverviewClassifications,
-      result.negativeClassifications || result.classifications,
-    );
-    renderTrustClassificationCards(
-      trustProfilePositiveClassifications,
-      result.positiveClassifications,
-      trustPositiveDuplicateCategories,
+      mergeTrustClassificationSummaries(
+        result.positiveClassifications,
+        result.negativeClassifications || result.classifications,
+      ),
     );
     renderTrustClassificationCards(
       trustProfileClassifications,
-      result.negativeClassifications || result.classifications,
+      mergeTrustClassificationSummaries(
+        result.positiveClassifications,
+        result.negativeClassifications || result.classifications,
+      ),
     );
     trustProfileHeading.replaceChildren();
     const identity = document.createElement("div");
@@ -2248,8 +2244,12 @@ async function loadTrustDashboard(userId = activeTrustProfileId) {
       "trust-score-hint",
       result.scoreNote || "Unverified reports do not affect the current score.",
     );
-    renderTrustRecords(trustRecognitionList, result.recognitions, true);
-    renderTrustRecords(trustAllegationList, result.allegations);
+    renderTrustRecords(
+      trustProfileActivityList,
+      [...(result.recognitions || []), ...(result.allegations || [])].sort(
+        (left, right) => new Date(right.createdAt) - new Date(left.createdAt),
+      ),
+    );
     void loadTrustAdminSummary();
   } catch (error) {
     const message = error.message || "Trust Score could not be loaded right now.";
@@ -2257,16 +2257,8 @@ async function loadTrustDashboard(userId = activeTrustProfileId) {
       trustOverviewClassifications.replaceChildren(
         addText(document.createElement("div"), "p", "trust-score-error", message),
       );
-    if (trustOverviewPositiveClassifications)
-      trustOverviewPositiveClassifications.replaceChildren(
-        addText(document.createElement("div"), "p", "trust-score-error", message),
-      );
-    if (trustAllegationList)
-      trustAllegationList.replaceChildren(
-        addText(document.createElement("div"), "p", "trust-score-error", message),
-      );
-    if (trustRecognitionList)
-      trustRecognitionList.replaceChildren(
+    if (trustProfileActivityList)
+      trustProfileActivityList.replaceChildren(
         addText(document.createElement("div"), "p", "trust-score-error", message),
       );
   } finally {

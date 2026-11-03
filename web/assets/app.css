@@ -3912,6 +3912,12 @@ textarea.control::placeholder {
 .trust-classification-outcomes li strong {
   color: var(--ink);
 }
+.trust-classification-outcomes li.is-positive .trust-classification-outcome-label {
+  color: var(--accent);
+}
+.trust-classification-outcomes li.is-allegation .trust-classification-outcome-label {
+  color: var(--warning, #d98554);
+}
 .trust-profile-search-results {
   display: grid;
   gap: 4px;
