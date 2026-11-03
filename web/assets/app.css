@@ -5313,6 +5313,47 @@ textarea.control::placeholder {
   gap: 5px 12px;
   margin-top: 8px;
 }
+.feed-post-context {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 14px;
+  min-width: 0;
+  margin-top: 8px;
+}
+.feed-post-context .feed-author {
+  flex: 0 1 auto;
+  min-width: 0;
+  margin: 0;
+  white-space: nowrap;
+}
+.feed-post-context .feed-author > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.feed-post-context-details {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px 12px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 0.625rem;
+}
+.feed-post-context-item {
+  min-width: 0;
+  white-space: nowrap;
+}
+.feed-post-context-item strong {
+  color: var(--ink);
+  font-weight: 680;
+}
+.feed-post-location {
+  max-width: min(58%, 420px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .trust-feed-report {
   display: flex;
   flex-wrap: wrap;

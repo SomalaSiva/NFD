@@ -1430,10 +1430,28 @@ function renderFeed(experiences, { append = false, nextCursor = "" } = {}) {
       "span",
       "",
       experience.visibility === "anonymous"
-        ? "Shared anonymously"
-        : `Shared by ${experience.authorName || "NFD member"}`,
+        ? "Anonymous"
+        : experience.authorName || "NFD member",
     );
-    main.append(author);
+    const postContext = document.createElement("div");
+    postContext.className = "feed-post-context";
+    postContext.append(author);
+    const contextDetails = document.createElement("div");
+    contextDetails.className = "feed-post-context-details";
+    const shared = document.createElement("span");
+    shared.className = "feed-post-context-item";
+    shared.innerHTML = "<strong>Shared</strong> ";
+    shared.append(document.createTextNode(prettyDate(experience.createdAt)));
+    contextDetails.append(shared);
+    if (experience.locationDetails) {
+      const area = document.createElement("span");
+      area.className = "feed-post-context-item feed-post-location";
+      area.innerHTML = "<strong>Area</strong> ";
+      area.append(document.createTextNode(experience.locationDetails));
+      contextDetails.append(area);
+    }
+    postContext.append(contextDetails);
+    main.append(postContext);
     if (experience.trustReport) {
       const trustNotice = document.createElement("div");
       trustNotice.className = `trust-feed-report${experience.trustReport.polarity === "positive" ? " trust-feed-recognition" : ""}`;
@@ -1453,20 +1471,10 @@ function renderFeed(experiences, { append = false, nextCursor = "" } = {}) {
     const placeSummary = [experience.place, experience.placeCategory].filter(Boolean).join(" · ");
     place.append(document.createTextNode(placeSummary || "Not provided"));
     meta.append(place);
-    if (experience.locationDetails) {
-      const area = document.createElement("span");
-      area.innerHTML = "<strong>Area</strong> ";
-      area.append(document.createTextNode(experience.locationDetails));
-      meta.append(area);
-    }
     const occurred = document.createElement("span");
     occurred.innerHTML = "<strong>When</strong> ";
     occurred.append(document.createTextNode(experienceTimeText(experience)));
     meta.append(occurred);
-    const shared = document.createElement("span");
-    shared.innerHTML = "<strong>Shared</strong> ";
-    shared.append(document.createTextNode(prettyDate(experience.createdAt)));
-    meta.append(shared);
     card.append(main);
     const images = (experience.evidence || []).filter((file) => file.contentType?.startsWith("image/"));
     const videos = (experience.evidence || []).filter((file) => file.contentType?.startsWith("video/"));
