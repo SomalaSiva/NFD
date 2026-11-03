@@ -848,9 +848,8 @@
                     >Trust Score classification <span class="optional">Optional</span></label
                   >
                   <p class="helper">
-                    Keep this as a regular NFD post. To add an unverified Trust Score report, choose a
-                    category and an accepted NFD friend. The report is not a verified finding and does not
-                    change anyone’s score.
+                    Keep this as a regular NFD post. You can share positive recognition or an unverified
+                    allegation about an accepted NFD friend. Neither changes anyone’s score.
                   </p>
                   <p class="helper" id="trust-classification-feedback" role="status" aria-live="polite"></p>
                   <div class="grid trust-allegation-grid">
@@ -865,7 +864,7 @@
                       </select>
                     </div>
                     <div class="field full" id="trust-subject-field" hidden>
-                      <label for="trust-subject">Person this report is about</label>
+                      <label for="trust-subject">Person this post is about</label>
                       <select class="control" id="trust-subject" name="trustSubjectUserId">
                         <option value="">Choose an accepted NFD friend</option>
                       </select>
@@ -1619,13 +1618,31 @@
               </div>
               <div class="trust-self-score-meter" id="trust-score-overview-meter"></div>
             </article>
+            <section class="trust-allegation-dashboard" aria-labelledby="trust-recognition-overview-heading">
+              <div class="agreement-generator-heading">
+                <div>
+                  <h2 id="trust-recognition-overview-heading">Positive experiences about you</h2>
+                  <p>
+                    Recognition posts are shared with you under their selected audience. They do not change
+                    the current score.
+                  </p>
+                </div>
+              </div>
+              <div
+                id="trust-overview-positive-classifications"
+                class="trust-classification-grid"
+                aria-live="polite"
+              >
+                <p class="trust-score-hint">Loading positive experiences…</p>
+              </div>
+            </section>
             <section class="trust-allegation-dashboard" aria-labelledby="trust-dashboard-heading">
               <div class="agreement-generator-heading">
                 <div>
-                  <h2 id="trust-dashboard-heading">Allegations about you</h2>
+                  <h2 id="trust-dashboard-heading">Unverified allegations about you</h2>
                   <p>
-                    Reports remain unverified. This dashboard shows reports shared with you under their
-                    selected audience.
+                    Allegations are unverified reports shared under their selected audience. They do not
+                    change the current score.
                   </p>
                 </div>
               </div>
@@ -1646,11 +1663,12 @@
             <section class="trust-allegation-dashboard" aria-labelledby="trust-allegations-heading">
               <div class="agreement-generator-heading">
                 <div>
-                  <span class="agreement-ai-badge">Unverified reports</span>
-                  <h2 id="trust-allegations-heading">Trust profile &amp; allegations</h2>
+                  <span class="agreement-ai-badge">Profile activity</span>
+                  <h2 id="trust-allegations-heading">Trust profile</h2>
                   <p>
-                    Search an NFD display name or username. Email addresses are never shown. Reports are not
-                    proof of wrongdoing and do not affect the current score.
+                    Search an NFD display name or username. Email addresses are never shown. Positive
+                    recognition and allegations are separate; allegations are unverified and do not affect the
+                    current score.
                   </p>
                 </div>
               </div>
@@ -1670,6 +1688,13 @@
                 hidden
               ></div>
               <div id="trust-profile-heading" class="trust-profile-heading" aria-live="polite"></div>
+              <div
+                id="trust-profile-positive-classifications"
+                class="trust-classification-grid"
+                aria-live="polite"
+              ></div>
+              <div id="trust-recognition-list" class="trust-allegation-list" aria-live="polite"></div>
+              <h2 class="trust-activity-subheading">Unverified allegations</h2>
               <div
                 id="trust-profile-classifications"
                 class="trust-classification-grid"

@@ -3838,6 +3838,13 @@ textarea.control::placeholder {
   min-width: 0;
   overflow-wrap: anywhere;
 }
+.trust-feed-recognition {
+  background: color-mix(in srgb, var(--accent) 12%, var(--paper));
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--line));
+}
+.trust-feed-recognition strong {
+  color: var(--accent);
+}
 .trust-allegation-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3970,6 +3977,14 @@ textarea.control::placeholder {
   border-radius: 999px;
   font-size: 11px;
   font-weight: 750;
+}
+.trust-allegation-status.is-positive {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, var(--paper));
+}
+.trust-activity-subheading {
+  margin: 18px 0 0;
+  font-size: 18px;
 }
 .trust-poll-actions {
   display: flex;

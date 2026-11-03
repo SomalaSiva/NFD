@@ -397,11 +397,16 @@ const messagesPage = document.getElementById("messages-page");
 const trustScorePage = document.getElementById("trust-score-page");
 const trustScoreOverviewMeter = document.getElementById("trust-score-overview-meter");
 const trustOverviewClassifications = document.getElementById("trust-overview-classifications");
+const trustOverviewPositiveClassifications = document.getElementById(
+  "trust-overview-positive-classifications",
+);
 const trustProfileSearch = document.getElementById("trust-profile-search");
 const trustProfileSearchResults = document.getElementById("trust-profile-search-results");
 const trustProfileHeading = document.getElementById("trust-profile-heading");
 const trustProfileClassifications = document.getElementById("trust-profile-classifications");
+const trustProfilePositiveClassifications = document.getElementById("trust-profile-positive-classifications");
 const trustAllegationList = document.getElementById("trust-allegation-list");
+const trustRecognitionList = document.getElementById("trust-recognition-list");
 const trustAdminSummary = document.getElementById("trust-admin-summary");
 const trustScoreTabs = [...document.querySelectorAll("[data-trust-tab]")];
 const trustScorePanels = [...document.querySelectorAll(".trust-score-panel")];
@@ -617,7 +622,7 @@ function showReview() {
   const trustReportSection = document.getElementById("review-trust-report-section");
   trustReportSection.hidden = !trustClassificationInput.value;
   document.getElementById("review-trust-report").textContent = trustClassificationInput.value
-    ? `${selected("trust-classification")} · ${selected("trust-outcome")} · About ${trustSubjectInput.selectedOptions[0]?.textContent || "NFD friend"}`
+    ? `${trustOutcomeInput.selectedOptions[0]?.dataset.polarity === "positive" ? "Positive recognition · unverified" : "Unverified allegation"} · ${selected("trust-classification")} · ${selected("trust-outcome")} · About ${trustSubjectInput.selectedOptions[0]?.textContent || "NFD friend"}`
     : "";
   document.getElementById("review-place").textContent = value("place") || "Not provided";
   document.getElementById("review-place-category").textContent = selected("place-category");
@@ -810,8 +815,11 @@ function updateTrustOutcomeOptions(classifications, selectedOutcome = "") {
   trustOutcomeInput.replaceChildren(
     new Option(selected ? "Choose an outcome" : "Choose a classification first", ""),
   );
-  for (const outcome of selected?.outcomes || [])
-    trustOutcomeInput.add(new Option(outcome.label, outcome.value));
+  for (const outcome of selected?.outcomes || []) {
+    const option = new Option(outcome.label, outcome.value);
+    option.dataset.polarity = outcome.polarity || "negative";
+    trustOutcomeInput.add(option);
+  }
   trustOutcomeInput.disabled = !selected;
   trustOutcomeInput.required = Boolean(selected);
   trustSubjectField.hidden = !selected;
@@ -1266,8 +1274,8 @@ function renderFeed(experiences, { append = false, nextCursor = "" } = {}) {
     main.append(author);
     if (experience.trustReport) {
       const trustNotice = document.createElement("div");
-      trustNotice.className = "trust-feed-report";
-      addText(trustNotice, "strong", "", "Unverified allegation");
+      trustNotice.className = `trust-feed-report${experience.trustReport.polarity === "positive" ? " trust-feed-recognition" : ""}`;
+      addText(trustNotice, "strong", "", experience.trustReport.typeLabel || "Unverified allegation");
       addText(
         trustNotice,
         "span",
@@ -2088,15 +2096,17 @@ function renderTrustClassificationCards(container, classifications = {}) {
     container.append(card);
   }
 }
-function renderTrustAllegations(allegations = []) {
-  if (!trustAllegationList) return;
-  trustAllegationList.replaceChildren();
+function renderTrustRecords(container, allegations = [], positive = false) {
+  if (!container) return;
+  container.replaceChildren();
   if (!allegations.length) {
     addText(
-      trustAllegationList,
+      container,
       "p",
       "trust-score-hint",
-      "No audience-visible allegations are recorded for this profile.",
+      positive
+        ? "No audience-visible positive experiences are recorded for this profile yet."
+        : "No audience-visible allegations are recorded for this profile.",
     );
     return;
   }
@@ -2105,7 +2115,13 @@ function renderTrustAllegations(allegations = []) {
     card.className = "trust-allegation-card";
     const header = document.createElement("div");
     header.className = "trust-allegation-heading";
-    addText(header, "span", "trust-allegation-status", "Unverified allegation");
+    const status = addText(
+      header,
+      "span",
+      "trust-allegation-status",
+      positive ? "Positive recognition · unverified" : "Unverified allegation",
+    );
+    if (positive) status.classList.add("is-positive");
     addText(header, "time", "", prettyDate(allegation.createdAt));
     card.append(header);
     addText(card, "h3", "", `${allegation.classificationLabel} · ${allegation.outcomeLabel}`);
@@ -2116,12 +2132,14 @@ function renderTrustAllegations(allegations = []) {
       "trust-allegation-author",
       `Shared by ${allegation.authorName || "Anonymous NFD member"}`,
     );
-    addText(
-      card,
-      "p",
-      "trust-poll-note",
-      `Poll: ${allegation.poll?.believePercent || 0}% Believe · ${100 - (allegation.poll?.believePercent || 0)}% Don’t believe · ${allegation.poll?.total || 0} responses. Weighted result: ${allegation.poll?.weightedBelieve || 0} to ${allegation.poll?.weightedNotBelieve || 0}. Voter identities are not shown.`,
-    );
+    if (!positive) {
+      addText(
+        card,
+        "p",
+        "trust-poll-note",
+        `Poll: ${allegation.poll?.believePercent || 0}% Believe · ${100 - (allegation.poll?.believePercent || 0)}% Don’t believe · ${allegation.poll?.total || 0} responses. Weighted result: ${allegation.poll?.weightedBelieve || 0} to ${allegation.poll?.weightedNotBelieve || 0}. Voter identities are not shown.`,
+      );
+    }
     if (allegation.canVote) {
       const actions = document.createElement("div");
       actions.className = "trust-poll-actions";
@@ -2162,7 +2180,7 @@ function renderTrustAllegations(allegations = []) {
       }
       card.append(actions);
     }
-    trustAllegationList.append(card);
+    container.append(card);
   }
 }
 async function loadTrustDashboard(userId = activeTrustProfileId) {
@@ -2178,8 +2196,16 @@ async function loadTrustDashboard(userId = activeTrustProfileId) {
     if (!response.ok) throw new Error(result.error || "Trust Score could not be loaded.");
     activeTrustProfileId = result.profile?.userId || "";
     if (trustProfileSearch && !userId) trustProfileSearch.value = "";
-    renderTrustClassificationCards(trustOverviewClassifications, result.classifications);
-    renderTrustClassificationCards(trustProfileClassifications, result.classifications);
+    renderTrustClassificationCards(trustOverviewPositiveClassifications, result.positiveClassifications);
+    renderTrustClassificationCards(
+      trustOverviewClassifications,
+      result.negativeClassifications || result.classifications,
+    );
+    renderTrustClassificationCards(trustProfilePositiveClassifications, result.positiveClassifications);
+    renderTrustClassificationCards(
+      trustProfileClassifications,
+      result.negativeClassifications || result.classifications,
+    );
     trustProfileHeading.replaceChildren();
     const identity = document.createElement("div");
     identity.className = "trust-profile-identity";
@@ -2198,7 +2224,8 @@ async function loadTrustDashboard(userId = activeTrustProfileId) {
       "trust-score-hint",
       result.scoreNote || "Unverified reports do not affect the current score.",
     );
-    renderTrustAllegations(result.allegations);
+    renderTrustRecords(trustRecognitionList, result.recognitions, true);
+    renderTrustRecords(trustAllegationList, result.allegations);
     void loadTrustAdminSummary();
   } catch (error) {
     const message = error.message || "Trust Score could not be loaded right now.";
@@ -2206,8 +2233,16 @@ async function loadTrustDashboard(userId = activeTrustProfileId) {
       trustOverviewClassifications.replaceChildren(
         addText(document.createElement("div"), "p", "trust-score-error", message),
       );
+    if (trustOverviewPositiveClassifications)
+      trustOverviewPositiveClassifications.replaceChildren(
+        addText(document.createElement("div"), "p", "trust-score-error", message),
+      );
     if (trustAllegationList)
       trustAllegationList.replaceChildren(
+        addText(document.createElement("div"), "p", "trust-score-error", message),
+      );
+    if (trustRecognitionList)
+      trustRecognitionList.replaceChildren(
         addText(document.createElement("div"), "p", "trust-score-error", message),
       );
   } finally {
@@ -2227,17 +2262,22 @@ async function loadTrustAdminSummary() {
     const weights = result.rules?.pollWeights || {};
     trustAdminSummary.hidden = false;
     trustAdminSummary.replaceChildren();
-    addText(trustAdminSummary, "h3", "", "Administrator allegation review");
+    addText(trustAdminSummary, "h3", "", "Administrator Trust activity review");
     addText(
       trustAdminSummary,
       "p",
       "trust-score-hint",
-      "All reports are unverified. Poll voter identities are not displayed.",
+      "Positive recognition and allegations are listed separately by type. Allegations remain unverified; poll voter identities are not displayed.",
     );
     for (const allegation of result.allegations || []) {
       const row = document.createElement("article");
       row.className = "trust-admin-poll-row";
-      addText(row, "strong", "", `${allegation.classificationLabel} · ${allegation.outcomeLabel}`);
+      addText(
+        row,
+        "strong",
+        "",
+        `${allegation.typeLabel || "Unverified allegation"} · ${allegation.classificationLabel} · ${allegation.outcomeLabel}`,
+      );
       addText(
         row,
         "p",
@@ -2245,12 +2285,11 @@ async function loadTrustAdminSummary() {
         `Reported by ${allegation.authorName || "NFD member"} about ${allegation.subjectName || "NFD member"}`,
       );
       addText(row, "p", "", allegation.postSummary || "No short description provided.");
-      addText(
-        row,
-        "p",
-        "",
-        `Status: ${allegation.status === "unverified" ? "Unverified allegation" : allegation.status}`,
-      );
+      addText(row, "p", "", `Status: ${allegation.typeLabel || "Unverified allegation"}`);
+      if (allegation.polarity === "positive") {
+        trustAdminSummary.append(row);
+        continue;
+      }
       const groups = allegation.votes?.groups || {};
       addText(
         row,

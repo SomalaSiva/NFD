@@ -19,10 +19,13 @@ test("Trust Score rule endpoint returns central categories and draft-only policy
 
   assert.equal(response.status, 200);
   assert.equal(body.statusLabel, "Unverified allegation");
+  assert.equal(body.recognitionLabel, "Positive recognition");
   assert.deepEqual(
     body.classifications.map((entry) => entry.label),
-    ["Timeline", "WordKeep", "Payment & property", "Communication"],
+    ["Timeline", "WordKeep", "Payment & property", "Communication", "Kindness & support", "Respect & safety"],
   );
+  assert.equal(body.classifications[0].outcomes[0].polarity, "positive");
+  assert.equal(body.classifications[0].outcomes[1].polarity, "negative");
 });
 
 test("Trust Score rules require sign-in", async () => {

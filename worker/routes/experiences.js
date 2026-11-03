@@ -1,4 +1,4 @@
-import { getTrustClassification, TRUST_CLASSIFICATIONS } from "../lib/trust-score-rules.js";
+import { getTrustClassification, getTrustOutcome, TRUST_CLASSIFICATIONS } from "../lib/trust-score-rules.js";
 
 export function createExperienceRoutes(services) {
   const {
@@ -283,6 +283,14 @@ export function createExperienceRoutes(services) {
                   TRUST_CLASSIFICATIONS[experience.trust_classification]?.outcomes.find(
                     (item) => item.value === experience.trust_outcome,
                   )?.label || "Reported outcome",
+                polarity:
+                  getTrustOutcome(experience.trust_classification, experience.trust_outcome)?.polarity ||
+                  "negative",
+                typeLabel:
+                  getTrustOutcome(experience.trust_classification, experience.trust_outcome)?.polarity ===
+                  "positive"
+                    ? "Positive recognition · unverified"
+                    : "Unverified allegation",
                 subjectName: experience.trust_subject_name || "NFD member",
                 status: "unverified",
               }

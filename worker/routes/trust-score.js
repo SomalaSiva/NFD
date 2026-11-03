@@ -2,6 +2,7 @@ import {
   TRUST_CLASSIFICATIONS,
   TRUST_SCORE_BASE,
   TRUST_SCORE_DRAFT_POLICY,
+  getTrustOutcome,
 } from "../lib/trust-score-rules.js";
 
 export function createTrustScoreRoutes({
@@ -50,6 +51,7 @@ export function createTrustScoreRoutes({
     return json({
       classifications: Object.entries(TRUST_CLASSIFICATIONS).map(([key, value]) => ({ key, ...value })),
       statusLabel: "Unverified allegation",
+      recognitionLabel: "Positive recognition",
     });
   }
 
@@ -108,29 +110,44 @@ export function createTrustScoreRoutes({
         outcomeLabel:
           TRUST_CLASSIFICATIONS[row.classification]?.outcomes.find((item) => item.value === row.outcome)
             ?.label || "Reported experience",
-        status: row.status === "unverified" ? "unverified" : "unverified",
+        polarity: getTrustOutcome(row.classification, row.outcome)?.polarity || "negative",
+        typeLabel:
+          getTrustOutcome(row.classification, row.outcome)?.polarity === "positive"
+            ? "Positive recognition · unverified"
+            : "Unverified allegation",
+        status: "unverified",
         shortDescription: row.short_description,
         createdAt: row.created_at,
         authorName: row.author_name || "Anonymous NFD member",
         poll: pollAggregates.get(row.id) || emptyPollAggregate(),
-        canVote: row.author_user_id !== viewer.id && profile.id !== viewer.id,
+        canVote:
+          getTrustOutcome(row.classification, row.outcome)?.polarity !== "positive" &&
+          row.author_user_id !== viewer.id &&
+          profile.id !== viewer.id,
       }));
-      const classifications = Object.fromEntries(
-        Object.entries(TRUST_CLASSIFICATIONS).map(([key, definition]) => [
-          key,
-          {
+      const positiveRecords = allegations.filter((record) => record.polarity === "positive");
+      const negativeRecords = allegations.filter((record) => record.polarity !== "positive");
+      const makeClassificationSummary = (records, polarity) =>
+        Object.fromEntries(
+          Object.entries(TRUST_CLASSIFICATIONS).map(([key, definition]) => [
             key,
-            label: definition.label,
-            total: allegations.filter((allegation) => allegation.classification === key).length,
-            outcomes: definition.outcomes.map((outcome) => ({
-              ...outcome,
-              count: allegations.filter(
-                (allegation) => allegation.classification === key && allegation.outcome === outcome.value,
-              ).length,
-            })),
-          },
-        ]),
-      );
+            {
+              key,
+              label: definition.label,
+              total: records.filter((record) => record.classification === key).length,
+              outcomes: definition.outcomes
+                .filter((outcome) => outcome.polarity === polarity)
+                .map((outcome) => ({
+                  ...outcome,
+                  count: records.filter(
+                    (record) => record.classification === key && record.outcome === outcome.value,
+                  ).length,
+                })),
+            },
+          ]),
+        );
+      const positiveClassifications = makeClassificationSummary(positiveRecords, "positive");
+      const negativeClassifications = makeClassificationSummary(negativeRecords, "negative");
       return json({
         profile: {
           userId: profile.id,
@@ -140,9 +157,16 @@ export function createTrustScoreRoutes({
           isSelf: profile.id === viewer.id,
         },
         scoreNote: "Starting score. Allegations are unverified and do not change this score.",
-        classifications,
-        allegations,
-        rules: { statusLabel: "Unverified allegation", pollWeights: TRUST_SCORE_DRAFT_POLICY.pollWeights },
+        classifications: negativeClassifications,
+        positiveClassifications,
+        negativeClassifications,
+        recognitions: positiveRecords,
+        allegations: negativeRecords,
+        rules: {
+          statusLabel: "Unverified allegation",
+          recognitionLabel: "Positive recognition",
+          pollWeights: TRUST_SCORE_DRAFT_POLICY.pollWeights,
+        },
       });
     } catch (error) {
       console.error("Trust Score dashboard failed", error);
@@ -162,7 +186,7 @@ export function createTrustScoreRoutes({
       await ensureTrustScoreTables(env);
       const allegation = await env.DB.prepare(
         `
-        SELECT a.id, a.author_user_id, a.subject_user_id, e.visibility
+        SELECT a.id, a.author_user_id, a.subject_user_id, a.classification, a.outcome, e.visibility
         FROM nfd_trust_allegations a INNER JOIN experiences e ON e.id = a.experience_id
         WHERE a.id = ? AND e.status = 'shared' AND a.status = 'unverified' LIMIT 1
       `,
@@ -170,6 +194,9 @@ export function createTrustScoreRoutes({
         .bind(allegationId)
         .first();
       if (!allegation) return json({ error: "That unverified allegation could not be found." }, 404);
+      if (getTrustOutcome(allegation.classification, allegation.outcome)?.polarity === "positive") {
+        return json({ error: "Positive recognition posts do not use allegation polls." }, 400);
+      }
       if (voter.id === allegation.author_user_id || voter.id === allegation.subject_user_id) {
         return json({ error: "The people directly involved cannot vote in this poll." }, 403);
       }
@@ -247,6 +274,11 @@ export function createTrustScoreRoutes({
           outcomeLabel:
             TRUST_CLASSIFICATIONS[row.classification]?.outcomes.find((item) => item.value === row.outcome)
               ?.label || "Reported outcome",
+          polarity: getTrustOutcome(row.classification, row.outcome)?.polarity || "negative",
+          typeLabel:
+            getTrustOutcome(row.classification, row.outcome)?.polarity === "positive"
+              ? "Positive recognition"
+              : "Unverified allegation",
           status: "unverified",
           createdAt: row.created_at,
           authorName: row.author_name,

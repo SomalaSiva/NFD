@@ -6,6 +6,7 @@ import {
   TRUST_SCORE_BASE,
   TRUST_SCORE_DRAFT_POLICY,
   getTrustClassification,
+  getTrustOutcome,
   getTrustScoreDisplay,
 } from "../worker/lib/trust-score-rules.js";
 
@@ -23,9 +24,15 @@ test("Trust Score policy and editable classification source stay centralized", a
     "wordkeep",
     "payment_property",
     "communication",
+    "kindness_support",
+    "respect_safety",
   ]);
   assert.equal(getTrustClassification("timeline", "missed").label, "Timeline");
   assert.equal(getTrustClassification("timeline", "kept"), null);
+  assert.equal(getTrustOutcome("timeline", "succeeded").polarity, "positive");
+  assert.equal(getTrustOutcome("timeline", "missed").polarity, "negative");
+  assert.equal(getTrustOutcome("kindness_support", "help_provided").polarity, "positive");
+  assert.equal(getTrustOutcome("respect_safety", "aggressive_disrespectful").polarity, "negative");
   assert.deepEqual(TRUST_SCORE_DRAFT_POLICY.pollWeights, {
     receiverFriend: 4,
     creatorFriend: 2,
@@ -37,6 +44,18 @@ test("Trust Score policy and editable classification source stay centralized", a
     await readFile(new URL("../worker/routes/trust-score.js", import.meta.url), "utf8"),
     /from "\.\.\/lib\/trust-score-rules\.js"/,
   );
+});
+
+test("positive recognition and unverified allegations are shown as separate Trust Score tracks", () => {
+  assert.match(normalizedHtml, /id="trust-overview-positive-classifications"/);
+  assert.match(normalizedHtml, /Positive experiences about you/);
+  assert.match(normalizedHtml, /Unverified allegations about you/);
+  assert.match(normalizedHtml, /id="trust-profile-positive-classifications"/);
+  assert.match(normalizedHtml, /id="trust-recognition-list"/);
+  assert.match(appJs, /Positive recognition · unverified/);
+  assert.match(appJs, /result\.positiveClassifications/);
+  assert.match(appJs, /renderTrustRecords\(trustRecognitionList, result\.recognitions, true\)/);
+  assert.match(normalizedHtml, /Neither changes anyone’s score/);
 });
 
 test("Trust Score exposes agreement-based, confirmed outcome tracking", () => {
