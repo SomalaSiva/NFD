@@ -1,30 +1,39 @@
 :root {
-  color-scheme: dark;
-  --ink: #edf4f4;
-  --muted: #aebdc5;
-  --line: #354652;
-  --paper: #1a2732;
-  --canvas: #101922;
-  --green: #16836b;
-  --green-dark: #116d5a;
-  --accent: #64dfbd;
-  --mint: #223441;
-  --surface-raised: #202f3b;
-  --surface-hover: #293c48;
-  --lime: #c6ef72;
-  --danger: #ff9d91;
-  --danger-surface: #39272b;
-  --danger-border: #68454a;
-  --amber: #f0b257;
+  color-scheme: light;
+  --ink: #18332f;
+  --muted: #657c78;
+  --line: #d7e5dc;
+  --paper: #ffffff;
+  --canvas: #f2f7f2;
+  --green: #087b67;
+  --green-dark: #066351;
+  --accent: #8c7cce;
+  --mint: #e5f2ec;
+  --surface: #f8fbf8;
+  --surface-raised: #ffffff;
+  --surface-hover: #e8f2eb;
+  --lime: #d9efaa;
+  --coral: #ef8e71;
+  --purple: #8c7cce;
+  --danger: #c95f4f;
+  --danger-surface: #fff0e9;
+  --danger-border: #f1c9bb;
+  --amber: #aa711e;
+  --warning: #815916;
   --radius: 18px;
-  --shadow: 0 14px 38px rgba(0, 0, 0, 0.24);
+  --shadow: 0 14px 38px rgba(41, 79, 65, 0.13);
+}
+html {
+  background: var(--canvas);
 }
 * {
   box-sizing: border-box;
 }
 body {
+  position: relative;
+  isolation: isolate;
   margin: 0;
-  background: var(--canvas);
+  background: transparent;
   color: var(--ink);
   font-family:
     Inter,
@@ -34,6 +43,26 @@ body {
     "Segoe UI",
     sans-serif;
   -webkit-font-smoothing: antialiased;
+}
+body::before {
+  position: fixed;
+  z-index: -1;
+  inset: -20%;
+  background:
+    radial-gradient(ellipse at 12% 19%, rgba(95, 205, 172, 0.24), transparent 40%),
+    radial-gradient(ellipse at 88% 31%, rgba(255, 185, 139, 0.2), transparent 35%),
+    radial-gradient(ellipse at 47% 88%, rgba(174, 156, 232, 0.16), transparent 39%);
+  content: "";
+  pointer-events: none;
+  animation: aurora-drift 28s ease-in-out infinite alternate;
+}
+@keyframes aurora-drift {
+  from {
+    transform: translate3d(-1%, -0.5%, 0) scale(1);
+  }
+  to {
+    transform: translate3d(1%, 1%, 0) scale(1.04);
+  }
 }
 button,
 input,
@@ -2890,7 +2919,7 @@ textarea.control::placeholder {
   height: 42px;
   place-items: center;
   overflow: hidden;
-  border: 2px solid #bac9bf;
+  border: 2px solid #c8d5e7;
   border-radius: 50%;
   background: var(--surface-raised);
   color: var(--green);
@@ -2910,10 +2939,10 @@ textarea.control::placeholder {
 }
 .story-bubble.has-unseen .story-avatar {
   border: 2px solid #fff;
-  outline: 2px solid #0d9a68;
+  outline: 2px solid var(--green);
 }
 .story-bubble.story-seen .story-avatar {
-  border-color: #aeb9b2;
+  border-color: #c7cedc;
   outline: 0;
 }
 .story-name {
@@ -2921,6 +2950,24 @@ textarea.control::placeholder {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.story-bubble .story-avatar {
+  animation: story-float 6s ease-in-out infinite;
+}
+.story-bubble:nth-child(2n) .story-avatar {
+  animation-delay: -2s;
+}
+.story-bubble:nth-child(3n) .story-avatar {
+  animation-delay: -4s;
+}
+@keyframes story-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
 }
 .story-add-button {
   position: absolute;
@@ -5194,5 +5241,12 @@ textarea.control::placeholder {
     max-width: 67px;
     padding-inline: 6px;
     font-size: 8px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body::before,
+  .story-bubble .story-avatar {
+    animation: none !important;
   }
 }
