@@ -11,9 +11,17 @@ const incidentCategoryHelper = document.getElementById("incident-category-helper
 const trustClassificationInput = document.getElementById("trust-classification");
 const trustOutcomeInput = document.getElementById("trust-outcome");
 const trustSubjectInput = document.getElementById("trust-subject");
+const trustSubjectSearchInput = document.getElementById("trust-subject-search");
+const trustSubjectResults = document.getElementById("trust-subject-results");
+const trustSubjectSearchStatus = document.getElementById("trust-subject-search-status");
+const trustSubjectNotInNfd = document.getElementById("trust-subject-not-in-nfd");
 const trustSubjectField = document.getElementById("trust-subject-field");
 const trustClassFeedback = document.getElementById("trust-classification-feedback");
 let trustPostOptionsPromise;
+let trustSubjectSearchTimer;
+let trustSubjectSearchController;
+let trustSubjectSelectedName = "";
+let trustAcceptedFriendIds = new Set();
 const incidentCategoriesByExperience = {
   "Personal relationships": [
     "Trust broken or deception",
@@ -617,7 +625,7 @@ function showReview() {
   const trustReportSection = document.getElementById("review-trust-report-section");
   trustReportSection.hidden = !trustClassificationInput.value;
   document.getElementById("review-trust-report").textContent = trustClassificationInput.value
-    ? `${trustOutcomeInput.selectedOptions[0]?.dataset.polarity === "positive" ? "Positive recognition · unverified" : "Unverified allegation"} · ${selected("trust-classification")} · ${selected("trust-outcome")} · About ${trustSubjectInput.selectedOptions[0]?.textContent || "NFD friend"}`
+    ? `${trustOutcomeInput.selectedOptions[0]?.dataset.polarity === "positive" ? "Positive recognition · unverified" : "Unverified allegation"} · ${selected("trust-classification")} · ${selected("trust-outcome")} · About ${trustSubjectSearchInput.value || "NFD friend"}`
     : "";
   document.getElementById("review-place").textContent = value("place") || "Not provided";
   document.getElementById("review-place-category").textContent = selected("place-category");
@@ -792,18 +800,128 @@ async function loadTrustPostOptions() {
       value: friend.userId,
       label: friend.name,
     }));
-    trustSubjectInput.replaceChildren(new Option("Choose an accepted NFD friend", ""));
-    for (const friend of friendOptions) trustSubjectInput.add(new Option(friend.label, friend.value));
-    trustSubjectInput.disabled = friendOptions.length === 0;
+    trustAcceptedFriendIds = new Set(friendOptions.map((friend) => friend.value));
     return { classifications: rules.classifications || [], friends: friendOptions };
   })().catch((error) => {
     trustClassificationInput.disabled = true;
     trustOutcomeInput.disabled = true;
-    trustSubjectInput.disabled = true;
+    trustSubjectSearchInput.disabled = true;
     trustClassFeedback.textContent = error.message;
     throw error;
   });
   return trustPostOptionsPromise;
+}
+function hideTrustSubjectResults() {
+  trustSubjectResults.hidden = true;
+  trustSubjectSearchInput.setAttribute("aria-expanded", "false");
+  trustSubjectNotInNfd.hidden = true;
+}
+function showTrustSubjectResults() {
+  trustSubjectResults.hidden = false;
+  trustSubjectSearchInput.setAttribute("aria-expanded", "true");
+}
+function selectTrustSubject(person) {
+  trustSubjectInput.value = person.userId;
+  trustSubjectSearchInput.setCustomValidity("");
+  trustSubjectSelectedName = person.name;
+  trustSubjectSearchInput.value = person.name;
+  trustSubjectSearchStatus.textContent = `Selected ${person.name}.`;
+  trustClassFeedback.textContent = "";
+  hideTrustSubjectResults();
+}
+function renderTrustSubjectResults(people, query) {
+  trustSubjectResults.replaceChildren();
+  const acceptedMatches = people.filter((person) => trustAcceptedFriendIds.has(person.userId));
+  for (const person of acceptedMatches) {
+    const option = document.createElement("button");
+    option.type = "button";
+    option.className = "trust-profile-search-option";
+    option.setAttribute("role", "option");
+    option.textContent = person.name;
+    option.addEventListener("click", () => selectTrustSubject(person));
+    trustSubjectResults.append(option);
+  }
+  if (people.length && !acceptedMatches.length) {
+    const status = addText(
+      trustSubjectResults,
+      "p",
+      "trust-score-hint",
+      "An NFD profile matched, but only accepted friends can be linked. Send and accept a friend request first.",
+    );
+    status.setAttribute("role", "option");
+    status.setAttribute("aria-disabled", "true");
+  } else if (!people.length) {
+    const status = addText(
+      trustSubjectResults,
+      "p",
+      "trust-score-hint",
+      "No NFD profile matched this search.",
+    );
+    status.setAttribute("role", "option");
+    status.setAttribute("aria-disabled", "true");
+    trustSubjectNotInNfd.hidden = false;
+  }
+  if (acceptedMatches.length) {
+    trustSubjectSearchStatus.textContent = `${acceptedMatches.length} accepted NFD ${acceptedMatches.length === 1 ? "friend" : "friends"} found.`;
+  } else if (people.length) {
+    trustSubjectSearchStatus.textContent = "This person has an NFD profile but is not an accepted friend.";
+  } else {
+    trustSubjectSearchStatus.textContent = `No NFD profile found for “${query}”.`;
+  }
+  showTrustSubjectResults();
+}
+function scheduleTrustSubjectSearch() {
+  const query = trustSubjectSearchInput.value.trim();
+  if (trustSubjectInput.value && query !== trustSubjectSelectedName) {
+    trustSubjectInput.value = "";
+    trustSubjectSelectedName = "";
+  }
+  trustSubjectSearchInput.setCustomValidity(
+    trustClassificationInput.value && !trustSubjectInput.value
+      ? "Select an accepted NFD friend, or choose Not in NFD to share without a Trust Score link."
+      : "",
+  );
+  trustClassFeedback.textContent = "";
+  trustSubjectNotInNfd.hidden = true;
+  window.clearTimeout(trustSubjectSearchTimer);
+  trustSubjectSearchController?.abort();
+  if (query.length < 2) {
+    hideTrustSubjectResults();
+    trustSubjectSearchStatus.textContent = "Type at least 2 letters to search NFD.";
+    return;
+  }
+  trustSubjectSearchStatus.textContent = "Searching NFD…";
+  trustSubjectSearchTimer = window.setTimeout(async () => {
+    const controller = new AbortController();
+    trustSubjectSearchController = controller;
+    try {
+      const response = await fetch(`/api/trust-score/people?q=${encodeURIComponent(query)}`, {
+        headers: { accept: "application/json" },
+        cache: "no-store",
+        signal: controller.signal,
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || "NFD profiles could not be searched right now.");
+      if (!controller.signal.aborted) renderTrustSubjectResults(result.people || [], query);
+    } catch (error) {
+      if (error.name === "AbortError") return;
+      hideTrustSubjectResults();
+      trustSubjectSearchStatus.textContent = error.message || "NFD profiles could not be searched right now.";
+    }
+  }, 250);
+}
+function chooseNotInNfd() {
+  const name = trustSubjectSearchInput.value.trim();
+  if (name && !postPlaceInput.value.trim()) postPlaceInput.value = name;
+  trustSubjectInput.value = "";
+  trustSubjectSelectedName = "";
+  trustClassificationInput.value = "";
+  trustSubjectSearchInput.setCustomValidity("");
+  updateTrustOutcomeOptions([], "");
+  trustClassFeedback.textContent =
+    "Not in NFD selected. This will be shared as a regular post and will not be linked to a Trust Score profile.";
+  trustSubjectSearchStatus.textContent = "The person’s name was added to the optional post details.";
+  hideTrustSubjectResults();
 }
 function updateTrustOutcomeOptions(classifications, selectedOutcome = "") {
   const selected = classifications.find((entry) => entry.key === trustClassificationInput.value);
@@ -818,7 +936,12 @@ function updateTrustOutcomeOptions(classifications, selectedOutcome = "") {
   trustOutcomeInput.disabled = !selected;
   trustOutcomeInput.required = Boolean(selected);
   trustSubjectField.hidden = !selected;
-  trustSubjectInput.required = Boolean(selected);
+  trustSubjectSearchInput.required = Boolean(selected);
+  trustSubjectSearchInput.setCustomValidity(
+    selected && !trustSubjectInput.value
+      ? "Select an accepted NFD friend, or choose Not in NFD to share without a Trust Score link."
+      : "",
+  );
   if (selectedOutcome) trustOutcomeInput.value = selectedOutcome;
 }
 function backToEdit() {
@@ -926,6 +1049,20 @@ async function loadPostForEditing() {
     trustClassificationInput.value = experience.trustClassification || "";
     updateTrustOutcomeOptions(trustOptions.classifications, experience.trustOutcome || "");
     trustSubjectInput.value = experience.trustSubjectUserId || "";
+    trustSubjectSearchInput.setCustomValidity(
+      trustClassificationInput.value && !trustSubjectInput.value
+        ? "Select an accepted NFD friend, or choose Not in NFD to share without a Trust Score link."
+        : "",
+    );
+    const selectedFriend = trustOptions.friends.find((friend) => friend.value === trustSubjectInput.value);
+    trustSubjectSelectedName =
+      selectedFriend?.label || (trustSubjectInput.value ? "Previously selected NFD profile" : "");
+    trustSubjectSearchInput.value = trustSubjectSelectedName;
+    trustSubjectSearchStatus.textContent = selectedFriend
+      ? `Selected ${selectedFriend.label}.`
+      : trustSubjectInput.value
+        ? "This post’s existing NFD profile link is retained unless you choose another friend."
+        : "Search by name or username. Only accepted NFD friends can be linked to a Trust Score report.";
     postPlaceInput.value = experience.place === "Not provided" ? "" : experience.place;
     document.getElementById("place-category").value =
       experience.placeCategory === "Not provided" ? "" : experience.placeCategory;
@@ -5154,12 +5291,18 @@ if (location.pathname === "/share") {
   updateIncidentCategoryOptions();
   void loadTrustPostOptions()
     .then((options) => {
-      trustClassificationInput.addEventListener("change", () =>
-        updateTrustOutcomeOptions(options.classifications),
-      );
+      trustClassificationInput.addEventListener("change", () => {
+        trustClassFeedback.textContent = "";
+        updateTrustOutcomeOptions(options.classifications);
+      });
       if (trustClassificationInput.value) updateTrustOutcomeOptions(options.classifications);
     })
     .catch(() => {});
+  trustSubjectSearchInput.addEventListener("input", scheduleTrustSubjectSearch);
+  trustSubjectSearchInput.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") hideTrustSubjectResults();
+  });
+  trustSubjectNotInNfd.addEventListener("click", chooseNotInNfd);
   const editId = new URLSearchParams(location.search).get("edit");
   if (editId) {
     editingPostId = editId;

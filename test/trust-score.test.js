@@ -63,6 +63,17 @@ test("positive experiences and unverified allegations share one Trust activity s
   assert.match(normalizedHtml, /Neither changes anyone’s score/);
 });
 
+test("Trust post target uses search and offers a safe unlinked option when no NFD profile matches", () => {
+  assert.match(normalizedHtml, /id="trust-subject-search"[\s\S]*type="search"/);
+  assert.match(normalizedHtml, /id="trust-subject-results"[\s\S]*role="listbox"[\s\S]*hidden/);
+  assert.match(normalizedHtml, /id="trust-subject-not-in-nfd"[\s\S]*Not in NFD/);
+  assert.doesNotMatch(normalizedHtml, /<select[^>]+id="trust-subject"/);
+  assert.match(appJs, /fetch\(`\/api\/trust-score\/people\?q=\$\{encodeURIComponent\(query\)\}`/);
+  assert.match(appJs, /people\.filter\(\(person\) => trustAcceptedFriendIds\.has\(person\.userId\)\)/);
+  assert.match(appJs, /function chooseNotInNfd\(\)/);
+  assert.match(appJs, /regular post and will not be linked to a Trust Score profile/);
+});
+
 test("Trust Score exposes agreement-based, confirmed outcome tracking", () => {
   assert.match(normalizedHtml, /id="trust-score-overview-meter"/);
   assert.match(normalizedHtml, /Everyone currently starts at 40\/100/);

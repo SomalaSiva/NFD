@@ -848,8 +848,8 @@
                     >Trust Score classification <span class="optional">Optional</span></label
                   >
                   <p class="helper">
-                    Keep this as a regular NFD post. You can share positive recognition or an unverified
-                    allegation about an accepted NFD friend. Neither changes anyone’s score.
+                    Search NFD profiles to link an accepted friend. If no profile exists, choose Not in NFD to
+                    share a regular post without Trust Score linkage. Neither changes anyone’s score.
                   </p>
                   <p class="helper" id="trust-classification-feedback" role="status" aria-live="polite"></p>
                   <div class="grid trust-allegation-grid">
@@ -864,10 +864,31 @@
                       </select>
                     </div>
                     <div class="field full" id="trust-subject-field" hidden>
-                      <label for="trust-subject">Person this post is about</label>
-                      <select class="control" id="trust-subject" name="trustSubjectUserId">
-                        <option value="">Choose an accepted NFD friend</option>
-                      </select>
+                      <label for="trust-subject-search">Person this post is about</label>
+                      <input
+                        class="control"
+                        id="trust-subject-search"
+                        type="search"
+                        autocomplete="off"
+                        placeholder="Search NFD by name or username"
+                        aria-controls="trust-subject-results"
+                        aria-expanded="false"
+                      />
+                      <input type="hidden" id="trust-subject" name="trustSubjectUserId" />
+                      <div
+                        id="trust-subject-results"
+                        class="trust-profile-search-results"
+                        role="listbox"
+                        aria-label="Matching NFD people"
+                        hidden
+                      ></div>
+                      <p class="helper" id="trust-subject-search-status" role="status" aria-live="polite">
+                        Search by name or username. Only accepted NFD friends can be linked to a Trust Score
+                        report.
+                      </p>
+                      <button type="button" class="secondary-button" id="trust-subject-not-in-nfd" hidden>
+                        Not in NFD
+                      </button>
                     </div>
                   </div>
                 </div>
