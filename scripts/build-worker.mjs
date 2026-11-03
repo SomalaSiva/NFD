@@ -36,6 +36,12 @@ const privacyPageBase64 = Buffer.from(privacyPage, "utf8").toString("base64");
 const guidelinesPage = readFileSync(path.join(root, "web/guidelines.html"), "utf8");
 const guidelinesPageBase64 = Buffer.from(guidelinesPage, "utf8").toString("base64");
 const iconBase64 = readFileSync(path.join(root, "web/nfd-icon.png")).toString("base64");
+const icon192Base64 = readFileSync(path.join(root, "web/nfd-icon-192.png")).toString("base64");
+const icon512Base64 = readFileSync(path.join(root, "web/nfd-icon-512.png")).toString("base64");
+const appManifestBase64 = Buffer.from(
+  readFileSync(path.join(root, "web/manifest.webmanifest"), "utf8"),
+  "utf8",
+).toString("base64");
 const workerBuild = await build({
   entryPoints: [path.join(root, "worker/index.js")],
   bundle: true,
@@ -50,7 +56,7 @@ mkdirSync(path.join(dist, "server"), { recursive: true });
 mkdirSync(path.join(dist, ".openai"), { recursive: true });
 writeFileSync(
   path.join(dist, "server/index.js"),
-  `const APP_ICON = Uint8Array.from(atob("${iconBase64}"), (character) => character.charCodeAt(0));\nconst APP_CSS = new TextDecoder().decode(Uint8Array.from(atob("${appCssBase64}"), (character) => character.charCodeAt(0)));\nconst APP_JS = new TextDecoder().decode(Uint8Array.from(atob("${appJsBase64}"), (character) => character.charCodeAt(0)));\nconst PAGE_HTML = new TextDecoder().decode(Uint8Array.from(atob("${pageBase64}"), (character) => character.charCodeAt(0)));\nconst PRIVACY_HTML = new TextDecoder().decode(Uint8Array.from(atob("${privacyPageBase64}"), (character) => character.charCodeAt(0)));\nconst GUIDELINES_HTML = new TextDecoder().decode(Uint8Array.from(atob("${guidelinesPageBase64}"), (character) => character.charCodeAt(0)));\n${worker}`,
+  `const APP_ICON = Uint8Array.from(atob("${iconBase64}"), (character) => character.charCodeAt(0));\nconst APP_ICON_192 = Uint8Array.from(atob("${icon192Base64}"), (character) => character.charCodeAt(0));\nconst APP_ICON_512 = Uint8Array.from(atob("${icon512Base64}"), (character) => character.charCodeAt(0));\nconst APP_MANIFEST = new TextDecoder().decode(Uint8Array.from(atob("${appManifestBase64}"), (character) => character.charCodeAt(0)));\nconst APP_CSS = new TextDecoder().decode(Uint8Array.from(atob("${appCssBase64}"), (character) => character.charCodeAt(0)));\nconst APP_JS = new TextDecoder().decode(Uint8Array.from(atob("${appJsBase64}"), (character) => character.charCodeAt(0)));\nconst PAGE_HTML = new TextDecoder().decode(Uint8Array.from(atob("${pageBase64}"), (character) => character.charCodeAt(0)));\nconst PRIVACY_HTML = new TextDecoder().decode(Uint8Array.from(atob("${privacyPageBase64}"), (character) => character.charCodeAt(0)));\nconst GUIDELINES_HTML = new TextDecoder().decode(Uint8Array.from(atob("${guidelinesPageBase64}"), (character) => character.charCodeAt(0)));\n${worker}`,
 );
 copyFileSync(path.join(root, ".openai/hosting.json"), path.join(dist, ".openai/hosting.json"));
 console.log("Built the NFD Site Worker.");

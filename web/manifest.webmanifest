@@ -1,0 +1,27 @@
+{
+  "id": "/",
+  "name": "NFD — No Face Docs",
+  "short_name": "NFD",
+  "description": "Real stories, good and bad. Share what happened or see what people are saying with NFD.",
+  "start_url": "/feed",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait",
+  "background_color": "#f2f7f2",
+  "theme_color": "#f2f7f2",
+  "icons": [
+    {
+      "src": "/nfd-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/nfd-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

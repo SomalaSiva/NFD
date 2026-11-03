@@ -124,6 +124,33 @@ const worker = {
         },
       });
     }
+    if (request.method === "GET" && url.pathname === "/manifest.webmanifest") {
+      return new Response(APP_MANIFEST, {
+        headers: {
+          "content-type": "application/manifest+json; charset=utf-8",
+          "cache-control": "public, max-age=300",
+          "x-content-type-options": "nosniff",
+        },
+      });
+    }
+    if (request.method === "GET" && url.pathname === "/nfd-icon-192.png") {
+      return new Response(APP_ICON_192, {
+        headers: {
+          "content-type": "image/png",
+          "cache-control": "public, max-age=31536000, immutable",
+          "x-content-type-options": "nosniff",
+        },
+      });
+    }
+    if (request.method === "GET" && url.pathname === "/nfd-icon-512.png") {
+      return new Response(APP_ICON_512, {
+        headers: {
+          "content-type": "image/png",
+          "cache-control": "public, max-age=31536000, immutable",
+          "x-content-type-options": "nosniff",
+        },
+      });
+    }
     if (request.method === "GET" && url.pathname === "/nfd-icon.png") {
       return new Response(APP_ICON, {
         headers: {
