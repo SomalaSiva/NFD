@@ -1,25 +1,27 @@
 :root {
   color-scheme: light;
-  --ink: #202c45;
-  --muted: #68748d;
-  --line: #dce2f2;
+  --ink: #18332f;
+  --muted: #657c78;
+  --line: #d7e5dc;
   --paper: #ffffff;
-  --canvas: #f2f4ff;
-  --green: #167d76;
-  --green-dark: #126a63;
-  --accent: #34769b;
-  --mint: #e3f1f2;
-  --surface: #f8f9ff;
-  --surface-raised: #fbfcff;
-  --surface-hover: #eaf0fb;
-  --lime: #e3efbd;
-  --danger: #bd4d52;
-  --danger-surface: #fff0f0;
-  --danger-border: #f0cccc;
+  --canvas: #f2f7f2;
+  --green: #087b67;
+  --green-dark: #066351;
+  --accent: #8c7cce;
+  --mint: #e5f2ec;
+  --surface: #f8fbf8;
+  --surface-raised: #ffffff;
+  --surface-hover: #e8f2eb;
+  --lime: #d9efaa;
+  --coral: #ef8e71;
+  --purple: #8c7cce;
+  --danger: #c95f4f;
+  --danger-surface: #fff0e9;
+  --danger-border: #f1c9bb;
   --amber: #aa711e;
   --warning: #815916;
   --radius: 18px;
-  --shadow: 0 14px 38px rgba(49, 65, 113, 0.09);
+  --shadow: 0 14px 38px rgba(41, 79, 65, 0.13);
 }
 html {
   background: var(--canvas);
@@ -47,9 +49,9 @@ body::before {
   z-index: -1;
   inset: -20%;
   background:
-    radial-gradient(ellipse at 12% 19%, rgba(94, 194, 185, 0.14), transparent 36%),
-    radial-gradient(ellipse at 88% 31%, rgba(151, 139, 222, 0.13), transparent 34%),
-    radial-gradient(ellipse at 47% 88%, rgba(119, 174, 209, 0.1), transparent 39%);
+    radial-gradient(ellipse at 12% 19%, rgba(95, 205, 172, 0.24), transparent 40%),
+    radial-gradient(ellipse at 88% 31%, rgba(255, 185, 139, 0.2), transparent 35%),
+    radial-gradient(ellipse at 47% 88%, rgba(174, 156, 232, 0.16), transparent 39%);
   content: "";
   pointer-events: none;
   animation: aurora-drift 28s ease-in-out infinite alternate;
