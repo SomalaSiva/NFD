@@ -95,7 +95,7 @@ test("Trust Score exposes agreement-based, confirmed outcome tracking", () => {
   assert.match(normalizedHtml, /Everyone currently starts at 40 \/ 100/);
 });
 
-test("Self and friend profiles show the score with a full audience-visible friend Trust dashboard", () => {
+test("Self profile and friend Trust Score tabs show the audience-visible score dashboard", () => {
   assert.match(normalizedHtml, /id="profile-summary"[\s\S]*?id="profile-summary-content"/);
   assert.match(normalizedHtml, /id="profile-summary-score"/);
   assert.match(normalizedHtml, /profile-photo-camera[\s\S]*?for="profile-photo-file"/);
@@ -103,7 +103,10 @@ test("Self and friend profiles show the score with a full audience-visible frien
   assert.doesNotMatch(normalizedHtml, /profile-photo-choose/);
   assert.match(appJs, /scoreValue = 40/);
   assert.match(appJs, /aria-valuenow", String\(scoreNumber\)/);
-  assert.match(appJs, /createTrustScorePreview\(friend\.name/);
+  assert.match(appJs, /friend-profile-tab-trust/);
+  assert.match(appJs, /trustTab\.dataset\.friendProfileTab = "trust"/);
+  assert.match(appJs, /friend-profile-panel-trust/);
+  assert.match(appJs, /updateFriendTab\(button\.dataset\.friendProfileTab, true\)/);
   assert.match(appJs, /loadFriendTrustDashboard\([\s\S]*?friend\.userId/);
   assert.match(appJs, /trustSection\.className = "friend-trust-dashboard trust-allegation-dashboard"/);
   assert.match(appJs, /result\.positiveClassifications,[\s\S]*result\.negativeClassifications/);

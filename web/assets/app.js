@@ -2253,7 +2253,11 @@ function renderTrustClassificationCards(container, classifications = {}) {
     container.append(card);
   }
 }
-function renderTrustRecords(container, records = []) {
+function renderTrustRecords(
+  container,
+  records = [],
+  refresh = () => loadTrustDashboard(activeTrustProfileId),
+) {
   if (!container) return;
   container.replaceChildren();
   if (!records.length) {
@@ -2320,7 +2324,7 @@ function renderTrustRecords(container, records = []) {
             );
             const result = await response.json().catch(() => ({}));
             if (!response.ok) throw new Error(result.error || "Your poll response could not be saved.");
-            await loadTrustDashboard(activeTrustProfileId);
+            await refresh();
           } catch (error) {
             addText(
               card,
@@ -2620,6 +2624,34 @@ async function loadFriendProfile(friendId) {
     feedback.setAttribute("role", "status");
     header.append(actions);
     friendProfileView.append(back, header, feedback);
+    const friendTabList = document.createElement("div");
+    friendTabList.className = "profile-tabs friend-profile-tabs";
+    friendTabList.setAttribute("role", "tablist");
+    friendTabList.setAttribute("aria-label", `${friend.name || "Friend"} profile sections`);
+    const postsTab = addText(friendTabList, "button", "profile-tab", "Posts");
+    postsTab.type = "button";
+    postsTab.id = "friend-profile-tab-posts";
+    postsTab.setAttribute("role", "tab");
+    postsTab.setAttribute("aria-controls", "friend-profile-panel-posts");
+    postsTab.dataset.friendProfileTab = "posts";
+    const trustTab = addText(friendTabList, "button", "profile-tab", "Trust Score");
+    trustTab.type = "button";
+    trustTab.id = "friend-profile-tab-trust";
+    trustTab.setAttribute("role", "tab");
+    trustTab.setAttribute("aria-controls", "friend-profile-panel-trust");
+    trustTab.dataset.friendProfileTab = "trust";
+    const postsPanel = document.createElement("section");
+    postsPanel.className = "profile-tab-panel friend-profile-tab-panel";
+    postsPanel.id = "friend-profile-panel-posts";
+    postsPanel.setAttribute("role", "tabpanel");
+    postsPanel.setAttribute("aria-labelledby", postsTab.id);
+    postsPanel.tabIndex = 0;
+    const trustPanel = document.createElement("section");
+    trustPanel.className = "profile-tab-panel friend-profile-tab-panel";
+    trustPanel.id = "friend-profile-panel-trust";
+    trustPanel.setAttribute("role", "tabpanel");
+    trustPanel.setAttribute("aria-labelledby", trustTab.id);
+    trustPanel.tabIndex = 0;
     const trustSection = document.createElement("section");
     trustSection.className = "friend-trust-dashboard trust-allegation-dashboard";
     trustSection.setAttribute("aria-labelledby", "friend-trust-heading");
@@ -2642,14 +2674,7 @@ async function loadFriendProfile(friendId) {
     const trustRecords = document.createElement("div");
     trustRecords.className = "trust-allegation-list";
     trustSection.append(trustRecords);
-    friendProfileView.append(trustSection);
-    void loadFriendTrustDashboard(
-      friend.userId,
-      friend.name || "This member",
-      trustScore,
-      trustClassifications,
-      trustRecords,
-    );
+    trustPanel.append(trustSection);
     const postsHeading = addText(
       friendProfileView,
       "h2",
@@ -2738,7 +2763,45 @@ async function loadFriendProfile(friendId) {
         posts.append(card);
       });
     }
-    friendProfileView.append(postsHeading, posts);
+    postsPanel.append(postsHeading, posts);
+    friendProfileView.append(friendTabList, postsPanel, trustPanel);
+    const updateFriendTab = (activeTab, updateUrl = false) => {
+      const selectedTab = activeTab === "trust" ? "trust" : "posts";
+      for (const button of [postsTab, trustTab]) {
+        const selected = button.dataset.friendProfileTab === selectedTab;
+        button.setAttribute("aria-selected", String(selected));
+        button.tabIndex = selected ? 0 : -1;
+      }
+      postsPanel.hidden = selectedTab !== "posts";
+      trustPanel.hidden = selectedTab !== "trust";
+      if (updateUrl) {
+        const nextUrl = new URL(location.href);
+        if (selectedTab === "trust") nextUrl.searchParams.set("friend_tab", "trust");
+        else nextUrl.searchParams.delete("friend_tab");
+        history.replaceState(null, "", nextUrl);
+      }
+      if (selectedTab === "trust" && trustPanel.dataset.loaded !== "true") {
+        trustPanel.dataset.loaded = "true";
+        void loadFriendTrustDashboard(
+          friend.userId,
+          friend.name || "This member",
+          trustScore,
+          trustClassifications,
+          trustRecords,
+        );
+      }
+    };
+    for (const button of [postsTab, trustTab]) {
+      button.addEventListener("click", () => updateFriendTab(button.dataset.friendProfileTab, true));
+      button.addEventListener("keydown", (event) => {
+        if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+        event.preventDefault();
+        const nextTab = button === postsTab ? trustTab : postsTab;
+        nextTab.focus();
+        updateFriendTab(nextTab.dataset.friendProfileTab, true);
+      });
+    }
+    updateFriendTab(new URLSearchParams(location.search).get("friend_tab"));
     document.title = `${friend.name || "Friend"} — NFD`;
   } catch (error) {
     friendProfileView.replaceChildren();
@@ -2776,6 +2839,8 @@ async function loadFriendTrustDashboard(
       [...(result.recognitions || []), ...(result.allegations || [])].sort(
         (left, right) => new Date(right.createdAt) - new Date(left.createdAt),
       ),
+      () =>
+        loadFriendTrustDashboard(userId, name, scoreContainer, classificationsContainer, recordsContainer),
     );
   } catch (error) {
     scoreContainer.replaceChildren();
