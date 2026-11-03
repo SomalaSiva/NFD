@@ -167,7 +167,7 @@ export function createExperienceRoutes(services) {
           e.location_details, e.incident_time, e.incident_time_end, e.incident_time_zone, e.short_description,
           e.full_description, e.visibility, e.comments_enabled, e.created_at,
           ta.id AS trust_allegation_id, ta.classification AS trust_classification,
-          ta.outcome AS trust_outcome,
+          ta.outcome AS trust_outcome, ta.subject_user_id AS trust_subject_user_id,
           COALESCE(NULLIF(trim(subject.display_name), ''), 'NFD member') AS trust_subject_name,
           CASE WHEN e.visibility = 'anonymous' OR u.active != 1 OR (u.provider = 'ghost' AND NOT EXISTS (
             SELECT 1 FROM nfd_ghost_profiles gp
@@ -197,9 +197,20 @@ export function createExperienceRoutes(services) {
           : null;
       const evidenceByExperience = new Map();
       const engagementByExperience = new Map();
+      const trustPollByAllegation = new Map();
+      const myTrustVotesByAllegation = new Map();
       if (experiences.length) {
         const ids = experiences.map((experience) => experience.id);
         const placeholders = ids.map(() => "?").join(", ");
+        const allegationIds = experiences
+          .filter(
+            (experience) =>
+              experience.trust_allegation_id &&
+              getTrustOutcome(experience.trust_classification, experience.trust_outcome)?.polarity !==
+                "positive",
+          )
+          .map((experience) => experience.trust_allegation_id);
+        const allegationPlaceholders = allegationIds.map(() => "?").join(", ");
         const evidenceResult = await env.DB.prepare(
           `
         SELECT id, experience_id, original_filename, content_type, size_bytes, preview_object_key
@@ -221,7 +232,7 @@ export function createExperienceRoutes(services) {
           });
           evidenceByExperience.set(file.experience_id, files);
         }
-        const [reactionRows, myReactions, commentRows] = await Promise.all([
+        const [reactionRows, myReactions, commentRows, trustPollRows, myTrustVotes] = await Promise.all([
           env.DB.prepare(
             `SELECT experience_id, reaction, COUNT(*) AS count FROM experience_reactions WHERE experience_id IN (${placeholders}) GROUP BY experience_id, reaction`,
           )
@@ -237,6 +248,27 @@ export function createExperienceRoutes(services) {
           )
             .bind(...ids)
             .all(),
+          allegationIds.length
+            ? env.DB.prepare(
+                `
+                SELECT allegation_id, COUNT(*) AS total,
+                  SUM(CASE WHEN choice = 'believe' THEN 1 ELSE 0 END) AS believe,
+                  SUM(CASE WHEN choice = 'not_believe' THEN 1 ELSE 0 END) AS not_believe
+                FROM nfd_trust_allegation_votes
+                WHERE allegation_id IN (${allegationPlaceholders})
+                GROUP BY allegation_id
+              `,
+              )
+                .bind(...allegationIds)
+                .all()
+            : Promise.resolve({ results: [] }),
+          allegationIds.length
+            ? env.DB.prepare(
+                `SELECT allegation_id, choice FROM nfd_trust_allegation_votes WHERE voter_user_id = ? AND allegation_id IN (${allegationPlaceholders})`,
+              )
+                .bind(user.id, ...allegationIds)
+                .all()
+            : Promise.resolve({ results: [] }),
         ]);
         for (const experience of experiences)
           engagementByExperience.set(experience.id, {
@@ -250,6 +282,18 @@ export function createExperienceRoutes(services) {
           engagementByExperience.get(row.experience_id).myReaction = row.reaction;
         for (const row of commentRows.results || [])
           engagementByExperience.get(row.experience_id).commentCount = Number(row.count) || 0;
+        for (const row of trustPollRows.results || []) {
+          const total = Number(row.total) || 0;
+          const believe = Number(row.believe) || 0;
+          trustPollByAllegation.set(row.allegation_id, {
+            total,
+            believe,
+            notBelieve: Number(row.not_believe) || 0,
+            believePercent: total ? Math.round((believe * 100) / total) : 0,
+          });
+        }
+        for (const row of myTrustVotes.results || [])
+          myTrustVotesByAllegation.set(row.allegation_id, row.choice);
       }
 
       return json({
@@ -293,6 +337,18 @@ export function createExperienceRoutes(services) {
                     : "Unverified allegation",
                 subjectName: experience.trust_subject_name || "NFD member",
                 status: "unverified",
+                poll: trustPollByAllegation.get(experience.trust_allegation_id) || {
+                  total: 0,
+                  believe: 0,
+                  notBelieve: 0,
+                  believePercent: 0,
+                },
+                myVote: myTrustVotesByAllegation.get(experience.trust_allegation_id) || "",
+                canVote:
+                  getTrustOutcome(experience.trust_classification, experience.trust_outcome)?.polarity !==
+                    "positive" &&
+                  experience.author_id !== user.id &&
+                  experience.trust_subject_user_id !== user.id,
               }
             : null,
           engagement: engagementByExperience.get(experience.id) || {

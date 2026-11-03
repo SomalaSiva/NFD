@@ -3315,6 +3315,50 @@ textarea.control::placeholder {
   flex-wrap: wrap;
   gap: 7px;
 }
+.feed-allegation-poll {
+  display: grid;
+  gap: 7px;
+  margin-bottom: 10px;
+}
+.feed-allegation-poll-question {
+  margin: 0;
+  color: var(--ink);
+  font-size: 13px;
+}
+.feed-allegation-poll-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.feed-allegation-poll-option {
+  min-width: 0;
+  min-height: 38px;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+.feed-allegation-poll-option:hover,
+.feed-allegation-poll-option.is-selected {
+  border-color: color-mix(in srgb, var(--amber) 52%, var(--line));
+  background: color-mix(in srgb, var(--amber) 10%, var(--paper));
+  color: var(--amber);
+}
+.feed-allegation-poll-option[aria-pressed="true"]::before {
+  content: "✓ ";
+}
+.feed-allegation-poll-result,
+.feed-allegation-poll-privacy {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
 .feed-reaction {
   border: 1px solid var(--line);
   border-radius: 999px;
@@ -3463,6 +3507,10 @@ textarea.control::placeholder {
   .feed-reaction {
     padding: 7px 8px;
     font-size: 10px;
+  }
+  .feed-allegation-poll-option {
+    min-height: 44px;
+    padding: 8px;
   }
   .feed-comments-toggle {
     margin-left: 0;

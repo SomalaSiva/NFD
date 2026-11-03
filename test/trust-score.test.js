@@ -127,6 +127,20 @@ test("Self profile and friend Trust Score tabs show the audience-visible score d
   assert.match(appCss, /\.profile-photo-form \[hidden\]\s*\{\s*display:\s*none !important;/);
 });
 
+test("allegation feed cards use a private Believe poll while retaining comments", () => {
+  assert.match(appJs, /experience\.trustReport && experience\.trustReport\.polarity !== "positive"/);
+  assert.match(appJs, /if \(!allegationPoll\)\s+reactionChoices\.forEach/);
+  assert.match(appJs, /Do you believe this allegation\?/);
+  assert.match(appJs, /\["believe", "Believe"\][\s\S]*\["not_believe", "Don’t believe"\]/);
+  assert.match(
+    appJs,
+    /\/api\/trust-score\/allegations\/\$\{encodeURIComponent\(allegationPoll\.id\)\}\/vote/,
+  );
+  assert.match(appJs, /Only poll totals are shown/);
+  assert.match(appJs, /commentToggle\.textContent = `\$\{commentsEnabled \? "💬 Comment"/);
+  assert.match(appCss, /\.feed-allegation-poll-options\s*\{\s*display:\s*grid/);
+});
+
 test("Profile loading keeps the photo controls mounted while replacing summary content", () => {
   const loadProfile = appJs.slice(
     appJs.indexOf("async function loadProfile"),

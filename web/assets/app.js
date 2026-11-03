@@ -1629,50 +1629,141 @@ function renderEngagement(card, experience) {
   const engagement = experience.engagement || { counts: {}, myReaction: "", commentCount: 0 };
   const counts = { like: 0, dislike: 0, love: 0, hate: 0, ...engagement.counts };
   let myReaction = engagement.myReaction || "";
+  const allegationPoll =
+    experience.trustReport && experience.trustReport.polarity !== "positive" ? experience.trustReport : null;
   const section = document.createElement("section");
   section.className = "feed-engagement";
-  section.setAttribute("aria-label", "Reactions and comments");
+  section.setAttribute(
+    "aria-label",
+    allegationPoll ? "Allegation poll and comments" : "Reactions and comments",
+  );
   const controls = document.createElement("div");
   controls.className = "feed-reactions";
   const reactionButtons = new Map();
   const labelButton = (choice) => `${choice[1]} ${choice[2]} · ${counts[choice[0]]}`;
-  reactionChoices.forEach((choice) => {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "feed-reaction";
-    button.textContent = labelButton(choice);
-    button.setAttribute("aria-pressed", String(myReaction === choice[0]));
-    button.setAttribute("aria-label", `${choice[2]}, ${counts[choice[0]]} reactions`);
-    button.addEventListener("click", async () => {
-      button.disabled = true;
-      try {
-        const remove = myReaction === choice[0];
-        const response = await fetch(`/api/experiences/${encodeURIComponent(experience.id)}/reaction`, {
-          method: remove ? "DELETE" : "POST",
-          headers: { "content-type": "application/json", accept: "application/json" },
-          body: remove ? undefined : JSON.stringify({ reaction: choice[0] }),
-        });
-        const result = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(result.error || "Your reaction could not be saved.");
-        if (myReaction) counts[myReaction] = Math.max(0, counts[myReaction] - 1);
-        myReaction = remove ? "" : choice[0];
-        if (myReaction) counts[myReaction]++;
-        reactionButtons.forEach((item, key) => {
-          const option = reactionChoices.find((value) => value[0] === key);
-          item.textContent = labelButton(option);
-          item.setAttribute("aria-pressed", String(myReaction === key));
-          item.setAttribute("aria-label", `${option[2]}, ${counts[key]} reactions`);
-        });
-        feedback.textContent = "Reaction saved.";
-      } catch (error) {
-        feedback.textContent = error.message;
-      } finally {
-        button.disabled = false;
-      }
+  if (!allegationPoll)
+    reactionChoices.forEach((choice) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "feed-reaction";
+      button.textContent = labelButton(choice);
+      button.setAttribute("aria-pressed", String(myReaction === choice[0]));
+      button.setAttribute("aria-label", `${choice[2]}, ${counts[choice[0]]} reactions`);
+      button.addEventListener("click", async () => {
+        button.disabled = true;
+        try {
+          const remove = myReaction === choice[0];
+          const response = await fetch(`/api/experiences/${encodeURIComponent(experience.id)}/reaction`, {
+            method: remove ? "DELETE" : "POST",
+            headers: { "content-type": "application/json", accept: "application/json" },
+            body: remove ? undefined : JSON.stringify({ reaction: choice[0] }),
+          });
+          const result = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(result.error || "Your reaction could not be saved.");
+          if (myReaction) counts[myReaction] = Math.max(0, counts[myReaction] - 1);
+          myReaction = remove ? "" : choice[0];
+          if (myReaction) counts[myReaction]++;
+          reactionButtons.forEach((item, key) => {
+            const option = reactionChoices.find((value) => value[0] === key);
+            item.textContent = labelButton(option);
+            item.setAttribute("aria-pressed", String(myReaction === key));
+            item.setAttribute("aria-label", `${option[2]}, ${counts[key]} reactions`);
+          });
+          feedback.textContent = "Reaction saved.";
+        } catch (error) {
+          feedback.textContent = error.message;
+        } finally {
+          button.disabled = false;
+        }
+      });
+      reactionButtons.set(choice[0], button);
+      controls.append(button);
     });
-    reactionButtons.set(choice[0], button);
-    controls.append(button);
-  });
+  if (allegationPoll) {
+    const poll = document.createElement("div");
+    poll.className = "feed-allegation-poll";
+    addText(poll, "h3", "feed-allegation-poll-question", "Do you believe this allegation?");
+    let pollState = {
+      total: Number(allegationPoll.poll?.total) || 0,
+      believe: Number(allegationPoll.poll?.believe) || 0,
+      notBelieve: Number(allegationPoll.poll?.notBelieve) || 0,
+    };
+    let myVote = allegationPoll.myVote || "";
+    const pollResult = addText(poll, "p", "feed-allegation-poll-result", "");
+    const options = document.createElement("div");
+    options.className = "feed-allegation-poll-options";
+    const updatePoll = () => {
+      const believePercent = pollState.total ? Math.round((pollState.believe * 100) / pollState.total) : 0;
+      const notBelievePercent = pollState.total ? 100 - believePercent : 0;
+      pollResult.textContent = pollState.total
+        ? `${pollState.believe} believe (${believePercent}%) · ${pollState.notBelieve} don’t believe (${notBelievePercent}%) · ${pollState.total} votes`
+        : "No votes yet.";
+      pollButtons.forEach(({ button, choice, label }) => {
+        const count = choice === "believe" ? pollState.believe : pollState.notBelieve;
+        button.textContent = pollState.total ? `${label} · ${count}` : label;
+        button.setAttribute("aria-pressed", String(myVote === choice));
+        button.setAttribute("aria-label", `${label}, ${count} votes`);
+        button.classList.toggle("is-selected", myVote === choice);
+        button.hidden = !allegationPoll.canVote;
+      });
+    };
+    const pollButtons = [];
+    for (const [choice, label] of [
+      ["believe", "Believe"],
+      ["not_believe", "Don’t believe"],
+    ]) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "feed-allegation-poll-option";
+      button.addEventListener("click", async () => {
+        pollButtons.forEach((item) => (item.button.disabled = true));
+        try {
+          const response = await fetch(
+            `/api/trust-score/allegations/${encodeURIComponent(allegationPoll.id)}/vote`,
+            {
+              method: "POST",
+              headers: { "content-type": "application/json", accept: "application/json" },
+              body: JSON.stringify({ choice }),
+            },
+          );
+          const result = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(result.error || "Your poll response could not be saved.");
+          pollState = {
+            total: Number(result.poll?.total) || 0,
+            believe: Number(result.poll?.believe) || 0,
+            notBelieve: Number(result.poll?.notBelieve) || 0,
+          };
+          myVote = choice;
+          updatePoll();
+          feedback.textContent = "Your response is private. Only poll totals are shown.";
+        } catch (error) {
+          feedback.textContent = error.message;
+        } finally {
+          pollButtons.forEach((item) => (item.button.disabled = false));
+        }
+      });
+      pollButtons.push({ button, choice, label });
+      options.append(button);
+    }
+    poll.append(options, pollResult);
+    if (!allegationPoll.canVote) {
+      addText(
+        poll,
+        "p",
+        "feed-allegation-poll-privacy",
+        "Only other NFD members can vote. Voter identities stay private.",
+      );
+    } else {
+      addText(
+        poll,
+        "p",
+        "feed-allegation-poll-privacy",
+        "Your response is private. Only poll totals are shown.",
+      );
+    }
+    section.append(poll);
+    updatePoll();
+  }
   let commentsEnabled = experience.commentsEnabled !== false;
   const commentToggle = document.createElement("button");
   commentToggle.type = "button";
