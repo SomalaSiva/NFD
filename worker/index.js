@@ -7,6 +7,7 @@ import { createTrustScoreRoutes } from "./routes/trust-score.js";
 import { ADMIN_PAGE_SIZE, getPageMetadata, getPageOffset } from "./lib/pagination.js";
 import { getSessionIdleMinutes, isSessionIdle } from "./lib/session.js";
 import { getQuickStoriesEnabled } from "./lib/quick-stories.js";
+import { fetchWithRetry } from "./lib/fetch-retry.js";
 import {
   ensureEngagementTables,
   ensureEvidenceCleanupTable,
@@ -1470,37 +1471,46 @@ async function reviewWithGemini(env, fields, files) {
       if (file.type.startsWith("video/")) await waitForGeminiReviewFile(env, uploaded, controller.signal);
       parts.push({ fileData: { mimeType: uploaded.mimeType, fileUri: uploaded.uri } });
     }
-    const response = await fetch(`${GEMINI_API_ROOT}/v1beta/models/gemini-3.1-flash-lite:generateContent`, {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
-      signal: controller.signal,
-      body: JSON.stringify({
-        contents: [{ role: "user", parts }],
-        generationConfig: {
-          temperature: 0.1,
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: "OBJECT",
-            properties: {
-              approved: { type: "BOOLEAN" },
-              reviewNote: { type: "STRING" },
-              suggestedShortDescription: { type: "STRING" },
-              suggestedFullDescription: { type: "STRING" },
-              flaggedAttachmentIndexes: { type: "ARRAY", items: { type: "INTEGER" } },
+    const response = await fetchWithRetry(
+      fetch,
+      `${GEMINI_API_ROOT}/v1beta/models/gemini-3.1-flash-lite:generateContent`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
+        signal: controller.signal,
+        body: JSON.stringify({
+          contents: [{ role: "user", parts }],
+          generationConfig: {
+            temperature: 0.1,
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: "OBJECT",
+              properties: {
+                approved: { type: "BOOLEAN" },
+                reviewNote: { type: "STRING" },
+                suggestedShortDescription: { type: "STRING" },
+                suggestedFullDescription: { type: "STRING" },
+                flaggedAttachmentIndexes: { type: "ARRAY", items: { type: "INTEGER" } },
+              },
+              required: [
+                "approved",
+                "reviewNote",
+                "suggestedShortDescription",
+                "suggestedFullDescription",
+                "flaggedAttachmentIndexes",
+              ],
             },
-            required: [
-              "approved",
-              "reviewNote",
-              "suggestedShortDescription",
-              "suggestedFullDescription",
-              "flaggedAttachmentIndexes",
-            ],
           },
-        },
-      }),
-    });
+        }),
+      },
+      {
+        maxAttempts: 3,
+        baseDelayMs: 300,
+        maxDelayMs: 1500,
+      },
+    );
     if (!response.ok) {
-      console.error("Gemini review request failed", response.status);
+      console.error("Gemini review request failed after retries", response.status);
       return {
         error:
           "The safety review is unavailable right now. Your story was not shared; please try again later.",
