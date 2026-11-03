@@ -3824,19 +3824,38 @@ textarea.control::placeholder {
   gap: 6px 10px;
   margin-top: 10px;
   padding: 9px 11px;
-  color: var(--ink);
+  color: #243b36;
   background: #fff5e3;
   border: 1px solid #ecd8b5;
   border-radius: 10px;
   font-size: 12px;
 }
 .trust-feed-report strong {
-  color: #85511b;
+  color: #75430f;
   white-space: nowrap;
 }
 .trust-feed-report span {
   min-width: 0;
   overflow-wrap: anywhere;
+  color: #243b36;
+}
+.trust-feed-report .trust-feed-report-detail {
+  font-weight: 600;
+}
+.friend-trust-dashboard {
+  margin-block: 28px;
+  padding: clamp(16px, 3vw, 28px);
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: var(--surface);
+}
+.friend-trust-score-meter {
+  display: flex;
+  justify-content: flex-end;
+  margin-block: 16px 24px;
+}
+.friend-trust-score-meter .profile-trust-score-compact {
+  width: min(100%, 330px);
 }
 .trust-feed-recognition {
   background: color-mix(in srgb, var(--accent) 12%, var(--paper));

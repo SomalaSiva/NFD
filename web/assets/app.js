@@ -1414,8 +1414,8 @@ function renderFeed(experiences, { append = false, nextCursor = "" } = {}) {
       addText(
         trustNotice,
         "span",
-        "",
-        `${experience.trustReport.classificationLabel} · ${experience.trustReport.outcomeLabel} · About ${experience.trustReport.subjectName}`,
+        "trust-feed-report-detail",
+        `${experience.trustReport.classificationLabel} · ${experience.trustReport.outcomeLabel} · About: ${experience.trustReport.subjectName || "NFD member"}`,
       );
       main.append(trustNotice);
     }
@@ -2619,7 +2619,37 @@ async function loadFriendProfile(friendId) {
     const feedback = addText(friendProfileView, "p", "friend-profile-feedback", "");
     feedback.setAttribute("role", "status");
     header.append(actions);
-    friendProfileView.append(back, header, feedback, createTrustScorePreview(friend.name || "This member"));
+    friendProfileView.append(back, header, feedback);
+    const trustSection = document.createElement("section");
+    trustSection.className = "friend-trust-dashboard trust-allegation-dashboard";
+    trustSection.setAttribute("aria-labelledby", "friend-trust-heading");
+    addText(trustSection, "h2", "", "Trust Score").id = "friend-trust-heading";
+    addText(
+      trustSection,
+      "p",
+      "trust-score-hint",
+      "Audience-visible positive experiences and unverified allegations for this NFD profile.",
+    );
+    const trustScore = document.createElement("div");
+    trustScore.className = "friend-trust-score-meter";
+    trustScore.append(createTrustScorePreview(friend.name || "This member", true));
+    trustSection.append(trustScore);
+    addText(trustSection, "h3", "trust-activity-subheading", "Activity by category");
+    const trustClassifications = document.createElement("div");
+    trustClassifications.className = "trust-classification-grid";
+    trustSection.append(trustClassifications);
+    addText(trustSection, "h3", "trust-activity-subheading", "Trust activity");
+    const trustRecords = document.createElement("div");
+    trustRecords.className = "trust-allegation-list";
+    trustSection.append(trustRecords);
+    friendProfileView.append(trustSection);
+    void loadFriendTrustDashboard(
+      friend.userId,
+      friend.name || "This member",
+      trustScore,
+      trustClassifications,
+      trustRecords,
+    );
     const postsHeading = addText(
       friendProfileView,
       "h2",
@@ -2719,15 +2749,58 @@ async function loadFriendProfile(friendId) {
   }
 }
 
-function createTrustScorePreview(profileName, compact = false) {
+async function loadFriendTrustDashboard(
+  userId,
+  name,
+  scoreContainer,
+  classificationsContainer,
+  recordsContainer,
+) {
+  try {
+    const response = await fetch(`/api/trust-score/dashboard?userId=${encodeURIComponent(userId)}`, {
+      headers: { accept: "application/json" },
+      cache: "no-store",
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || "This Trust Score could not be loaded.");
+    scoreContainer.replaceChildren(createTrustScorePreview(name, true, result.profile?.score));
+    renderTrustClassificationCards(
+      classificationsContainer,
+      mergeTrustClassificationSummaries(
+        result.positiveClassifications,
+        result.negativeClassifications || result.classifications,
+      ),
+    );
+    renderTrustRecords(
+      recordsContainer,
+      [...(result.recognitions || []), ...(result.allegations || [])].sort(
+        (left, right) => new Date(right.createdAt) - new Date(left.createdAt),
+      ),
+    );
+  } catch (error) {
+    scoreContainer.replaceChildren();
+    classificationsContainer.replaceChildren();
+    recordsContainer.replaceChildren(
+      addText(
+        document.createElement("div"),
+        "p",
+        "trust-score-error",
+        error.message || "This Trust Score could not be loaded.",
+      ),
+    );
+  }
+}
+
+function createTrustScorePreview(profileName, compact = false, scoreValue = 40) {
+  const scoreNumber = Math.max(1, Math.min(100, Number(scoreValue) || 40));
   const section = document.createElement("section");
   section.className = `profile-trust-score${compact ? " profile-trust-score-compact" : ""}`;
   section.setAttribute("aria-label", `${profileName}’s Trust Score`);
   const value = document.createElement("span");
   value.className = "profile-trust-score-value";
-  addText(value, "strong", "", "40");
+  addText(value, "strong", "", String(scoreNumber));
   addText(value, "span", "", "/100");
-  value.setAttribute("aria-label", "40 out of 100");
+  value.setAttribute("aria-label", `${scoreNumber} out of 100`);
   const heading = document.createElement("div");
   heading.className = "profile-trust-score-heading";
   addText(heading, "strong", "profile-trust-score-label", "Trust score");
@@ -2738,13 +2811,13 @@ function createTrustScorePreview(profileName, compact = false) {
   track.setAttribute("aria-label", `${profileName}’s Trust Score`);
   track.setAttribute("aria-valuemin", "1");
   track.setAttribute("aria-valuemax", "100");
-  track.setAttribute("aria-valuenow", "40");
+  track.setAttribute("aria-valuenow", String(scoreNumber));
   const fill = document.createElement("span");
   fill.className = "profile-trust-score-fill";
   fill.style.width = "0%";
   track.append(fill);
   requestAnimationFrame(() => {
-    fill.style.width = "40%";
+    fill.style.width = `${scoreNumber}%`;
   });
   const scale = document.createElement("div");
   scale.className = "profile-trust-score-scale";
@@ -2754,7 +2827,7 @@ function createTrustScorePreview(profileName, compact = false) {
     const current = addText(scale, "span", "profile-trust-score-current", "");
     current.append(document.createTextNode("Trust score "));
     const compactValue = document.createElement("strong");
-    compactValue.textContent = "40/100";
+    compactValue.textContent = `${scoreNumber}/100`;
     current.append(compactValue);
   }
   addText(scale, "span", "", "100");

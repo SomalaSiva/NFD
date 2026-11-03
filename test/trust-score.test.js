@@ -95,16 +95,22 @@ test("Trust Score exposes agreement-based, confirmed outcome tracking", () => {
   assert.match(normalizedHtml, /Everyone currently starts at 40 \/ 100/);
 });
 
-test("Every self and friend profile shows the same animated 40-point starter score", () => {
+test("Self and friend profiles show the score with a full audience-visible friend Trust dashboard", () => {
   assert.match(normalizedHtml, /id="profile-summary"[\s\S]*?id="profile-summary-content"/);
   assert.match(normalizedHtml, /id="profile-summary-score"/);
   assert.match(normalizedHtml, /profile-photo-camera[\s\S]*?for="profile-photo-file"/);
   assert.doesNotMatch(normalizedHtml, /Google account/);
   assert.doesNotMatch(normalizedHtml, /profile-photo-choose/);
-  assert.match(appJs, /"40"/);
-  assert.match(appJs, /aria-valuenow", "40"/);
+  assert.match(appJs, /scoreValue = 40/);
+  assert.match(appJs, /aria-valuenow", String\(scoreNumber\)/);
   assert.match(appJs, /createTrustScorePreview\(friend\.name/);
+  assert.match(appJs, /loadFriendTrustDashboard\([\s\S]*?friend\.userId/);
+  assert.match(appJs, /trustSection\.className = "friend-trust-dashboard trust-allegation-dashboard"/);
+  assert.match(appJs, /result\.positiveClassifications,[\s\S]*result\.negativeClassifications/);
+  assert.match(appJs, /audience-visible positive experiences and unverified allegations/i);
   assert.match(appJs, /profileSummaryScore\.replaceChildren\(createTrustScorePreview/);
+  assert.match(appJs, /About: \$\{experience\.trustReport\.subjectName/);
+  assert.match(appCss, /\.trust-feed-report \.trust-feed-report-detail[\s\S]*font-weight: 600/);
   assert.match(appCss, /grid-template-columns:\s*52px minmax\(0, 1fr\) minmax\(108px, 135px\)/);
   assert.match(appJs, /if \(compact\) section\.append\(track, scale\)/);
   assert.match(appJs, /profile-trust-score-current/);
