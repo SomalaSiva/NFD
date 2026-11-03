@@ -2071,9 +2071,16 @@ let trustPeopleSearchTimer;
 function renderTrustClassificationCards(container, classifications = {}) {
   if (!container) return;
   container.replaceChildren();
-  const entries = Object.values(classifications);
+  const entries = Object.values(classifications).filter((classification) => Number(classification.total) > 0);
   if (!entries.length) {
-    addText(container, "p", "trust-score-hint", "No classification totals are available yet.");
+    addText(
+      container,
+      "p",
+      "trust-score-hint",
+      container.id.includes("positive")
+        ? "No positive recognition has been recorded yet."
+        : "No allegations have been recorded for this profile yet.",
+    );
     return;
   }
   for (const classification of entries) {
