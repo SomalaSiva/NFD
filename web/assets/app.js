@@ -155,6 +155,7 @@ const loginPage = document.getElementById("login-page");
 const adminPage = document.getElementById("admin-page");
 const mainNav = document.getElementById("main-nav");
 const mainNavRow = document.getElementById("main-nav-row");
+const mobileBottomNav = document.getElementById("mobile-bottom-nav");
 const accountMenuWrap = document.getElementById("account-menu-wrap");
 const accountAdminLink = document.getElementById("account-admin-link");
 const ghostModeSetupLink = document.getElementById("ghost-mode-setup");
@@ -199,6 +200,24 @@ function setMainNavigationVisible(visible) {
   mainNavRow.hidden = !visible;
   accountMenuWrap.hidden = !visible;
   storiesTray.hidden = !visible;
+  mobileBottomNav.hidden = !visible;
+  document.body.classList.toggle("has-mobile-bottom-nav", visible);
+  updateMobileBottomNavigation();
+}
+function updateMobileBottomNavigation() {
+  if (!mobileBottomNav) return;
+  const path = location.pathname.replace(/\/$/, "") || "/";
+  const params = new URLSearchParams(location.search);
+  let active = "feed";
+  if (path === "/share") active = "post";
+  else if (path === "/profile" && (params.get("tab") === "friends" || params.has("friend")))
+    active = "friends";
+  else if (path === "/profile") active = "you";
+  mobileBottomNav.querySelectorAll("[data-mobile-nav]").forEach((link) => {
+    const selected = link.dataset.mobileNav === active;
+    if (selected) link.setAttribute("aria-current", "page");
+    else link.removeAttribute("aria-current");
+  });
 }
 let messageNavRefreshTimer;
 let SESSION_IDLE_LIMIT_MS = 4 * 60 * 1000;

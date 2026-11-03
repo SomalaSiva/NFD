@@ -82,8 +82,7 @@
       </div>
       <div class="topbar-navigation" id="main-nav-row" hidden>
         <nav class="shell top-actions" id="main-nav" aria-label="Main navigation" hidden>
-          <a class="feed-nav-link" href="/feed">Lore Feed</a
-          ><a href="/trust-score" id="trust-score-nav-link">Trust Score</a>
+          <a class="feed-nav-link" href="/feed">Lore Feed</a>
           <div class="nav-utility-links">
             <a class="messages-nav-link" id="messages-nav-link" href="/messages" aria-label="Notifications"
               >Notifications<span
@@ -94,6 +93,7 @@
               ></span
             ></a>
           </div>
+          <a href="/trust-score" id="trust-score-nav-link">Trust Score</a>
           <a class="nav-share-link" id="share-nav-link" href="/share"
             ><img src="/nfd-icon.png" alt="" aria-hidden="true" /><span>Drop your post</span></a
           >
@@ -2049,6 +2049,48 @@
         </button>
       </div>
     </dialog>
+    <nav class="mobile-bottom-nav" id="mobile-bottom-nav" aria-label="App shortcuts" hidden>
+      <a href="/feed" data-mobile-nav="feed">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path
+            d="m3.5 10 8.5-7 8.5 7v10a1 1 0 0 1-1 1h-5.5v-6.5h-4V21H4.5a1 1 0 0 1-1-1V10Z"
+            stroke="currentColor"
+            stroke-width="1.7"
+            stroke-linejoin="round"
+          />
+        </svg>
+        <span>Feed</span>
+      </a>
+      <a href="/profile?tab=friends" data-mobile-nav="friends">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path
+            d="M16 20v-1.5a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4V20M9.5 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7ZM17 4.3a3.5 3.5 0 0 1 0 6.8m1 3.5a4 4 0 0 1 3 3.9V20"
+            stroke="currentColor"
+            stroke-width="1.7"
+            stroke-linecap="round"
+          />
+        </svg>
+        <span>Friends</span>
+      </a>
+      <a href="/share" data-mobile-nav="post">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+        </svg>
+        <span>Post</span>
+      </a>
+      <a href="/profile" data-mobile-nav="you">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="12" cy="8" r="3.5" stroke="currentColor" stroke-width="1.7" />
+          <path
+            d="M5.2 20c.7-3.5 3.1-5.2 6.8-5.2s6.1 1.7 6.8 5.2"
+            stroke="currentColor"
+            stroke-width="1.7"
+            stroke-linecap="round"
+          />
+        </svg>
+        <span>You</span>
+      </a>
+    </nav>
     <script src="/assets/app.js" defer></script>
   </body>
 </html>
