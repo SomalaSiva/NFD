@@ -1220,7 +1220,6 @@ function renderFeed(experiences, { append = false, nextCursor = "" } = {}) {
     shared.innerHTML = "<strong>Shared</strong> ";
     shared.append(document.createTextNode(prettyDate(experience.createdAt)));
     meta.append(shared);
-    main.append(meta);
     card.append(main);
     if (experience.isMine) {
       const actions = document.createElement("div");
@@ -1386,6 +1385,7 @@ function renderFeed(experiences, { append = false, nextCursor = "" } = {}) {
     const full = document.createElement("details");
     full.className = "feed-full";
     addText(full, "summary", "", "Read the full story");
+    full.append(meta);
     addText(full, "p", "", experience.fullDescription || "No additional details were provided.");
     card.append(full);
     if (documents.length) {

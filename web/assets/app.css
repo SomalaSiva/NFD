@@ -1035,6 +1035,9 @@ textarea.control::placeholder {
   font-weight: 700;
   cursor: pointer;
 }
+.feed-full .feed-meta {
+  margin: 12px 0 0;
+}
 .feed-full p {
   margin: 10px 0 0;
   color: var(--ink);
