@@ -14,7 +14,6 @@ const trustSubjectInput = document.getElementById("trust-subject");
 const trustSubjectSearchInput = document.getElementById("trust-subject-search");
 const trustSubjectResults = document.getElementById("trust-subject-results");
 const trustSubjectSearchStatus = document.getElementById("trust-subject-search-status");
-const trustSubjectNotInNfd = document.getElementById("trust-subject-not-in-nfd");
 const trustSubjectField = document.getElementById("trust-subject-field");
 const trustClassFeedback = document.getElementById("trust-classification-feedback");
 let trustPostOptionsPromise;
@@ -814,7 +813,6 @@ async function loadTrustPostOptions() {
 function hideTrustSubjectResults() {
   trustSubjectResults.hidden = true;
   trustSubjectSearchInput.setAttribute("aria-expanded", "false");
-  trustSubjectNotInNfd.hidden = true;
 }
 function showTrustSubjectResults() {
   trustSubjectResults.hidden = false;
@@ -859,7 +857,13 @@ function renderTrustSubjectResults(people, query) {
     );
     status.setAttribute("role", "option");
     status.setAttribute("aria-disabled", "true");
-    trustSubjectNotInNfd.hidden = false;
+    const notInNfdOption = document.createElement("button");
+    notInNfdOption.type = "button";
+    notInNfdOption.className = "trust-profile-search-option trust-profile-search-not-in-nfd";
+    notInNfdOption.setAttribute("role", "option");
+    notInNfdOption.textContent = "Not in NFD — continue without a profile link";
+    notInNfdOption.addEventListener("click", chooseNotInNfd);
+    trustSubjectResults.append(notInNfdOption);
   }
   if (acceptedMatches.length) {
     trustSubjectSearchStatus.textContent = `${acceptedMatches.length} accepted NFD ${acceptedMatches.length === 1 ? "friend" : "friends"} found.`;
@@ -882,7 +886,6 @@ function scheduleTrustSubjectSearch() {
       : "",
   );
   trustClassFeedback.textContent = "";
-  trustSubjectNotInNfd.hidden = true;
   window.clearTimeout(trustSubjectSearchTimer);
   trustSubjectSearchController?.abort();
   if (query.length < 2) {
@@ -5302,7 +5305,6 @@ if (location.pathname === "/share") {
   trustSubjectSearchInput.addEventListener("keydown", (event) => {
     if (event.key === "Escape") hideTrustSubjectResults();
   });
-  trustSubjectNotInNfd.addEventListener("click", chooseNotInNfd);
   const editId = new URLSearchParams(location.search).get("edit");
   if (editId) {
     editingPostId = editId;
