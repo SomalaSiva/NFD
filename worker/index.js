@@ -72,6 +72,7 @@ const storyRoutes = createStoryRoutes({
 });
 const experienceRoutes = createExperienceRoutes({
   getCurrentUser,
+  ensureIdentityTables,
   ensureGhostTables,
   ensureStoryTables,
   ensureExperienceOptionColumns,

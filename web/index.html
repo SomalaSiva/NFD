@@ -645,13 +645,13 @@
                     class="control short-area"
                     id="short-description"
                     name="shortDescription"
-                    maxlength="240"
+                    maxlength="150"
                     placeholder="Give us the headline. Save the plot for below."
                     required
                   ></textarea>
                   <div class="char-row">
                     <span>The bit people can scan before committing to the full story.</span
-                    ><span class="count"><b id="short-char-count">0</b> / 240</span>
+                    ><span class="count"><b id="short-char-count">0</b> / 150</span>
                   </div>
                 </div>
               </div>
@@ -1345,6 +1345,14 @@
                 <a class="secondary-button" href="/share">Share an experience</a>
               </div>
               <div class="profile-post-list" id="profile-post-list" aria-live="polite"></div>
+              <button
+                class="secondary-button profile-load-more"
+                id="profile-post-load-more"
+                type="button"
+                hidden
+              >
+                Load more posts
+              </button>
             </section>
             <section
               id="profile-panel-friends"

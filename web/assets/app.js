@@ -438,7 +438,11 @@ let storedAgreementsLoading = false;
 const profileSummary = document.getElementById("profile-summary");
 const profilePostCount = document.getElementById("profile-post-count");
 const profilePostList = document.getElementById("profile-post-list");
+const profilePostLoadMore = document.getElementById("profile-post-load-more");
 const profileMessage = document.getElementById("profile-message");
+let profileNextCursor = null;
+let profileTotalPosts = 0;
+let profilePostsLoading = false;
 const friendRequestForm = document.getElementById("friend-request-form");
 const friendsFeedback = document.getElementById("friends-feedback");
 const friendSearchInput = document.getElementById("friend-search-query");
@@ -576,10 +580,10 @@ document.getElementById("capture-video-button").addEventListener("click", () => 
   }),
 );
 zone.addEventListener("drop", (event) => addFiles(event.dataTransfer.files));
-shortDescription.addEventListener(
-  "input",
-  () => (document.getElementById("short-char-count").textContent = shortDescription.value.length),
-);
+shortDescription.addEventListener("input", () => {
+  if (shortDescription.value.length > 150) shortDescription.value = shortDescription.value.slice(0, 150);
+  document.getElementById("short-char-count").textContent = shortDescription.value.length;
+});
 fullDescription.addEventListener(
   "input",
   () => (document.getElementById("full-char-count").textContent = fullDescription.value.length),
@@ -1066,6 +1070,11 @@ const feedVideoPosterObserver =
                 video.preload = "metadata";
                 delete video.dataset.capturePreview;
               }
+              if (video.dataset.videoSrc) {
+                video.src = video.dataset.videoSrc;
+                delete video.dataset.videoSrc;
+                video.load();
+              }
             }
             feedVideoPosterObserver.unobserve(entry.target);
           });
@@ -1174,10 +1183,18 @@ function renderFeed(experiences, { append = false, nextCursor = "" } = {}) {
     header.className = "feed-card-head";
     const titleGroup = document.createElement("div");
     titleGroup.className = "feed-title-group";
-    addText(titleGroup, "h2", "feed-category", experience.shortDescription || experience.experienceCategory);
-    addText(titleGroup, "span", "feed-experience-type", experience.experienceCategory || "Not provided");
-    header.append(titleGroup);
-    addText(header, "span", "feed-incident", experience.incidentCategory || "Not provided");
+    const categoryHeading = addText(
+      titleGroup,
+      "h2",
+      "feed-category",
+      experience.shortDescription || experience.experienceCategory,
+    );
+    categoryHeading.title = experience.shortDescription || experience.experienceCategory || "NFD post";
+    const headerLabels = document.createElement("div");
+    headerLabels.className = "feed-header-labels";
+    addText(headerLabels, "span", "feed-experience-type", experience.experienceCategory || "Not provided");
+    addText(headerLabels, "span", "feed-incident", experience.incidentCategory || "Not provided");
+    header.append(titleGroup, headerLabels);
     main.append(header);
     const author = document.createElement("div");
     author.className = `feed-author${experience.visibility === "anonymous" ? " anonymous" : ""}`;
@@ -1351,7 +1368,9 @@ function renderFeed(experiences, { append = false, nextCursor = "" } = {}) {
             delete video.dataset.previewPoster;
           }
         }
-        video.src = `/api/evidence/${encodeURIComponent(file.id)}`;
+        const videoUrl = `/api/evidence/${encodeURIComponent(file.id)}`;
+        if (feedVideoPosterObserver) video.dataset.videoSrc = videoUrl;
+        else video.src = videoUrl;
         if (!file.hasPreview) {
           video.dataset.capturePreview = "true";
           if (feedVideoPosterObserver) feedVideoPosterObserver.observe(videoItem);
@@ -1394,6 +1413,7 @@ function renderFeed(experiences, { append = false, nextCursor = "" } = {}) {
     renderEngagement(card, experience);
     feedList.append(card);
     fitIncidentBadge(card.querySelector(".feed-incident"));
+    enhanceFeedAllegationPolls(card);
   });
   feedLoadedCount += experiences.length;
   feedResultCount.textContent = `${countLabel} · Showing ${feedLoadedCount}${feedNextCursor ? "+" : ""}`;
@@ -1628,6 +1648,54 @@ function renderEngagement(card, experience) {
     }
   });
 }
+function enhanceFeedAllegationPolls(root) {
+  root.querySelectorAll(".feed-allegation-poll").forEach((poll) => {
+    const result = poll.querySelector(".feed-allegation-poll-result");
+    const voteButtons = [...poll.querySelectorAll("button")];
+    if (!result || !voteButtons.length || result.dataset.compactPoll === "true") return;
+
+    const row = document.createElement("div");
+    row.className = "feed-allegation-poll-row";
+    const choices = document.createElement("div");
+    choices.className = "feed-allegation-poll-choices";
+    voteButtons.forEach((button) => choices.append(button));
+
+    const summary = document.createElement("div");
+    summary.className = "feed-allegation-poll-summary";
+    const bar = document.createElement("div");
+    bar.className = "feed-allegation-poll-bar";
+    bar.setAttribute("role", "img");
+    const believe = document.createElement("span");
+    believe.className = "feed-allegation-poll-believe";
+    const disbelieve = document.createElement("span");
+    disbelieve.className = "feed-allegation-poll-disbelieve";
+    bar.append(believe, disbelieve);
+    summary.append(bar, result);
+    row.append(choices, summary);
+
+    const resultObserver = new MutationObserver(updatePollBar);
+    function updatePollBar() {
+      const percentages = [...result.textContent.matchAll(/(\d+(?:\.\d+)?)\s*%/g)].map((match) =>
+        Math.max(0, Math.min(100, Number(match[1]))),
+      );
+      const believePercent = percentages[0] ?? 0;
+      const disbelievePercent = percentages[1] ?? 0;
+      believe.style.width = `${believePercent}%`;
+      disbelieve.style.width = `${disbelievePercent}%`;
+      bar.setAttribute(
+        "aria-label",
+        `Believe ${believePercent} percent; don’t believe ${disbelievePercent} percent`,
+      );
+    }
+    result.dataset.compactPoll = "true";
+    resultObserver.observe(result, { childList: true, characterData: true, subtree: true });
+    updatePollBar();
+    const heading = poll.querySelector("h2, h3, [role=heading]");
+    if (heading?.parentElement === poll) heading.after(row);
+    else poll.prepend(row);
+  });
+}
+
 function setProfileMessage(message, isError = false) {
   profileMessage.textContent = message;
   profileMessage.classList.toggle("error", isError);
@@ -1734,25 +1802,29 @@ ghostProfileDeactivate.addEventListener("click", async () => {
 });
 ghostModeToggle.addEventListener("click", () => changeGhostMode(!currentGhostMode.active, ghostModeToggle));
 ghostModeExit.addEventListener("click", () => changeGhostMode(false, ghostModeExit));
-function renderProfile(data) {
+function renderProfile(data, { append = false } = {}) {
   const user = data.user || {};
   const displayName = user.name || user.email?.split("@")[0] || "NFD member";
-  document.getElementById("profile-intro").textContent =
-    user.provider === "ghost"
-      ? "This Ghost identity has its own friends, messages, and posts, separate from your personal NFD profile."
-      : "Your account details and the experiences you’ve shared. Your profile details are visible only to you.";
-  profileSummaryContent.replaceChildren();
-  setProfilePhotoEverywhere(user.photoUrl || "", displayName);
-  const identity = addText(profileSummaryContent, "div", "profile-identity", "");
-  addText(identity, "h2", "", displayName);
-  if (user.provider === "ghost" && user.ghostHandle) {
-    addText(identity, "p", "", `@${user.ghostHandle}`);
+  if (!append) {
+    document.getElementById("profile-intro").textContent =
+      user.provider === "ghost"
+        ? "This Ghost identity has its own friends, messages, and posts, separate from your personal NFD profile."
+        : "Your account details and the experiences you’ve shared. Your profile details are visible only to you.";
+    profileSummaryContent.replaceChildren();
+    setProfilePhotoEverywhere(user.photoUrl || "", displayName);
+    const identity = addText(profileSummaryContent, "div", "profile-identity", "");
+    addText(identity, "h2", "", displayName);
+    if (user.provider === "ghost" && user.ghostHandle) {
+      addText(identity, "p", "", `@${user.ghostHandle}`);
+    }
+    profileSummaryScore.replaceChildren(createTrustScorePreview(displayName, true));
+    profilePostList.replaceChildren();
+    profileTotalPosts = Number(data.total) || 0;
   }
-  profileSummaryScore.replaceChildren(createTrustScorePreview(displayName, true));
-  profilePostList.replaceChildren();
   const posts = data.experiences || [];
-  profilePostCount.textContent = `${data.total || 0} ${Number(data.total) === 1 ? "post" : "posts"} shared`;
-  if (!posts.length) {
+  profileNextCursor = data.nextCursor || null;
+  profilePostCount.textContent = `${profileTotalPosts} ${profileTotalPosts === 1 ? "post" : "posts"} shared`;
+  if (!posts.length && !append) {
     const empty = document.createElement("div");
     empty.className = "profile-empty";
     addText(empty, "strong", "", "Nothing here yet");
@@ -1763,6 +1835,7 @@ function renderProfile(data) {
     link.textContent = "Share an experience";
     empty.append(link);
     profilePostList.append(empty);
+    profilePostLoadMore.hidden = true;
     return;
   }
   posts.forEach((experience) => {
@@ -1823,22 +1896,107 @@ function renderProfile(data) {
     card.append(full);
     const evidence = experience.evidence || [];
     if (evidence.length) {
-      const files = document.createElement("div");
-      files.className = "profile-post-evidence";
-      evidence.forEach((file) => {
-        const link = document.createElement("a");
-        link.href = `/api/evidence/${encodeURIComponent(file.id)}`;
-        link.target = "_blank";
-        link.rel = "noopener noreferrer";
-        const label = file.contentType?.startsWith("video/")
-          ? "Play video"
-          : file.contentType?.startsWith("image/")
-            ? "View photo"
-            : "Open document";
-        link.textContent = `${label} · ${file.originalFilename}`;
-        files.append(link);
-      });
-      card.append(files);
+      const images = evidence.filter((file) => file.contentType?.startsWith("image/"));
+      const videos = evidence.filter((file) => file.contentType?.startsWith("video/"));
+      const documents = evidence.filter(
+        (file) => !file.contentType?.startsWith("image/") && !file.contentType?.startsWith("video/"),
+      );
+      if (images.length) {
+        const gallery = document.createElement("div");
+        gallery.className = `feed-photo-grid${images.length > 1 ? " multi scrollable" : ""}`;
+        gallery.setAttribute(
+          "aria-label",
+          images.length > 1 ? `${images.length} attached photos` : "Attached photo",
+        );
+        images.forEach((file) => {
+          const link = document.createElement("a");
+          const originalUrl = `/api/evidence/${encodeURIComponent(file.id)}`;
+          link.className = "feed-photo";
+          link.href = originalUrl;
+          link.target = "_blank";
+          link.rel = "noopener noreferrer";
+          const image = document.createElement("img");
+          image.className = "feed-photo-image";
+          image.alt = `Photo attached to ${experience.experienceCategory} post`;
+          image.loading = "lazy";
+          image.decoding = "async";
+          image.title = file.originalFilename;
+          image.src = file.hasPreview ? `${originalUrl}?variant=preview` : originalUrl;
+          image.addEventListener(
+            "load",
+            () => {
+              const isPortrait = image.naturalHeight > image.naturalWidth;
+              image.classList.toggle("is-portrait", isPortrait);
+              link.classList.toggle("is-portrait", isPortrait);
+            },
+            { once: true },
+          );
+          link.append(image);
+          gallery.append(link);
+        });
+        const media = document.createElement("div");
+        media.className = "feed-media profile-post-media";
+        media.append(gallery);
+        card.append(media);
+      }
+      if (videos.length) {
+        const gallery = document.createElement("div");
+        gallery.className = `feed-video-grid${videos.length === 1 ? " single" : ""}`;
+        videos.forEach((file) => {
+          const item = document.createElement("div");
+          item.className = "feed-video-item";
+          const video = document.createElement("video");
+          video.className = "feed-video";
+          video.controls = true;
+          video.preload = "none";
+          video.playsInline = true;
+          video.title = file.originalFilename;
+          video.poster = videoFallbackPoster;
+          if (file.hasPreview)
+            video.dataset.previewPoster = `/api/evidence/${encodeURIComponent(file.id)}?variant=preview`;
+          else video.dataset.capturePreview = "true";
+          video.dataset.videoSrc = `/api/evidence/${encodeURIComponent(file.id)}`;
+          video.addEventListener("loadedmetadata", () => {
+            item.classList.toggle("is-portrait", video.videoHeight > video.videoWidth);
+          });
+          if (!file.hasPreview)
+            video.addEventListener("loadedmetadata", () => captureFirstVideoFrame(video), { once: true });
+          item.append(video);
+          const playbackMessage = addText(
+            item,
+            "p",
+            "feed-video-error",
+            "This video could not be played. Its format or codec may not be supported by this browser.",
+          );
+          video.addEventListener("error", () => playbackMessage.classList.add("is-visible"));
+          gallery.append(item);
+          if (feedVideoPosterObserver) feedVideoPosterObserver.observe(item);
+          else {
+            if (file.hasPreview) video.poster = video.dataset.previewPoster;
+            else video.preload = "metadata";
+            video.src = video.dataset.videoSrc;
+            delete video.dataset.videoSrc;
+            video.load();
+          }
+        });
+        const media = document.createElement("div");
+        media.className = "feed-media profile-post-media";
+        media.append(gallery);
+        card.append(media);
+      }
+      if (documents.length) {
+        const files = document.createElement("div");
+        files.className = "profile-post-evidence";
+        documents.forEach((file) => {
+          const link = document.createElement("a");
+          link.href = `/api/evidence/${encodeURIComponent(file.id)}`;
+          link.target = "_blank";
+          link.rel = "noopener noreferrer";
+          link.textContent = `Open document · ${file.originalFilename}`;
+          files.append(link);
+        });
+        card.append(files);
+      }
     }
     const actions = document.createElement("div");
     actions.className = "profile-post-actions";
@@ -1869,9 +2027,9 @@ function renderProfile(data) {
         const result = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(result.error || "The post could not be deleted.");
         card.remove();
-        const remaining = profilePostList.querySelectorAll(".profile-post-card").length;
-        profilePostCount.textContent = `${remaining} ${remaining === 1 ? "post" : "posts"} shared`;
-        if (!remaining) {
+        profileTotalPosts = Math.max(0, profileTotalPosts - 1);
+        profilePostCount.textContent = `${profileTotalPosts} ${profileTotalPosts === 1 ? "post" : "posts"} shared`;
+        if (profileTotalPosts === 0) {
           const empty = document.createElement("div");
           empty.className = "profile-empty";
           addText(empty, "strong", "", "Nothing here yet");
@@ -1893,6 +2051,7 @@ function renderProfile(data) {
     card.append(actions);
     profilePostList.append(card);
   });
+  profilePostLoadMore.hidden = !profileNextCursor;
 }
 async function loadProfile() {
   const profileParams = new URLSearchParams(location.search);
@@ -1905,6 +2064,9 @@ async function loadProfile() {
   }
   profileOwnView.hidden = false;
   friendProfileView.hidden = true;
+  profileNextCursor = null;
+  profileTotalPosts = 0;
+  profilePostLoadMore.hidden = true;
   activateProfileTab(profileParams.get("tab") || "posts", false);
   if (profileParams.has("removed")) setFriendsFeedback("Friend removed.");
   profileMessage.hidden = true;
@@ -1944,6 +2106,32 @@ async function loadProfile() {
     message.setAttribute("role", "alert");
   }
 }
+profilePostLoadMore.addEventListener("click", async () => {
+  if (profilePostsLoading || !profileNextCursor) return;
+  profilePostsLoading = true;
+  profilePostLoadMore.disabled = true;
+  profilePostLoadMore.textContent = "Loading posts…";
+  setProfileMessage("");
+  try {
+    const params = new URLSearchParams({
+      before: profileNextCursor.createdAt,
+      beforeId: profileNextCursor.id,
+    });
+    const response = await fetch(`/api/profile?${params}`, {
+      headers: { accept: "application/json" },
+      cache: "no-store",
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || "More of your posts could not be loaded.");
+    renderProfile(result, { append: true });
+  } catch (error) {
+    setProfileMessage(error.message || "More of your posts could not be loaded.", true);
+  } finally {
+    profilePostsLoading = false;
+    profilePostLoadMore.disabled = false;
+    profilePostLoadMore.textContent = "Load more posts";
+  }
+});
 function activateProfileTab(tab, updateUrl = true) {
   const availableTabs = new Set(profileTabs.map((button) => button.dataset.profileTab));
   const activeTab = availableTabs.has(tab) ? tab : "posts";
@@ -5458,8 +5646,10 @@ document.getElementById("confirm-review").addEventListener("click", async (event
         apply.className = "secondary-button";
         apply.textContent = "Use the suggested wording";
         apply.addEventListener("click", () => {
-          if (result.moderation.suggestedShortDescription)
+          if (result.moderation.suggestedShortDescription) {
             shortDescription.value = result.moderation.suggestedShortDescription;
+            shortDescription.dispatchEvent(new Event("input", { bubbles: true }));
+          }
           if (result.moderation.suggestedFullDescription)
             fullDescription.value = result.moderation.suggestedFullDescription;
           backToEdit();

@@ -2,7 +2,6 @@ export function createExperienceRoutes(services) {
   const {
     getCurrentUser,
     ensureGhostTables,
-    ensureStoryTables,
     ensureExperienceOptionColumns,
     ensureEngagementTables,
     recordActivity,
@@ -17,6 +16,7 @@ export function createExperienceRoutes(services) {
   const MAX_FILE_BYTES = 25 * 1024 * 1024;
   const MAX_TOTAL_BYTES = 50 * 1024 * 1024;
   const EXPERIENCE_PAGE_SIZE = 20;
+  const PROFILE_PAGE_SIZE = 20;
   const INCIDENT_CATEGORIES_BY_EXPERIENCE = {
     "Personal relationships": [
       "Trust broken or deception",
@@ -280,32 +280,67 @@ export function createExperienceRoutes(services) {
     if (!user) return json({ error: "Sign in to view your profile." }, 401);
     if (!env.DB) return json({ error: "Your NFD profile is not available right now." }, 503);
     try {
-      await ensureExperienceOptionColumns(env);
-      await ensureStoryTables(env);
-      const profilePhoto = await env.DB.prepare("SELECT profile_photo_key FROM nfd_users WHERE id = ?")
-        .bind(user.id)
-        .first();
-      const result = await env.DB.prepare(
+      const url = new URL(request.url);
+      const before = url.searchParams.get("before");
+      const beforeId = url.searchParams.get("beforeId");
+      const hasCursor = before !== null || beforeId !== null;
+      if (
+        hasCursor &&
+        (!before || !beforeId || !Number.isFinite(Date.parse(before)) || !/^[0-9a-f-]{36}$/i.test(beforeId))
+      ) {
+        return json(
+          { error: "That profile page could not be loaded. Refresh your profile and try again." },
+          400,
+        );
+      }
+      const cursorCondition = hasCursor ? "AND (created_at < ? OR (created_at = ? AND id < ?))" : "";
+      const postBindings = hasCursor
+        ? [user.id, "shared", before, before, beforeId, PROFILE_PAGE_SIZE + 1]
+        : [user.id, "shared", PROFILE_PAGE_SIZE + 1];
+      const postsQuery = env.DB.prepare(
         `
       SELECT id, experience_category, incident_category, place, place_category,
         location_details, incident_time, incident_time_end, incident_time_zone, short_description,
         full_description, visibility, comments_enabled, created_at
       FROM experiences
       WHERE author_id = ? AND status = ?
-      ORDER BY created_at DESC
-      LIMIT 100
+        ${cursorCondition}
+      ORDER BY created_at DESC, id DESC
+      LIMIT ?
     `,
       )
-        .bind(user.id, "shared")
+        .bind(...postBindings)
         .all();
-      const experiences = result.results || [];
+      let profilePhoto = null;
+      let totalResult = null;
+      let result;
+      if (hasCursor) {
+        result = await postsQuery;
+      } else {
+        [profilePhoto, totalResult, result] = await Promise.all([
+          env.DB.prepare("SELECT profile_photo_key FROM nfd_users WHERE id = ? LIMIT 1")
+            .bind(user.id)
+            .first(),
+          env.DB.prepare("SELECT COUNT(*) AS total FROM experiences WHERE author_id = ? AND status = ?")
+            .bind(user.id, "shared")
+            .first(),
+          postsQuery,
+        ]);
+      }
+      const pageRows = result.results || [];
+      const hasMore = pageRows.length > PROFILE_PAGE_SIZE;
+      const experiences = pageRows.slice(0, PROFILE_PAGE_SIZE);
+      const nextCursor =
+        hasMore && experiences.length
+          ? { createdAt: experiences.at(-1).created_at, id: experiences.at(-1).id }
+          : null;
       const evidenceByExperience = new Map();
       if (experiences.length) {
         const ids = experiences.map((experience) => experience.id);
         const placeholders = ids.map(() => "?").join(", ");
         const evidenceResult = await env.DB.prepare(
           `
-        SELECT id, experience_id, original_filename, content_type, size_bytes
+        SELECT id, experience_id, original_filename, content_type, size_bytes, preview_object_key
         FROM experience_evidence
         WHERE experience_id IN (${placeholders})
         ORDER BY created_at ASC
@@ -320,6 +355,7 @@ export function createExperienceRoutes(services) {
             originalFilename: file.original_filename,
             contentType: file.content_type,
             sizeBytes: file.size_bytes,
+            hasPreview: Boolean(file.preview_object_key),
           });
           evidenceByExperience.set(file.experience_id, files);
         }
@@ -334,7 +370,8 @@ export function createExperienceRoutes(services) {
             ? `/api/profile-photo/${encodeURIComponent(user.id)}?v=${Date.now()}`
             : "",
         },
-        total: experiences.length,
+        total: Number(totalResult?.total) || 0,
+        nextCursor,
         experiences: experiences.map((experience) => ({
           id: experience.id,
           experienceCategory: experience.experience_category,
@@ -486,7 +523,7 @@ export function createExperienceRoutes(services) {
       incidentTimeEnd: textField(form, "incidentTimeEndUtc", 40),
       incidentTimeZone: textField(form, "incidentTimeZone", 80) || "UTC",
       locationDetails: textField(form, "locationDetail", 300),
-      shortDescription: textField(form, "shortDescription", 240),
+      shortDescription: textField(form, "shortDescription", 150),
       fullDescription: textField(form, "fullDescription", 4000),
       visibility: textField(form, "visibility", 20) || "public",
     };
@@ -590,7 +627,7 @@ export function createExperienceRoutes(services) {
               moderation: {
                 suggestedShortDescription: String(result.review.suggestedShortDescription || "").slice(
                   0,
-                  240,
+                  150,
                 ),
                 suggestedFullDescription: String(result.review.suggestedFullDescription || "").slice(0, 4000),
                 flaggedFiles: [],
@@ -965,7 +1002,7 @@ export function createExperienceRoutes(services) {
       incidentTimeEnd: textField(form, "incidentTimeEndUtc", 40),
       incidentTimeZone: textField(form, "incidentTimeZone", 80) || "UTC",
       locationDetails: textField(form, "locationDetail", 300),
-      shortDescription: textField(form, "shortDescription", 240),
+      shortDescription: textField(form, "shortDescription", 150),
       fullDescription: textField(form, "fullDescription", 4000),
       visibility: textField(form, "visibility", 20) || "public",
     };
@@ -1076,7 +1113,7 @@ export function createExperienceRoutes(services) {
             error:
               result.review.reviewNote.slice(0, 600) || "This draft needs a change before it can be shared.",
             moderation: {
-              suggestedShortDescription: String(result.review.suggestedShortDescription || "").slice(0, 240),
+              suggestedShortDescription: String(result.review.suggestedShortDescription || "").slice(0, 150),
               suggestedFullDescription: String(result.review.suggestedFullDescription || "").slice(0, 4000),
               flaggedFiles: flagged,
             },

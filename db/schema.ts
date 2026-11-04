@@ -104,6 +104,7 @@ export const experiences = sqliteTable(
   },
   (table) => [
     index("experiences_author_created_idx").on(table.authorId, table.createdAt),
+    index("experiences_author_status_page_idx").on(table.authorId, table.status, table.createdAt, table.id),
     index("experiences_visibility_created_idx").on(table.visibility, table.createdAt),
     index("experiences_status_created_idx").on(table.status, table.createdAt),
   ],
