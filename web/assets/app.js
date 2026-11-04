@@ -386,6 +386,127 @@ function startSessionActivityTracking() {
 }
 const accountMenuButton = document.getElementById("account-menu-button");
 const accountMenu = document.getElementById("account-menu");
+const soundFeedbackToggle = document.getElementById("sound-feedback-toggle");
+const hapticFeedbackToggle = document.getElementById("haptic-feedback-toggle");
+const TOUCH_FEEDBACK_STORAGE_KEY = "nfd-touch-feedback-v1";
+const prefersTouchFeedback = window.matchMedia?.("(pointer: coarse)").matches ?? false;
+const supportsTouchVibration = typeof navigator.vibrate === "function";
+let touchFeedbackPreferences = {
+  sound: prefersTouchFeedback,
+  haptics: prefersTouchFeedback && supportsTouchVibration,
+};
+let touchFeedbackAudioContext;
+try {
+  const savedPreferences = JSON.parse(localStorage.getItem(TOUCH_FEEDBACK_STORAGE_KEY) || "null");
+  if (savedPreferences && typeof savedPreferences === "object") {
+    touchFeedbackPreferences = {
+      sound: typeof savedPreferences.sound === "boolean" ? savedPreferences.sound : prefersTouchFeedback,
+      haptics:
+        supportsTouchVibration && typeof savedPreferences.haptics === "boolean"
+          ? savedPreferences.haptics
+          : prefersTouchFeedback && supportsTouchVibration,
+    };
+  }
+} catch {
+  // Keep device-appropriate defaults when browser storage is unavailable.
+}
+function saveTouchFeedbackPreferences() {
+  try {
+    localStorage.setItem(TOUCH_FEEDBACK_STORAGE_KEY, JSON.stringify(touchFeedbackPreferences));
+  } catch {
+    // The controls still work for this page when browser storage is unavailable.
+  }
+  soundFeedbackToggle.setAttribute("aria-pressed", String(touchFeedbackPreferences.sound));
+  soundFeedbackToggle.textContent = `Tap sounds: ${touchFeedbackPreferences.sound ? "On" : "Off"}`;
+  hapticFeedbackToggle.disabled = !supportsTouchVibration;
+  hapticFeedbackToggle.setAttribute(
+    "aria-pressed",
+    String(supportsTouchVibration && touchFeedbackPreferences.haptics),
+  );
+  hapticFeedbackToggle.textContent = supportsTouchVibration
+    ? `Touch vibration: ${touchFeedbackPreferences.haptics ? "On" : "Off"}`
+    : "Touch vibration unavailable";
+}
+function playTouchFeedback(kind = "tap") {
+  if (!touchFeedbackPreferences.sound) return;
+  try {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return;
+    touchFeedbackAudioContext ??= new AudioContextClass();
+    if (touchFeedbackAudioContext.state === "suspended") {
+      touchFeedbackAudioContext.resume().catch(() => {});
+    }
+    const now = touchFeedbackAudioContext.currentTime;
+    const oscillator = touchFeedbackAudioContext.createOscillator();
+    const gain = touchFeedbackAudioContext.createGain();
+    const duration = kind === "swipe" ? 0.12 : 0.055;
+    oscillator.type = "sine";
+    oscillator.frequency.setValueAtTime(kind === "swipe" ? 360 : 620, now);
+    if (kind === "swipe") oscillator.frequency.exponentialRampToValueAtTime(540, now + duration);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(kind === "swipe" ? 0.018 : 0.012, now + 0.012);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+    oscillator.connect(gain);
+    gain.connect(touchFeedbackAudioContext.destination);
+    oscillator.start(now);
+    oscillator.stop(now + duration + 0.01);
+  } catch {
+    // Sound is optional; audio restrictions must never block app interactions.
+  }
+}
+function vibrateForTouch(kind = "tap") {
+  if (!touchFeedbackPreferences.haptics || typeof navigator.vibrate !== "function") return;
+  try {
+    navigator.vibrate(kind === "swipe" ? 16 : 9);
+  } catch {
+    // Unsupported haptics are silently ignored.
+  }
+}
+soundFeedbackToggle.addEventListener("click", () => {
+  touchFeedbackPreferences.sound = !touchFeedbackPreferences.sound;
+  saveTouchFeedbackPreferences();
+});
+hapticFeedbackToggle.addEventListener("click", () => {
+  touchFeedbackPreferences.haptics = !touchFeedbackPreferences.haptics;
+  saveTouchFeedbackPreferences();
+  vibrateForTouch("tap");
+});
+saveTouchFeedbackPreferences();
+let swipeStartPoint;
+document.addEventListener(
+  "pointerdown",
+  (event) => {
+    if (event.isPrimary && event.pointerType === "touch") swipeStartPoint = { x: event.clientX, y: event.clientY };
+  },
+  { passive: true },
+);
+document.addEventListener(
+  "pointerup",
+  (event) => {
+    if (!swipeStartPoint) return;
+    const distanceX = event.clientX - swipeStartPoint.x;
+    const distanceY = event.clientY - swipeStartPoint.y;
+    swipeStartPoint = undefined;
+    if (Math.abs(distanceX) < 56 || Math.abs(distanceX) < Math.abs(distanceY) * 1.35) return;
+    playTouchFeedback("swipe");
+    vibrateForTouch("swipe");
+  },
+  { passive: true },
+);
+document.addEventListener("pointercancel", () => (swipeStartPoint = undefined), { passive: true });
+document.addEventListener(
+  "click",
+  (event) => {
+    if (!event.isTrusted || !(event.target instanceof Element)) return;
+    if (
+      event.target.closest("button, a[href], [role='button'], input[type='checkbox'], input[type='radio']")
+    ) {
+      playTouchFeedback("tap");
+      vibrateForTouch("tap");
+    }
+  },
+  true,
+);
 function closeAccountMenu() {
   accountMenu.hidden = true;
   accountMenuButton.setAttribute("aria-expanded", "false");
