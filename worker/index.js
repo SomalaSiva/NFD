@@ -75,6 +75,7 @@ const storyRoutes = createStoryRoutes({
 });
 const experienceRoutes = createExperienceRoutes({
   getCurrentUser,
+  ensureIdentityTables,
   ensureGhostTables,
   ensureStoryTables,
   ensureExperienceOptionColumns,
@@ -428,6 +429,9 @@ const worker = {
     if (request.method === "GET" && url.pathname === "/api/profile") {
       return experienceRoutes.getProfile(request, env);
     }
+    if (request.method === "PUT" && url.pathname === "/api/profile") {
+      return experienceRoutes.updateProfile(request, env);
+    }
     const ownExperienceMatch = url.pathname.match(/^\/api\/experiences\/([0-9a-f-]{36})$/i);
     if (request.method === "GET" && ownExperienceMatch) {
       return experienceRoutes.getOwnExperience(request, env, ownExperienceMatch[1]);
@@ -557,7 +561,7 @@ async function finishGoogleSignIn(request, env) {
       `
       INSERT INTO nfd_users (id, provider, provider_subject, email, display_name, created_at, updated_at)
       VALUES (?, 'google', ?, ?, ?, ?, ?)
-      ON CONFLICT(id) DO UPDATE SET email = excluded.email, display_name = excluded.display_name, updated_at = excluded.updated_at
+      ON CONFLICT(id) DO UPDATE SET email = excluded.email, updated_at = excluded.updated_at
     `,
     )
       .bind(userId, claims.sub, claims.email.toLowerCase(), claims.name || null, now, now)

@@ -22,20 +22,24 @@ export function createTrustScoreRoutes({
       const result = await env.DB.prepare(
         `
         SELECT u.id, COALESCE(NULLIF(trim(u.display_name), ''), 'NFD member') AS name,
-          u.profile_photo_key
+          u.username, u.profile_photo_key
         FROM nfd_users u
         WHERE u.active = 1 AND u.provider != 'ghost'
-          AND (instr(lower(COALESCE(u.display_name, '')), lower(?)) > 0 OR instr(lower(u.id), lower(?)) > 0)
-        ORDER BY CASE WHEN lower(u.display_name) = lower(?) THEN 0 ELSE 1 END, lower(u.display_name)
+          AND (instr(lower(COALESCE(u.display_name, '')), lower(?)) > 0
+            OR instr(lower(COALESCE(u.username, '')), lower(?)) > 0
+            OR instr(lower(u.id), lower(?)) > 0)
+        ORDER BY CASE WHEN lower(u.display_name) = lower(?)
+          OR lower(u.username) = lower(?) THEN 0 ELSE 1 END, lower(u.display_name)
         LIMIT 12
       `,
       )
-        .bind(query, query, query)
+        .bind(query, query, query, query, query)
         .all();
       return json({
         people: (result.results || []).map((person) => ({
           userId: person.id,
           name: person.name,
+          username: person.username || "",
           photoUrl: person.profile_photo_key ? `/api/profile-photo/${encodeURIComponent(person.id)}` : "",
         })),
       });

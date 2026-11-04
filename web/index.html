@@ -78,7 +78,8 @@
               ><a href="/profile?ghost=setup" id="ghost-mode-setup" hidden>Set up Ghost mode</a
               ><button type="button" id="ghost-mode-toggle" hidden>Turn on Ghost mode</button
               ><button type="button" id="sound-feedback-toggle" aria-pressed="false">Tap sounds: Off</button
-              ><button type="button" id="haptic-feedback-toggle" aria-pressed="false">Touch vibration: Off</button
+              ><button type="button" id="haptic-feedback-toggle" aria-pressed="false">
+                Touch vibration: Off</button
               ><a href="/admin" id="account-admin-link" hidden>Admin</a
               ><a href="/auth/signout?return_to=%2Flogin" target="_top">Sign out</a>
             </div>
@@ -1233,8 +1234,8 @@
                 <div class="eyebrow">Your NFD account</div>
                 <h1 id="profile-heading">Your profile</h1>
                 <p class="intro" id="profile-intro">
-                  Your account details and the experiences you’ve shared. Your profile details are visible
-                  only to you.
+                  Your display name, username, and bio are visible on your NFD profile. Your email and sign-in
+                  details stay private.
                 </p>
               </div>
             </div>
@@ -1279,6 +1280,63 @@
                 role="status"
                 aria-live="polite"
               ></p>
+            </section>
+            <section
+              class="profile-details-panel"
+              id="profile-details-panel"
+              aria-labelledby="profile-details-heading"
+              hidden
+            >
+              <div class="profile-details-heading">
+                <h2 id="profile-details-heading">Profile details</h2>
+                <p>Choose the name, username, and short bio people see on NFD.</p>
+              </div>
+              <form id="profile-details-form" class="profile-details-form">
+                <label for="profile-display-name">Display name</label>
+                <input
+                  class="control"
+                  id="profile-display-name"
+                  name="displayName"
+                  maxlength="64"
+                  required
+                  autocomplete="name"
+                />
+                <label for="profile-username">Username <span class="optional">Optional</span></label>
+                <input
+                  class="control"
+                  id="profile-username"
+                  name="username"
+                  maxlength="31"
+                  placeholder="yourname"
+                  autocomplete="username"
+                  autocapitalize="none"
+                  spellcheck="false"
+                />
+                <p class="profile-field-hint">
+                  Your unique @username helps people find you. Use 3–30 letters, numbers, periods, or
+                  underscores.
+                </p>
+                <label for="profile-bio">Bio <span class="optional">Optional</span></label>
+                <textarea
+                  class="control"
+                  id="profile-bio"
+                  name="bio"
+                  maxlength="160"
+                  rows="3"
+                  placeholder="A little about you"
+                ></textarea>
+                <div class="profile-details-actions">
+                  <span id="profile-bio-count" class="profile-field-hint">0/160</span>
+                  <button class="submit" type="submit" id="profile-details-save">Save profile</button>
+                </div>
+                <p
+                  class="profile-details-feedback"
+                  id="profile-details-feedback"
+                  role="status"
+                  aria-live="polite"
+                  hidden
+                ></p>
+              </form>
             </section>
             <section class="ghost-panel" id="ghost-settings" aria-labelledby="ghost-settings-heading" hidden>
               <h2 id="ghost-settings-heading">Ghost mode</h2>

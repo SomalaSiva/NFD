@@ -135,6 +135,14 @@ const profilePhotoFeedback = document.getElementById("profile-photo-feedback");
 const profilePhotoPreview = document.getElementById("profile-photo-preview");
 const profileSummaryContent = document.getElementById("profile-summary-content");
 const profileSummaryScore = document.getElementById("profile-summary-score");
+const profileDetailsPanel = document.getElementById("profile-details-panel");
+const profileDetailsForm = document.getElementById("profile-details-form");
+const profileDisplayNameInput = document.getElementById("profile-display-name");
+const profileUsernameInput = document.getElementById("profile-username");
+const profileBioInput = document.getElementById("profile-bio");
+const profileBioCount = document.getElementById("profile-bio-count");
+const profileDetailsSave = document.getElementById("profile-details-save");
+const profileDetailsFeedback = document.getElementById("profile-details-feedback");
 const accountProfilePhoto = document.getElementById("account-profile-photo");
 const feedState = document.getElementById("feed-state");
 const feedPlaceSearch = document.getElementById("feed-place-search");
@@ -476,7 +484,8 @@ let swipeStartPoint;
 document.addEventListener(
   "pointerdown",
   (event) => {
-    if (event.isPrimary && event.pointerType === "touch") swipeStartPoint = { x: event.clientX, y: event.clientY };
+    if (event.isPrimary && event.pointerType === "touch")
+      swipeStartPoint = { x: event.clientX, y: event.clientY };
   },
   { passive: true },
 );
@@ -975,7 +984,7 @@ function renderTrustSubjectResults(people, query) {
     option.type = "button";
     option.className = "trust-profile-search-option";
     option.setAttribute("role", "option");
-    option.textContent = person.name;
+    option.textContent = person.username ? `${person.name} · @${person.username}` : person.name;
     option.addEventListener("click", () => selectTrustSubject(person));
     trustSubjectResults.append(option);
   }
@@ -1550,9 +1559,7 @@ function renderFeed(experiences, { append = false, nextCursor = "" } = {}) {
       author,
       "span",
       "",
-      experience.visibility === "anonymous"
-        ? "Anonymous"
-        : experience.authorName || "NFD member",
+      experience.visibility === "anonymous" ? "Anonymous" : experience.authorName || "NFD member",
     );
     titleGroup.append(author);
     const postContext = document.createElement("div");
@@ -2220,13 +2227,25 @@ function renderProfile(data) {
   document.getElementById("profile-intro").textContent =
     user.provider === "ghost"
       ? "This Ghost identity has its own friends, messages, and posts, separate from your personal NFD profile."
-      : "Your account details and the experiences you’ve shared. Your profile details are visible only to you.";
+      : "Your display name, username, and bio are visible on your NFD profile. Your email and sign-in details stay private.";
   profileSummaryContent.replaceChildren();
   setProfilePhotoEverywhere(user.photoUrl || "", displayName);
   const identity = addText(profileSummaryContent, "div", "profile-identity", "");
   addText(identity, "h2", "", displayName);
   if (user.provider === "ghost" && user.ghostHandle) {
-    addText(identity, "p", "", `@${user.ghostHandle}`);
+    addText(identity, "p", "profile-identity-handle", `@${user.ghostHandle}`);
+  } else if (user.username) {
+    addText(identity, "p", "profile-identity-handle", `@${user.username}`);
+  }
+  if (user.bio) addText(identity, "p", "profile-identity-bio", user.bio);
+  profileDetailsPanel.hidden = user.provider === "ghost";
+  if (user.provider !== "ghost") {
+    profileDisplayNameInput.value = user.name || "";
+    profileUsernameInput.value = user.username || "";
+    profileBioInput.value = user.bio || "";
+    profileBioCount.textContent = `${profileBioInput.value.length}/160`;
+    profileDetailsFeedback.hidden = true;
+    profileDetailsFeedback.textContent = "";
   }
   profileSummaryScore.replaceChildren(createTrustScorePreview(displayName, true));
   profilePostList.replaceChildren();
@@ -2759,7 +2778,7 @@ async function searchTrustPeople() {
       option.type = "button";
       option.className = "trust-profile-search-option";
       option.setAttribute("role", "option");
-      option.textContent = person.name;
+      option.textContent = person.username ? `${person.name} · @${person.username}` : person.name;
       option.addEventListener("click", () => {
         trustProfileSearch.value = person.name;
         trustProfileSearchResults.hidden = true;
@@ -2853,8 +2872,13 @@ async function loadFriendProfile(friendId) {
       identity,
       "p",
       "",
-      friend.provider === "ghost" ? `Ghost profile · @${friend.ghostHandle}` : "NFD friend",
+      friend.provider === "ghost"
+        ? `Ghost profile · @${friend.ghostHandle}`
+        : friend.username
+          ? `NFD friend · @${friend.username}`
+          : "NFD friend",
     );
+    if (friend.bio) addText(identity, "p", "friend-profile-bio", friend.bio);
     header.append(avatar, identity);
     const actions = document.createElement("div");
     actions.className = "friend-profile-actions";
@@ -3667,6 +3691,40 @@ profilePhotoFile.addEventListener("change", () => {
   profilePhotoFeedback.textContent = "";
   profilePhotoSave.disabled = !file;
   profilePhotoSave.hidden = !file;
+});
+profileBioInput.addEventListener("input", () => {
+  profileBioCount.textContent = `${profileBioInput.value.length}/160`;
+});
+profileDetailsForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  profileDetailsSave.disabled = true;
+  profileDetailsFeedback.hidden = false;
+  profileDetailsFeedback.classList.remove("error");
+  profileDetailsFeedback.textContent = "Saving your profile…";
+  try {
+    const response = await fetch("/api/profile", {
+      method: "PUT",
+      headers: { "content-type": "application/json", accept: "application/json" },
+      body: JSON.stringify({
+        displayName: profileDisplayNameInput.value,
+        username: profileUsernameInput.value,
+        bio: profileBioInput.value,
+      }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || "Your profile could not be updated.");
+    const feedback = profileDetailsFeedback;
+    await loadProfile();
+    feedback.hidden = false;
+    feedback.classList.remove("error");
+    feedback.textContent = "Profile updated.";
+  } catch (error) {
+    profileDetailsFeedback.hidden = false;
+    profileDetailsFeedback.classList.add("error");
+    profileDetailsFeedback.textContent = error.message;
+  } finally {
+    profileDetailsSave.disabled = false;
+  }
 });
 document.querySelector(".profile-photo-camera")?.addEventListener("keydown", (event) => {
   if (event.key !== "Enter" && event.key !== " ") return;

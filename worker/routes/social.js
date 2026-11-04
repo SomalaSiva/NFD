@@ -173,7 +173,7 @@ export function createSocialRoutes(services) {
         `
         SELECT f.id AS relationship_id, u.id AS user_id,
           COALESCE(NULLIF(trim(u.display_name), ''), 'NFD member') AS name,
-          u.provider, gp.handle AS ghost_handle, u.profile_photo_key
+          u.provider, gp.handle AS ghost_handle, u.username, u.bio, u.profile_photo_key
         FROM nfd_friend_requests f
         INNER JOIN nfd_users u ON u.id = CASE WHEN f.from_user_id = ? THEN f.to_user_id ELSE f.from_user_id END
         LEFT JOIN nfd_ghost_profiles gp ON gp.ghost_user_id = u.id AND gp.active = 1
@@ -228,6 +228,8 @@ export function createSocialRoutes(services) {
           relationshipId: friend.relationship_id,
           userId: friend.user_id,
           name: friend.name,
+          username: friend.username || "",
+          bio: friend.bio || "",
           provider: friend.provider === "ghost" ? "ghost" : "member",
           ghostHandle: friend.provider === "ghost" ? friend.ghost_handle || "" : "",
           photoUrl: friend.profile_photo_key
@@ -477,11 +479,12 @@ export function createSocialRoutes(services) {
       await ensureGhostTables(env);
       const result = await env.DB.prepare(
         `
-      SELECT u.id, COALESCE(NULLIF(trim(u.display_name), ''), 'NFD member') AS display_name, p.handle
+      SELECT u.id, COALESCE(NULLIF(trim(u.display_name), ''), 'NFD member') AS display_name, u.username, p.handle
       FROM nfd_users u
       LEFT JOIN nfd_ghost_profiles p ON p.ghost_user_id = u.id AND p.active = 1
       WHERE u.id != ? AND u.active = 1 AND (u.provider != 'ghost' OR p.ghost_user_id IS NOT NULL)
         AND (instr(lower(COALESCE(u.display_name, '')), lower(?)) > 0
+          OR instr(lower(COALESCE(u.username, '')), lower(?)) > 0
           OR instr(lower(substr(u.email, 1, instr(u.email, '@') - 1)), lower(?)) = 1
           OR instr(lower(COALESCE(p.handle, '')), lower(?)) = 1)
         AND NOT EXISTS (
@@ -489,17 +492,19 @@ export function createSocialRoutes(services) {
           WHERE f.status IN ('pending', 'accepted')
             AND ((f.from_user_id = ? AND f.to_user_id = u.id) OR (f.from_user_id = u.id AND f.to_user_id = ?))
         )
-      ORDER BY CASE WHEN instr(lower(COALESCE(u.display_name, '')), lower(?)) = 1 THEN 0 ELSE 1 END,
+      ORDER BY CASE WHEN instr(lower(COALESCE(u.display_name, '')), lower(?)) = 1
+        OR instr(lower(COALESCE(u.username, '')), lower(?)) = 1 THEN 0 ELSE 1 END,
         lower(COALESCE(NULLIF(trim(u.display_name), ''), 'NFD member'))
       LIMIT 8
     `,
       )
-        .bind(user.id, query, query, query, user.id, user.id, query)
+        .bind(user.id, query, query, query, query, user.id, user.id, query, query)
         .all();
       return json({
         suggestions: (result.results || []).map((row) => ({
           id: row.id,
           name: row.display_name,
+          username: row.username || "",
           handle: row.handle || "",
         })),
       });
@@ -519,23 +524,27 @@ export function createSocialRoutes(services) {
       await ensureGhostTables(env);
       const result = await env.DB.prepare(
         `
-        SELECT u.display_name, p.handle
+        SELECT u.display_name, u.username, p.handle
         FROM nfd_users u
         LEFT JOIN nfd_ghost_profiles p ON p.ghost_user_id = u.id AND p.active = 1
         WHERE u.id != ? AND ${availableIdentitySql}
           AND (instr(lower(COALESCE(u.display_name, '')), lower(?)) > 0
+            OR instr(lower(COALESCE(u.username, '')), lower(?)) > 0
             OR instr(lower(COALESCE(p.handle, '')), lower(?)) > 0)
-        ORDER BY CASE WHEN instr(lower(COALESCE(u.display_name, '')), lower(?)) = 1 THEN 0 ELSE 1 END,
+        ORDER BY CASE WHEN instr(lower(COALESCE(u.display_name, '')), lower(?)) = 1
+          OR instr(lower(COALESCE(u.username, '')), lower(?)) = 1 THEN 0 ELSE 1 END,
           lower(COALESCE(NULLIF(trim(u.display_name), ''), 'NFD member'))
         LIMIT 8
       `,
       )
-        .bind(user.id, query, query, query)
+        .bind(user.id, query, query, query, query, query)
         .all();
       const suggestions = [];
       for (const row of result.results || []) {
         const name = row.display_name?.trim() || "NFD member";
         suggestions.push({ value: name, label: "NFD member" });
+        if (row.username)
+          suggestions.push({ value: `@${row.username}`, label: `${name} · @${row.username}` });
         if (row.handle) suggestions.push({ value: `@${row.handle}`, label: `${name} · Ghost ID` });
       }
       return json({ suggestions });

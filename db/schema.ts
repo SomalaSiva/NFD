@@ -9,12 +9,19 @@ export const nfdUsers = sqliteTable(
     providerSubject: text("provider_subject").notNull(),
     email: text("email").notNull(),
     displayName: text("display_name"),
+    username: text("username"),
+    bio: text("bio").notNull().default(""),
     profilePhotoKey: text("profile_photo_key"),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
     active: integer("active").notNull().default(1),
   },
-  (table) => [uniqueIndex("nfd_users_provider_subject_unique").on(table.provider, table.providerSubject)],
+  (table) => [
+    uniqueIndex("nfd_users_provider_subject_unique").on(table.provider, table.providerSubject),
+    uniqueIndex("nfd_users_username_unique")
+      .on(sql`${table.username} COLLATE NOCASE`)
+      .where(sql`${table.username} IS NOT NULL`),
+  ],
 );
 
 export const nfdBlockedEmails = sqliteTable(

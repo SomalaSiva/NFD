@@ -13,6 +13,7 @@ export function createExperienceRoutes(services) {
     deleteEvidenceObjects,
     retryEvidenceCleanup,
     ensureTrustScoreTables,
+    ensureIdentityTables,
     moderationEnabled,
     reviewWithGemini,
   } = services;
@@ -369,7 +370,10 @@ export function createExperienceRoutes(services) {
     try {
       await ensureExperienceOptionColumns(env);
       await ensureStoryTables(env);
-      const profilePhoto = await env.DB.prepare("SELECT profile_photo_key FROM nfd_users WHERE id = ?")
+      await ensureIdentityTables(env);
+      const profileRow = await env.DB.prepare(
+        "SELECT display_name, username, bio, profile_photo_key FROM nfd_users WHERE id = ?",
+      )
         .bind(user.id)
         .first();
       const result = await env.DB.prepare(
@@ -413,11 +417,13 @@ export function createExperienceRoutes(services) {
       }
       return json({
         user: {
-          name: user.name || "",
+          name: profileRow?.display_name || user.name || "",
+          username: profileRow?.username || "",
+          bio: profileRow?.bio || "",
           email: user.email || "",
           provider: user.provider,
           ghostHandle: user.ghostHandle || "",
-          photoUrl: profilePhoto?.profile_photo_key
+          photoUrl: profileRow?.profile_photo_key
             ? `/api/profile-photo/${encodeURIComponent(user.id)}?v=${Date.now()}`
             : "",
         },
@@ -443,6 +449,63 @@ export function createExperienceRoutes(services) {
     } catch (error) {
       console.error("Profile query failed", error);
       return json({ error: "Your NFD profile could not be loaded right now." }, 503);
+    }
+  }
+
+  async function updateProfile(request, env) {
+    const user = await getCurrentUser(request, env);
+    if (!user) return json({ error: "Sign in to update your profile." }, 401);
+    if (user.provider === "ghost") {
+      return json({ error: "Turn off Ghost mode to edit your personal profile." }, 403);
+    }
+    if (!env.DB) return json({ error: "Your NFD profile is not available right now." }, 503);
+    try {
+      await ensureIdentityTables(env);
+      const body = await request.json().catch(() => null);
+      if (!body || typeof body !== "object" || Array.isArray(body)) {
+        return json({ error: "Enter your profile details and try again." }, 400);
+      }
+      const displayName = typeof body.displayName === "string" ? body.displayName.trim() : "";
+      const username =
+        typeof body.username === "string" ? body.username.trim().toLowerCase().replace(/^@/, "") : "";
+      const bio = typeof body.bio === "string" ? body.bio.trim() : "";
+      if (!displayName || displayName.length > 64 || /[\u0000-\u001f\u007f]/.test(displayName)) {
+        return json({ error: "Display name is required and must be 64 characters or fewer." }, 400);
+      }
+      if (username && (!/^[a-z0-9](?:[a-z0-9._]{1,28}[a-z0-9])$/.test(username) || username.includes(".."))) {
+        return json(
+          { error: "Username must be 3–30 characters using letters, numbers, periods, or underscores." },
+          400,
+        );
+      }
+      if (bio.length > 160 || /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(bio)) {
+        return json({ error: "Bio must be 160 characters or fewer." }, 400);
+      }
+      if (username) {
+        const existing = await env.DB.prepare(
+          "SELECT id FROM nfd_users WHERE username = ? COLLATE NOCASE AND id != ? LIMIT 1",
+        )
+          .bind(username, user.id)
+          .first();
+        if (existing) return json({ error: "That username is already in use. Try another one." }, 409);
+      }
+      try {
+        await env.DB.prepare(
+          "UPDATE nfd_users SET display_name = ?, username = ?, bio = ?, updated_at = ? WHERE id = ? AND provider != 'ghost'",
+        )
+          .bind(displayName, username || null, bio, new Date().toISOString(), user.id)
+          .run();
+      } catch (error) {
+        if (/unique/i.test(error?.message || "")) {
+          return json({ error: "That username is already in use. Try another one." }, 409);
+        }
+        throw error;
+      }
+      await recordActivity(env, user.id, "profile_details_updated", "account", user.id);
+      return json({ ok: true, user: { displayName, username, bio } });
+    } catch (error) {
+      console.error("Profile details update failed", error);
+      return json({ error: "Your profile could not be updated right now. Please try again." }, 503);
     }
   }
 
@@ -1397,6 +1460,7 @@ export function createExperienceRoutes(services) {
   return {
     listExperiences,
     getProfile,
+    updateProfile,
     getOwnExperience,
     deleteOwnExperience,
     updateOwnExperience,

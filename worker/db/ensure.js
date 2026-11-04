@@ -276,6 +276,18 @@ export async function ensureIdentityTables(env) {
         if (!(refreshedColumns.results || []).some((column) => column.name === "active")) throw error;
       }
     }
+    const existingUserColumns = new Set(
+      (await env.DB.prepare("PRAGMA table_info(nfd_users)").all()).results.map((column) => column.name),
+    );
+    if (!existingUserColumns.has("username")) {
+      await env.DB.prepare("ALTER TABLE nfd_users ADD COLUMN username TEXT").run();
+    }
+    if (!existingUserColumns.has("bio")) {
+      await env.DB.prepare("ALTER TABLE nfd_users ADD COLUMN bio TEXT NOT NULL DEFAULT ''").run();
+    }
+    await env.DB.prepare(
+      "CREATE UNIQUE INDEX IF NOT EXISTS nfd_users_username_unique ON nfd_users (username COLLATE NOCASE) WHERE username IS NOT NULL",
+    ).run();
     await env.DB.prepare(
       `
       CREATE TABLE IF NOT EXISTS nfd_sessions (
