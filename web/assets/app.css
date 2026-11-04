@@ -5313,6 +5313,14 @@ textarea.control::placeholder {
   gap: 5px 12px;
   margin-top: 8px;
 }
+.feed-title-group .feed-author {
+  max-width: 100%;
+  margin-top: 4px;
+}
+.feed-title-group .feed-author > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .feed-post-context {
   display: flex;
   align-items: center;
