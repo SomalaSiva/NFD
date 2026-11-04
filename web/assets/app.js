@@ -2223,6 +2223,7 @@ ghostModeToggle.addEventListener("click", () => changeGhostMode(!currentGhostMod
 ghostModeExit.addEventListener("click", () => changeGhostMode(false, ghostModeExit));
 function renderProfile(data) {
   const user = data.user || {};
+  const isProfileDetailsPage = new URLSearchParams(location.search).get("edit") === "details";
   const displayName = user.name || user.email?.split("@")[0] || "NFD member";
   document.getElementById("profile-intro").textContent =
     user.provider === "ghost"
@@ -2231,14 +2232,22 @@ function renderProfile(data) {
   profileSummaryContent.replaceChildren();
   setProfilePhotoEverywhere(user.photoUrl || "", displayName);
   const identity = addText(profileSummaryContent, "div", "profile-identity", "");
-  addText(identity, "h2", "", displayName);
+  const titleRow = document.createElement("div");
+  titleRow.className = "profile-identity-title-row";
+  addText(titleRow, "h2", "", displayName);
+  if (user.provider !== "ghost") {
+    const editProfileLink = addText(titleRow, "a", "profile-edit-link", "Edit");
+    editProfileLink.href = "/profile?edit=details";
+    editProfileLink.setAttribute("aria-label", "Edit profile details");
+  }
+  identity.append(titleRow);
   if (user.provider === "ghost" && user.ghostHandle) {
     addText(identity, "p", "profile-identity-handle", `@${user.ghostHandle}`);
   } else if (user.username) {
     addText(identity, "p", "profile-identity-handle", `@${user.username}`);
   }
   if (user.bio) addText(identity, "p", "profile-identity-bio", user.bio);
-  profileDetailsPanel.hidden = user.provider === "ghost";
+  profileDetailsPanel.hidden = user.provider === "ghost" || !isProfileDetailsPage;
   if (user.provider !== "ghost") {
     profileDisplayNameInput.value = user.name || "";
     profileUsernameInput.value = user.username || "";
@@ -2246,6 +2255,8 @@ function renderProfile(data) {
     profileBioCount.textContent = `${profileBioInput.value.length}/160`;
     profileDetailsFeedback.hidden = true;
     profileDetailsFeedback.textContent = "";
+    profileDetailsSave.disabled = false;
+    profileDetailsSave.textContent = "Save profile";
   }
   profileSummaryScore.replaceChildren(createTrustScorePreview(displayName, true));
   profilePostList.replaceChildren();
@@ -2397,11 +2408,14 @@ async function loadProfile() {
   const profileParams = new URLSearchParams(location.search);
   const friendId = profileParams.get("friend");
   if (friendId) {
+    appLayout.classList.remove("profile-details-mode");
     profileOwnView.hidden = true;
     friendProfileView.hidden = false;
     await loadFriendProfile(friendId);
     return;
   }
+  const isProfileDetailsPage = profileParams.get("edit") === "details";
+  appLayout.classList.toggle("profile-details-mode", isProfileDetailsPage);
   profileOwnView.hidden = false;
   friendProfileView.hidden = true;
   activateProfileTab(profileParams.get("tab") || "posts", false);
@@ -3695,6 +3709,14 @@ profilePhotoFile.addEventListener("change", () => {
 profileBioInput.addEventListener("input", () => {
   profileBioCount.textContent = `${profileBioInput.value.length}/160`;
 });
+function markProfileDetailsEdited() {
+  if (profileDetailsSave.textContent === "Saved") {
+    profileDetailsSave.textContent = "Save profile";
+    profileDetailsSave.disabled = false;
+  }
+}
+profileDetailsForm.addEventListener("input", markProfileDetailsEdited);
+profileDetailsForm.addEventListener("change", markProfileDetailsEdited);
 profileDetailsForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   profileDetailsSave.disabled = true;
@@ -3718,12 +3740,14 @@ profileDetailsForm.addEventListener("submit", async (event) => {
     feedback.hidden = false;
     feedback.classList.remove("error");
     feedback.textContent = "Profile updated.";
+    profileDetailsSave.textContent = "Saved";
+    profileDetailsSave.disabled = true;
   } catch (error) {
     profileDetailsFeedback.hidden = false;
     profileDetailsFeedback.classList.add("error");
     profileDetailsFeedback.textContent = error.message;
   } finally {
-    profileDetailsSave.disabled = false;
+    if (profileDetailsSave.textContent !== "Saved") profileDetailsSave.disabled = false;
   }
 });
 document.querySelector(".profile-photo-camera")?.addEventListener("keydown", (event) => {
@@ -5709,6 +5733,10 @@ if (location.pathname === "/login") {
   reviewPage.hidden = true;
   feedPage.hidden = true;
   profilePage.hidden = false;
+  appLayout.classList.toggle(
+    "profile-details-mode",
+    new URLSearchParams(location.search).get("edit") === "details",
+  );
   document.title = "Your profile — NFD";
   loadProfile();
 } else if (location.pathname === "/messages") {
