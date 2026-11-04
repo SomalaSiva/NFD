@@ -1433,9 +1433,9 @@ function renderFeed(experiences, { append = false, nextCursor = "" } = {}) {
         ? "Anonymous"
         : experience.authorName || "NFD member",
     );
+    titleGroup.append(author);
     const postContext = document.createElement("div");
     postContext.className = "feed-post-context";
-    postContext.append(author);
     const contextDetails = document.createElement("div");
     contextDetails.className = "feed-post-context-details";
     const shared = document.createElement("span");
