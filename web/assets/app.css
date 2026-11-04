@@ -3659,6 +3659,17 @@ textarea.control::placeholder {
   background: var(--surface-raised);
 }
 @media (max-width: 720px) {
+  /* Avoid mobile browser repaint flicker from transforming a full-viewport fixed layer. */
+  body::before {
+    content: none;
+  }
+  body {
+    background-color: var(--canvas);
+    background-image:
+      radial-gradient(ellipse at 12% 19%, rgba(95, 205, 172, 0.24), transparent 40%),
+      radial-gradient(ellipse at 88% 31%, rgba(255, 185, 139, 0.2), transparent 35%),
+      radial-gradient(ellipse at 47% 88%, rgba(174, 156, 232, 0.16), transparent 39%);
+  }
   .shell {
     padding-left: 14px;
     padding-right: 14px;
