@@ -66,6 +66,8 @@ The responsive layout is a project-wide requirement. Keep essential content and 
 
 NFD production is published through OpenAI Sites. Commit and push the exact source to GitHub first, build/package that commit, save a Sites version, then deploy the saved version. Do not use `wrangler deploy`; the Wrangler config is for local development only. Keep the production audience, secrets, D1, and R2 bindings unchanged unless a task specifically requires changing them.
 
+Sites release versions are immutable and keyed to the source commit. Before deploying, verify the saved archive was created from the exact pushed commit and includes the newly built `dist/server/index.js`; if the commit already has a saved version, create a new release commit instead of reusing that version. After deployment, verify the live app behavior and deployment status.
+
 ## Admin pages
 
 - `/admin` — overview
