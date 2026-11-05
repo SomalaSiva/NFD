@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Simple peacock app icon">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#a900f5"/>
+      <stop offset="0.52" stop-color="#2850ef"/>
+      <stop offset="1" stop-color="#00d7dd"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <g fill="#fff">
+    <!-- five simple fan feathers -->
+    <path d="M256 236 C197 208 164 168 168 126 C207 141 239 177 256 236Z"/>
+    <path d="M256 236 C222 178 218 130 244 96 C271 132 272 180 256 236Z"/>
+    <path d="M256 236 C257 174 278 132 316 119 C323 162 301 206 256 236Z"/>
+    <path d="M256 236 C287 188 326 163 365 173 C352 211 310 235 256 236Z"/>
+    <path d="M256 236 C313 215 359 221 384 254 C347 277 301 268 256 236Z"/>
+    <!-- curved neck and head -->
+    <path d="M246 418 C282 365 282 326 255 290 C227 253 220 224 235 198 C247 177 272 169 295 177 C314 184 326 200 329 218 C315 205 302 200 288 204 C271 209 265 226 269 243 C274 266 300 284 314 307 C340 349 323 394 285 430Z"/>
+    <circle cx="278" cy="188" r="27"/>
+    <path d="M298 184 L333 194 L300 204Z"/>
+  </g>
+  <circle cx="284" cy="184" r="3.5" fill="#2850ef"/>
+</svg>

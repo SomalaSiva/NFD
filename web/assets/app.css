@@ -2744,11 +2744,8 @@ textarea.control::placeholder {
   .feed-heading h1 {
     font-size: 1.75rem;
   }
-  .brand-subtitle {
-    display: none;
-  }
   .brand {
-    gap: 8px;
+    gap: 4px;
   }
   .top-actions {
     gap: 7px;
