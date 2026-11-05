@@ -224,6 +224,9 @@ export async function ensureIdentityTables(env) {
       }
     }
     await env.DB.prepare(
+      "CREATE INDEX IF NOT EXISTS nfd_users_active_name_idx ON nfd_users (active, display_name COLLATE NOCASE, id)",
+    ).run();
+    await env.DB.prepare(
       `
       CREATE TABLE IF NOT EXISTS nfd_sessions (
         session_hash TEXT PRIMARY KEY NOT NULL,

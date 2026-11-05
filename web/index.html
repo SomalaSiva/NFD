@@ -71,9 +71,12 @@
               </svg>
             </button>
             <div class="account-menu" id="account-menu" hidden>
-              <a href="/profile">My profile</a
-              ><a href="/profile?ghost=setup" id="ghost-mode-setup" hidden>Set up Ghost mode</a
-              ><button type="button" id="ghost-mode-toggle" hidden>Turn on Ghost mode</button
+              <div class="local-test-user-switcher" id="local-test-user-switcher" hidden>
+                <label for="local-test-user-select">Local test user</label>
+                <select id="local-test-user-select" aria-describedby="local-test-user-feedback"></select>
+                <p id="local-test-user-feedback" role="status" hidden></p>
+              </div>
+              <a href="/profile">My profile</a><a href="/settings">Settings</a
               ><a href="/admin" id="account-admin-link" hidden>Admin</a
               ><a href="/auth/signout?return_to=%2Flogin" target="_top">Sign out</a>
             </div>
@@ -1225,118 +1228,7 @@
                 aria-live="polite"
               ></p>
             </section>
-            <section class="ghost-panel" id="ghost-settings" aria-labelledby="ghost-settings-heading" hidden>
-              <h2 id="ghost-settings-heading">Ghost mode</h2>
-              <p class="ghost-settings-copy" id="ghost-settings-copy">
-                Use a separate NFD identity for friends, posts, and messages. Turn Ghost mode on or off
-                whenever you like. Deactivate this Ghost ID before creating another one.
-              </p>
-              <p
-                class="ghost-settings-feedback"
-                id="ghost-settings-feedback"
-                role="status"
-                aria-live="polite"
-              ></p>
-              <div class="ghost-profile-ready" id="ghost-profile-ready" hidden>
-                <strong id="ghost-profile-name"></strong><span id="ghost-profile-handle"></span
-                ><span class="ghost-profile-state" id="ghost-profile-state"></span>
-                <div class="ghost-profile-actions">
-                  <button class="secondary-button" type="button" id="ghost-profile-toggle">
-                    Turn on Ghost mode</button
-                  ><button
-                    class="secondary-button ghost-deactivate-button"
-                    type="button"
-                    id="ghost-profile-deactivate"
-                  >
-                    Deactivate Ghost ID
-                  </button>
-                </div>
-              </div>
-              <form class="ghost-create-form" id="ghost-create-form" hidden>
-                <label for="ghost-name">Ghost name <span class="optional">Optional</span></label
-                ><input
-                  class="control"
-                  id="ghost-name"
-                  name="name"
-                  maxlength="64"
-                  placeholder="A name people will recognize"
-                  autocomplete="off"
-                />
-                <label for="ghost-handle">Ghost ID <span class="optional">Optional</span></label
-                ><input
-                  class="control"
-                  id="ghost-handle"
-                  name="handle"
-                  maxlength="32"
-                  placeholder="Generated for you if left blank"
-                  autocomplete="off"
-                />
-                <p class="helper">Share this ID so people can find your Ghost profile.</p>
-                <button class="submit" type="submit">Create Ghost profile</button>
-              </form>
-            </section>
-            <div class="profile-tabs" role="tablist" aria-label="Profile sections">
-              <button
-                id="profile-tab-posts"
-                class="profile-tab"
-                type="button"
-                role="tab"
-                aria-selected="true"
-                aria-controls="profile-panel-posts"
-                data-profile-tab="posts"
-              >
-                My posts
-              </button>
-              <button
-                id="profile-tab-friends"
-                class="profile-tab"
-                type="button"
-                role="tab"
-                aria-selected="false"
-                aria-controls="profile-panel-friends"
-                data-profile-tab="friends"
-                tabindex="-1"
-              >
-                Friends
-              </button>
-              <button
-                id="profile-tab-requests"
-                class="profile-tab"
-                type="button"
-                role="tab"
-                aria-selected="false"
-                aria-controls="profile-panel-requests"
-                data-profile-tab="requests"
-                tabindex="-1"
-              >
-                Friend requests
-              </button>
-              <button
-                id="profile-tab-sent"
-                class="profile-tab"
-                type="button"
-                role="tab"
-                aria-selected="false"
-                aria-controls="profile-panel-sent"
-                data-profile-tab="sent"
-                tabindex="-1"
-              >
-                Requests sent
-              </button>
-            </div>
-            <p
-              class="friends-feedback profile-feedback"
-              id="friends-feedback"
-              role="status"
-              aria-live="polite"
-            ></p>
-            <section
-              id="profile-panel-posts"
-              class="profile-tab-panel"
-              role="tabpanel"
-              aria-labelledby="profile-tab-posts"
-              tabindex="0"
-            >
+            <section id="profile-panel-posts" class="profile-tab-panel">
               <div class="profile-post-heading">
                 <div>
                   <h2>Your posts</h2>
@@ -1354,97 +1246,252 @@
                 Load more posts
               </button>
             </section>
-            <section
-              id="profile-panel-friends"
-              class="profile-tab-panel"
-              role="tabpanel"
-              aria-labelledby="profile-tab-friends"
-              tabindex="0"
-              hidden
-            >
-              <section class="friends-panel" aria-labelledby="friends-heading">
-                <div class="friends-panel-heading">
-                  <div>
-                    <h2 id="friends-heading">Your NFD friends</h2>
-                    <p>
-                      Find people by their NFD name or Ghost ID. Friends can see stories you share with
-                      friends only.
-                    </p>
-                  </div>
-                </div>
-                <div class="friend-search">
-                  <label for="friend-search-query">Find a friend</label
-                  ><input
-                    class="control"
-                    type="search"
-                    id="friend-search-query"
-                    placeholder="Type at least 2 letters"
-                    autocomplete="off"
-                    aria-controls="friend-suggestions"
-                  />
-                  <p class="helper">We’ll suggest matching NFD accounts. Only their name is shown here.</p>
-                  <p
-                    class="friends-feedback"
-                    id="friend-search-feedback"
-                    role="status"
-                    aria-live="polite"
-                  ></p>
-                  <ul id="friend-suggestions" class="friend-list friend-suggestions" hidden></ul>
-                </div>
-                <details class="friend-email-option">
-                  <summary>Prefer to send a request by email?</summary>
-                  <form class="friend-request-form" id="friend-request-form">
-                    <label class="sr-only" for="friend-request-email">Friend’s NFD email</label
-                    ><input
-                      class="control"
-                      type="email"
-                      id="friend-request-email"
-                      name="email"
-                      placeholder="Their email address"
-                      required
-                    /><button class="submit" type="submit">Send request</button>
-                  </form>
-                </details>
-                <h3 class="friend-list-heading">Your friends</h3>
-                <ul id="friend-list" class="friend-list"></ul>
-                <p id="friend-empty" class="friend-empty">No friends yet. Connect with someone you trust.</p>
-              </section>
-            </section>
-            <section
-              id="profile-panel-requests"
-              class="profile-tab-panel"
-              role="tabpanel"
-              aria-labelledby="profile-tab-requests"
-              tabindex="0"
-              hidden
-            >
-              <section class="friends-panel" aria-labelledby="friend-requests-heading">
-                <h2 id="friend-requests-heading">Friend requests</h2>
-                <p class="profile-tab-description">People who want to connect with you.</p>
-                <ul id="friend-incoming-list" class="friend-list"></ul>
-                <p id="friend-incoming-empty" class="friend-empty">No requests waiting.</p>
-              </section>
-            </section>
-            <section
-              id="profile-panel-sent"
-              class="profile-tab-panel"
-              role="tabpanel"
-              aria-labelledby="profile-tab-sent"
-              tabindex="0"
-              hidden
-            >
-              <section class="friends-panel" aria-labelledby="friend-sent-heading">
-                <h2 id="friend-sent-heading">Requests sent</h2>
-                <p class="profile-tab-description">
-                  Requests you have sent that are still waiting for a response.
-                </p>
-                <ul id="friend-outgoing-list" class="friend-list"></ul>
-                <p id="friend-outgoing-empty" class="friend-empty">No outgoing requests.</p>
-              </section>
-            </section>
           </div>
           <section id="friend-profile-view" class="friend-profile-view" aria-live="polite" hidden></section>
           <div class="profile-message" id="profile-message" role="status" aria-live="polite" hidden></div>
+        </section>
+        <section
+          id="settings-page"
+          class="profile-page settings-page"
+          aria-labelledby="settings-heading"
+          hidden
+        >
+          <div class="profile-heading">
+            <div>
+              <div class="eyebrow">Your NFD preferences</div>
+              <h1 id="settings-heading">Settings</h1>
+              <p class="intro">Choose the small touches that make NFD feel right for you.</p>
+            </div>
+          </div>
+          <section class="ghost-panel" id="ghost-settings" aria-labelledby="ghost-settings-heading" hidden>
+            <h2 id="ghost-settings-heading">Ghost mode</h2>
+            <p class="ghost-settings-copy" id="ghost-settings-copy">
+              Use a separate NFD identity for friends, posts, and messages. Turn Ghost mode on or off whenever
+              you like. Deactivate this Ghost ID before creating another one.
+            </p>
+            <p
+              class="ghost-settings-feedback"
+              id="ghost-settings-feedback"
+              role="status"
+              aria-live="polite"
+            ></p>
+            <div class="ghost-profile-ready" id="ghost-profile-ready" hidden>
+              <strong id="ghost-profile-name"></strong><span id="ghost-profile-handle"></span
+              ><span class="ghost-profile-state" id="ghost-profile-state"></span>
+              <div class="ghost-profile-actions">
+                <button class="secondary-button" type="button" id="ghost-profile-toggle">
+                  Turn on Ghost mode</button
+                ><button
+                  class="secondary-button ghost-deactivate-button"
+                  type="button"
+                  id="ghost-profile-deactivate"
+                >
+                  Deactivate Ghost ID
+                </button>
+              </div>
+            </div>
+            <form class="ghost-create-form" id="ghost-create-form" hidden>
+              <label for="ghost-name">Ghost name <span class="optional">Optional</span></label>
+              <input
+                class="control"
+                id="ghost-name"
+                name="name"
+                maxlength="64"
+                placeholder="A name people will recognize"
+                autocomplete="off"
+              />
+              <label for="ghost-handle">Ghost ID <span class="optional">Optional</span></label>
+              <input
+                class="control"
+                id="ghost-handle"
+                name="handle"
+                maxlength="32"
+                placeholder="Generated for you if left blank"
+                autocomplete="off"
+              />
+              <p class="helper">Share this ID so people can find your Ghost profile.</p>
+              <button class="submit" type="submit">Create Ghost profile</button>
+            </form>
+            <a class="secondary-button" href="/settings?ghost=setup" id="ghost-mode-setup" hidden
+              >Set up Ghost mode</a
+            >
+          </section>
+          <section class="settings-preference-list" aria-label="Sound and touch preferences">
+            <article class="settings-preference-card">
+              <div>
+                <h2>Tap sounds</h2>
+                <p>Play a soft sound for common actions in NFD.</p>
+              </div>
+              <label class="settings-switch"
+                ><input id="tap-sounds-toggle" type="checkbox" /><span
+                  class="settings-switch-track"
+                  aria-hidden="true"
+                ></span
+                ><span class="sr-only">Tap sounds</span></label
+              >
+            </article>
+            <article class="settings-preference-card">
+              <div>
+                <h2>Touch vibration</h2>
+                <p>Use a light vibration for supported actions on your phone.</p>
+              </div>
+              <label class="settings-switch"
+                ><input id="touch-vibration-toggle" type="checkbox" /><span
+                  class="settings-switch-track"
+                  aria-hidden="true"
+                ></span
+                ><span class="sr-only">Touch vibration</span></label
+              >
+            </article>
+            <p
+              class="settings-preference-feedback"
+              id="settings-preference-feedback"
+              role="status"
+              aria-live="polite"
+              hidden
+            ></p>
+          </section>
+        </section>
+        <section
+          id="friends-page"
+          class="profile-page friends-page"
+          aria-labelledby="friends-page-heading"
+          hidden
+        >
+          <div class="profile-heading">
+            <div>
+              <div class="eyebrow">Your NFD community</div>
+              <h1 id="friends-page-heading">Friends</h1>
+              <p class="intro">Connect with people on NFD, manage requests, and find new members.</p>
+            </div>
+          </div>
+          <div class="friends-page-tabs" role="tablist" aria-label="Friend sections">
+            <button
+              class="profile-tab"
+              id="friends-tab-list"
+              type="button"
+              role="tab"
+              aria-selected="true"
+              aria-controls="friends-panel-list"
+              data-friends-tab="friends"
+            >
+              Friends
+            </button>
+            <button
+              class="profile-tab"
+              id="friends-tab-requests"
+              type="button"
+              role="tab"
+              aria-selected="false"
+              aria-controls="friends-panel-requests"
+              data-friends-tab="requests"
+              tabindex="-1"
+            >
+              Friend requests
+            </button>
+            <button
+              class="profile-tab"
+              id="friends-tab-sent"
+              type="button"
+              role="tab"
+              aria-selected="false"
+              aria-controls="friends-panel-sent"
+              data-friends-tab="sent"
+              tabindex="-1"
+            >
+              Requests sent
+            </button>
+          </div>
+          <p class="friends-feedback" id="friends-feedback-page" role="status" aria-live="polite"></p>
+          <section
+            id="friends-panel-list"
+            class="profile-tab-panel friends-page-panel"
+            role="tabpanel"
+            aria-labelledby="friends-tab-list"
+            tabindex="0"
+          >
+            <section class="friends-panel" aria-labelledby="friends-heading">
+              <h2 id="friends-heading">Your NFD friends</h2>
+              <ul id="friend-list" class="friend-list"></ul>
+              <p id="friend-empty" class="friend-empty">No friends yet. Connect with someone you trust.</p>
+            </section>
+            <section class="friends-panel friend-discovery-panel" aria-labelledby="friend-discovery-heading">
+              <div class="friends-panel-heading">
+                <div>
+                  <h2 id="friend-discovery-heading">Add friends</h2>
+                  <p>Browse 20 NFD members at a time or search by name or Ghost ID.</p>
+                </div>
+              </div>
+              <div class="friend-search">
+                <label for="friend-search-query">Search NFD members</label>
+                <input
+                  class="control"
+                  type="search"
+                  id="friend-search-query"
+                  placeholder="Search names or Ghost IDs"
+                  autocomplete="off"
+                  aria-controls="friend-suggestions"
+                />
+                <p class="friends-feedback" id="friend-search-feedback" role="status" aria-live="polite"></p>
+                <ul id="friend-suggestions" class="friend-list friend-suggestions" aria-live="polite"></ul>
+                <button
+                  class="secondary-button friend-discovery-more"
+                  id="friend-discovery-more"
+                  type="button"
+                  hidden
+                >
+                  Show 20 more
+                </button>
+              </div>
+              <details class="friend-email-option">
+                <summary>Invite by email</summary>
+                <form class="friend-request-form" id="friend-request-form">
+                  <label class="sr-only" for="friend-request-email">Friend’s NFD email</label>
+                  <input
+                    class="control"
+                    type="email"
+                    id="friend-request-email"
+                    name="email"
+                    placeholder="Their email address"
+                    required
+                  />
+                  <button class="submit" type="submit">Send request</button>
+                </form>
+              </details>
+            </section>
+          </section>
+          <section
+            id="friends-panel-requests"
+            class="profile-tab-panel friends-page-panel"
+            role="tabpanel"
+            aria-labelledby="friends-tab-requests"
+            tabindex="0"
+            hidden
+          >
+            <section class="friends-panel" aria-labelledby="friend-requests-heading">
+              <h2 id="friend-requests-heading">Friend requests</h2>
+              <p class="profile-tab-description">People who want to connect with you.</p>
+              <ul id="friend-incoming-list" class="friend-list"></ul>
+              <p id="friend-incoming-empty" class="friend-empty">No requests waiting.</p>
+            </section>
+          </section>
+          <section
+            id="friends-panel-sent"
+            class="profile-tab-panel friends-page-panel"
+            role="tabpanel"
+            aria-labelledby="friends-tab-sent"
+            tabindex="0"
+            hidden
+          >
+            <section class="friends-panel" aria-labelledby="friend-sent-heading">
+              <h2 id="friend-sent-heading">Requests sent</h2>
+              <p class="profile-tab-description">
+                Requests you have sent that are still waiting for a response.
+              </p>
+              <ul id="friend-outgoing-list" class="friend-list"></ul>
+              <p id="friend-outgoing-empty" class="friend-empty">No outgoing requests.</p>
+            </section>
+          </section>
         </section>
         <section id="messages-page" class="messages-page" aria-labelledby="messages-heading" hidden>
           <div class="profile-heading">
@@ -1466,7 +1513,7 @@
               <ul id="message-thread-list" class="message-thread-list"></ul>
               <p class="message-inbox-empty" id="message-inbox-empty" hidden>
                 You need an accepted NFD friend to start a chat.
-                <a href="/profile">Find friends on your profile</a>.
+                <a href="/friends">Find friends</a>.
               </p>
             </aside>
             <section class="message-conversation" aria-label="Conversation">
@@ -1938,6 +1985,48 @@
         </button>
       </div>
     </dialog>
+    <nav class="mobile-bottom-nav" id="mobile-bottom-nav" aria-label="App shortcuts" hidden>
+      <a href="/feed" data-mobile-nav="feed">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path
+            d="m3.5 10 8.5-7 8.5 7v10a1 1 0 0 1-1 1h-5.5v-6.5h-4V21H4.5a1 1 0 0 1-1-1V10Z"
+            stroke="currentColor"
+            stroke-width="1.7"
+            stroke-linejoin="round"
+          />
+        </svg>
+        <span>Feed</span>
+      </a>
+      <a href="/friends" data-mobile-nav="friends">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path
+            d="M16 20v-1.5a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4V20M9.5 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7ZM17 4.3a3.5 3.5 0 0 1 0 6.8m1 3.5a4 4 0 0 1 3 3.9V20"
+            stroke="currentColor"
+            stroke-width="1.7"
+            stroke-linecap="round"
+          />
+        </svg>
+        <span>Friends</span>
+      </a>
+      <a href="/share" data-mobile-nav="post">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+        </svg>
+        <span>Post</span>
+      </a>
+      <a href="/profile" data-mobile-nav="you">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="12" cy="8" r="3.5" stroke="currentColor" stroke-width="1.7" />
+          <path
+            d="M5.2 20c.7-3.5 3.1-5.2 6.8-5.2s6.1 1.7 6.8 5.2"
+            stroke="currentColor"
+            stroke-width="1.7"
+            stroke-linecap="round"
+          />
+        </svg>
+        <span>You</span>
+      </a>
+    </nav>
     <script src="/assets/app.js" defer></script>
   </body>
 </html>

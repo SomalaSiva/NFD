@@ -142,10 +142,13 @@ const loginPage = document.getElementById("login-page");
 const adminPage = document.getElementById("admin-page");
 const mainNav = document.getElementById("main-nav");
 const mainNavRow = document.getElementById("main-nav-row");
+const mobileBottomNav = document.getElementById("mobile-bottom-nav");
 const accountMenuWrap = document.getElementById("account-menu-wrap");
 const accountAdminLink = document.getElementById("account-admin-link");
+const localTestUserSwitcher = document.getElementById("local-test-user-switcher");
+const localTestUserSelect = document.getElementById("local-test-user-select");
+const localTestUserFeedback = document.getElementById("local-test-user-feedback");
 const ghostModeSetupLink = document.getElementById("ghost-mode-setup");
-const ghostModeToggle = document.getElementById("ghost-mode-toggle");
 const ghostModeBanner = document.getElementById("ghost-mode-banner");
 const ghostModeHandle = document.getElementById("ghost-mode-handle");
 const ghostModeExit = document.getElementById("ghost-mode-exit");
@@ -186,7 +189,124 @@ function setMainNavigationVisible(visible) {
   mainNavRow.hidden = !visible;
   accountMenuWrap.hidden = !visible;
   storiesTray.hidden = !visible;
+  if (mobileBottomNav) {
+    mobileBottomNav.hidden = !visible;
+    document.body.classList.toggle("has-mobile-bottom-nav", visible);
+    updateMobileBottomNavigation();
+  }
+  syncMessagesViewport();
 }
+function syncMessagesViewport() {
+  if (!appLayout?.classList.contains("messages-mode")) return;
+  if (!window.matchMedia("(max-width: 720px)").matches) {
+    appLayout.style.removeProperty("--messages-viewport-height");
+    return;
+  }
+  const headerHeight = document.querySelector(".topbar")?.getBoundingClientRect().height || 0;
+  const bottomNavHeight =
+    mobileBottomNav && !mobileBottomNav.hidden ? mobileBottomNav.getBoundingClientRect().height : 0;
+  const availableHeight = Math.max(320, window.innerHeight - headerHeight - bottomNavHeight);
+  appLayout.style.setProperty("--messages-viewport-height", `${availableHeight}px`);
+}
+function updateMobileBottomNavigation() {
+  if (!mobileBottomNav) return;
+  const path = location.pathname;
+  const params = new URLSearchParams(location.search);
+  const active =
+    path === "/share"
+      ? "post"
+      : path === "/friends" ||
+          (path === "/profile" &&
+            (params.has("friend") || ["friends", "requests", "sent"].includes(params.get("tab"))))
+        ? "friends"
+        : path === "/profile" || path === "/settings"
+          ? "you"
+          : "feed";
+  mobileBottomNav.querySelectorAll("[data-mobile-nav]").forEach((link) => {
+    if (link.dataset.mobileNav === active) link.setAttribute("aria-current", "page");
+    else link.removeAttribute("aria-current");
+  });
+}
+const tapSoundsToggle = document.getElementById("tap-sounds-toggle");
+const touchVibrationToggle = document.getElementById("touch-vibration-toggle");
+const settingsPreferenceFeedback = document.getElementById("settings-preference-feedback");
+const TAP_SOUNDS_PREFERENCE_KEY = "nfd:tap-sounds-enabled";
+const TOUCH_VIBRATION_PREFERENCE_KEY = "nfd:touch-vibration-enabled";
+let tapFeedbackAudioContext;
+function readBooleanPreference(key, fallback = true) {
+  try {
+    const saved = localStorage.getItem(key);
+    return saved === null ? fallback : saved === "true";
+  } catch {
+    return fallback;
+  }
+}
+function saveBooleanPreference(key, enabled) {
+  try {
+    localStorage.setItem(key, String(enabled));
+  } catch {
+    if (settingsPreferenceFeedback) {
+      settingsPreferenceFeedback.hidden = false;
+      settingsPreferenceFeedback.textContent = "This preference could not be saved on this device.";
+    }
+  }
+}
+function initializeInteractionPreferences() {
+  if (tapSoundsToggle) tapSoundsToggle.checked = readBooleanPreference(TAP_SOUNDS_PREFERENCE_KEY);
+  if (touchVibrationToggle)
+    touchVibrationToggle.checked = readBooleanPreference(TOUCH_VIBRATION_PREFERENCE_KEY);
+}
+initializeInteractionPreferences();
+tapSoundsToggle?.addEventListener("change", () => {
+  saveBooleanPreference(TAP_SOUNDS_PREFERENCE_KEY, tapSoundsToggle.checked);
+  if (settingsPreferenceFeedback) {
+    settingsPreferenceFeedback.hidden = false;
+    settingsPreferenceFeedback.textContent = `Tap sounds ${tapSoundsToggle.checked ? "on" : "off"}.`;
+  }
+});
+touchVibrationToggle?.addEventListener("change", () => {
+  saveBooleanPreference(TOUCH_VIBRATION_PREFERENCE_KEY, touchVibrationToggle.checked);
+  if (settingsPreferenceFeedback) {
+    settingsPreferenceFeedback.hidden = false;
+    settingsPreferenceFeedback.textContent =
+      touchVibrationToggle.checked && typeof navigator.vibrate !== "function"
+        ? "Touch vibration is saved, but this browser does not support vibration."
+        : `Touch vibration ${touchVibrationToggle.checked ? "on" : "off"}.`;
+  }
+});
+document.addEventListener("click", (event) => {
+  const target = event.target instanceof Element ? event.target : null;
+  if (!target?.closest("button, a, [role=button], input[type=checkbox]")) return;
+  if (tapSoundsToggle?.checked) {
+    try {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (AudioContextClass) {
+        tapFeedbackAudioContext ||= new AudioContextClass();
+        if (tapFeedbackAudioContext.state === "suspended") void tapFeedbackAudioContext.resume();
+        const oscillator = tapFeedbackAudioContext.createOscillator();
+        const gain = tapFeedbackAudioContext.createGain();
+        const now = tapFeedbackAudioContext.currentTime;
+        oscillator.type = "sine";
+        oscillator.frequency.value = 620;
+        gain.gain.setValueAtTime(0.018, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.045);
+        oscillator.connect(gain);
+        gain.connect(tapFeedbackAudioContext.destination);
+        oscillator.start(now);
+        oscillator.stop(now + 0.05);
+      }
+    } catch {
+      // Tap feedback is optional and must never interrupt an action.
+    }
+  }
+  if (touchVibrationToggle?.checked && typeof navigator.vibrate === "function") {
+    try {
+      navigator.vibrate(8);
+    } catch {
+      // Some browsers expose vibration but deny it for the current context.
+    }
+  }
+});
 let messageNavRefreshTimer;
 let SESSION_IDLE_LIMIT_MS = 4 * 60 * 1000;
 const SESSION_ACTIVITY_STORAGE_KEY = "nfd:last-active-at";
@@ -358,6 +478,25 @@ function closeAccountMenu() {
   accountMenu.hidden = true;
   accountMenuButton.setAttribute("aria-expanded", "false");
 }
+localTestUserSelect?.addEventListener("change", async () => {
+  if (!localTestUserSelect.value) return;
+  localTestUserSelect.disabled = true;
+  localTestUserFeedback.hidden = true;
+  try {
+    const response = await fetch("/api/local-test-user", {
+      method: "POST",
+      headers: { "content-type": "application/json", accept: "application/json" },
+      body: JSON.stringify({ userId: localTestUserSelect.value }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || "Could not switch local test user.");
+    location.reload();
+  } catch (error) {
+    localTestUserFeedback.textContent = error instanceof Error ? error.message : "Could not switch user.";
+    localTestUserFeedback.hidden = false;
+    localTestUserSelect.disabled = false;
+  }
+});
 accountMenuButton.addEventListener("click", (event) => {
   event.stopPropagation();
   const open = accountMenuButton.getAttribute("aria-expanded") !== "true";
@@ -374,10 +513,12 @@ document.addEventListener("keydown", (event) => {
   }
 });
 const profilePage = document.getElementById("profile-page");
+const settingsPage = document.getElementById("settings-page");
+const friendsPage = document.getElementById("friends-page");
 const profileOwnView = document.getElementById("profile-own-view");
 const friendProfileView = document.getElementById("friend-profile-view");
-const profileTabs = [...document.querySelectorAll("[data-profile-tab]")];
-const profileTabPanels = [...document.querySelectorAll(".profile-tab-panel")];
+const friendsTabs = [...document.querySelectorAll("[data-friends-tab]")];
+const friendsTabPanels = [...document.querySelectorAll(".friends-page-panel")];
 const ghostSettings = document.getElementById("ghost-settings");
 const ghostSettingsFeedback = document.getElementById("ghost-settings-feedback");
 const ghostCreateForm = document.getElementById("ghost-create-form");
@@ -444,10 +585,11 @@ let profileNextCursor = null;
 let profileTotalPosts = 0;
 let profilePostsLoading = false;
 const friendRequestForm = document.getElementById("friend-request-form");
-const friendsFeedback = document.getElementById("friends-feedback");
+const friendsFeedbackElements = [document.getElementById("friends-feedback-page")].filter(Boolean);
 const friendSearchInput = document.getElementById("friend-search-query");
 const friendSuggestions = document.getElementById("friend-suggestions");
 const friendSearchFeedback = document.getElementById("friend-search-feedback");
+const friendDiscoveryMore = document.getElementById("friend-discovery-more");
 const audienceNote = document.getElementById("audience-note");
 const experienceStep = document.getElementById("step-experience");
 const detailsProgressStep = document.getElementById("step-details");
@@ -1704,7 +1846,8 @@ function setProfileMessage(message, isError = false) {
 function renderGhostSettings(state) {
   currentGhostMode = state || { allowed: false, active: false, profile: null };
   const setupRequested = new URLSearchParams(location.search).get("ghost") === "setup";
-  ghostSettings.hidden = !currentGhostMode.allowed || (!currentGhostMode.profile && !setupRequested);
+  ghostSettings.hidden = !currentGhostMode.allowed;
+  ghostModeSetupLink.hidden = !currentGhostMode.allowed || Boolean(currentGhostMode.profile);
   if (!currentGhostMode.allowed) return;
   const profile = currentGhostMode.profile;
   ghostProfileReady.hidden = !profile;
@@ -1730,7 +1873,7 @@ async function loadGhostSettings() {
     renderGhostSettings(result);
   } catch (error) {
     ghostSettings.hidden = true;
-    setProfileMessage(error.message, true);
+    ghostSettingsFeedback.textContent = error.message;
   }
 }
 async function changeGhostMode(active, button) {
@@ -1766,7 +1909,7 @@ ghostCreateForm.addEventListener("submit", async (event) => {
     });
     const result = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(result.error || "Your Ghost profile could not be created.");
-    window.history.replaceState(null, "", "/profile");
+    window.history.replaceState(null, "", "/settings");
     await loadGhostSettings();
   } catch (error) {
     ghostSettingsFeedback.textContent = error.message;
@@ -1794,13 +1937,12 @@ ghostProfileDeactivate.addEventListener("click", async () => {
     });
     const result = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(result.error || "Your Ghost ID could not be deactivated.");
-    window.location.assign("/profile");
+    window.location.assign("/settings");
   } catch (error) {
     ghostSettingsFeedback.textContent = error.message;
     ghostProfileDeactivate.disabled = false;
   }
 });
-ghostModeToggle.addEventListener("click", () => changeGhostMode(!currentGhostMode.active, ghostModeToggle));
 ghostModeExit.addEventListener("click", () => changeGhostMode(false, ghostModeExit));
 function renderProfile(data, { append = false } = {}) {
   const user = data.user || {};
@@ -2056,6 +2198,12 @@ function renderProfile(data, { append = false } = {}) {
 async function loadProfile() {
   const profileParams = new URLSearchParams(location.search);
   const friendId = profileParams.get("friend");
+  if (!friendId && ["friends", "requests", "sent"].includes(profileParams.get("tab"))) {
+    location.replace(
+      `/friends${profileParams.get("tab") === "friends" ? "" : `?tab=${profileParams.get("tab")}`}`,
+    );
+    return;
+  }
   if (friendId) {
     profileOwnView.hidden = true;
     friendProfileView.hidden = false;
@@ -2067,7 +2215,6 @@ async function loadProfile() {
   profileNextCursor = null;
   profileTotalPosts = 0;
   profilePostLoadMore.hidden = true;
-  activateProfileTab(profileParams.get("tab") || "posts", false);
   if (profileParams.has("removed")) setFriendsFeedback("Friend removed.");
   profileMessage.hidden = true;
   profilePostList.replaceChildren();
@@ -2088,8 +2235,6 @@ async function loadProfile() {
     if (!response.ok) throw new Error(result.error || "Your profile could not be loaded.");
     renderProfile(result);
     if (profileParams.has("updated")) setProfileMessage("Your post was updated.");
-    loadFriends();
-    await loadGhostSettings();
   } catch (error) {
     profileSummaryContent.replaceChildren();
     profileSummaryScore.replaceChildren();
@@ -2132,21 +2277,22 @@ profilePostLoadMore.addEventListener("click", async () => {
     profilePostLoadMore.textContent = "Load more posts";
   }
 });
-function activateProfileTab(tab, updateUrl = true) {
-  const availableTabs = new Set(profileTabs.map((button) => button.dataset.profileTab));
-  const activeTab = availableTabs.has(tab) ? tab : "posts";
-  profileTabs.forEach((button) => {
-    const selected = button.dataset.profileTab === activeTab;
+function activateFriendsTab(tab, updateUrl = true) {
+  const availableTabs = new Set(friendsTabs.map((button) => button.dataset.friendsTab));
+  const activeTab = availableTabs.has(tab) ? tab : "friends";
+  friendsTabs.forEach((button) => {
+    const selected = button.dataset.friendsTab === activeTab;
     button.setAttribute("aria-selected", String(selected));
     button.tabIndex = selected ? 0 : -1;
   });
-  profileTabPanels.forEach((panel) => {
-    panel.hidden = panel.id !== `profile-panel-${activeTab}`;
+  friendsTabPanels.forEach((panel) => {
+    panel.hidden = panel.id !== `friends-panel-${activeTab === "friends" ? "list" : activeTab}`;
   });
   if (updateUrl) {
     const url = new URL(location.href);
+    url.pathname = "/friends";
     url.search = "";
-    if (activeTab !== "posts") url.searchParams.set("tab", activeTab);
+    if (activeTab !== "friends") url.searchParams.set("tab", activeTab);
     history.replaceState(null, "", url);
   }
 }
@@ -2168,15 +2314,20 @@ function activateTrustScoreTab(tab, updateUrl = true) {
   }
   if (activeTab === "my-agreements" || activeTab === "record") loadStoredAgreements();
 }
-profileTabs.forEach((button, index) => {
-  button.addEventListener("click", () => activateProfileTab(button.dataset.profileTab));
+friendsTabs.forEach((button, index) => {
+  button.addEventListener("click", () => {
+    activateFriendsTab(button.dataset.friendsTab);
+    if (button.dataset.friendsTab === "friends" && !friendSuggestions.children.length) {
+      void loadFriendSuggestions();
+    }
+  });
   button.addEventListener("keydown", (event) => {
     if (!event.key.startsWith("Arrow")) return;
     event.preventDefault();
     const direction = event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : 1;
-    const next = (index + direction + profileTabs.length) % profileTabs.length;
-    profileTabs[next].focus();
-    activateProfileTab(profileTabs[next].dataset.profileTab);
+    const next = (index + direction + friendsTabs.length) % friendsTabs.length;
+    friendsTabs[next].focus();
+    activateFriendsTab(friendsTabs[next].dataset.friendsTab);
   });
 });
 trustScoreTabs.forEach((button, index) => {
@@ -2211,7 +2362,7 @@ async function loadFriendProfile(friendId) {
     const friend = result.friend || {};
     friendProfileView.replaceChildren();
     const back = addText(friendProfileView, "a", "friend-profile-back", "← Back to friends");
-    back.href = "/profile?tab=friends";
+    back.href = "/friends";
     const header = document.createElement("div");
     header.className = "friend-profile-header";
     const avatar = document.createElement("div");
@@ -2258,7 +2409,7 @@ async function loadFriendProfile(friendId) {
         });
         const removed = await removal.json().catch(() => ({}));
         if (!removal.ok) throw new Error(removed.error || "This friend could not be removed.");
-        location.assign("/profile?tab=friends&removed=1");
+        location.assign("/friends?removed=1");
       } catch (error) {
         feedback.textContent = error.message;
         feedback.classList.add("error");
@@ -2363,7 +2514,7 @@ async function loadFriendProfile(friendId) {
   } catch (error) {
     friendProfileView.replaceChildren();
     const back = addText(friendProfileView, "a", "friend-profile-back", "← Back to friends");
-    back.href = "/profile?tab=friends";
+    back.href = "/friends";
     const message = addText(friendProfileView, "p", "profile-error", error.message);
     message.setAttribute("role", "alert");
   }
@@ -2414,8 +2565,10 @@ function createTrustScorePreview(profileName, compact = false) {
   return section;
 }
 function setFriendsFeedback(message, error = false) {
-  friendsFeedback.textContent = message;
-  friendsFeedback.classList.toggle("error", error);
+  friendsFeedbackElements.forEach((element) => {
+    element.textContent = message;
+    element.classList.toggle("error", error);
+  });
 }
 function renderFriendList(listId, emptyId, entries, kind) {
   const list = document.getElementById(listId);
@@ -2523,21 +2676,32 @@ async function loadFriends() {
 }
 let friendSearchTimer;
 let friendSearchRequest = 0;
-async function loadFriendSuggestions() {
+let friendSuggestionOffset = 0;
+async function loadFriendSuggestions({ append = false } = {}) {
   const query = friendSearchInput.value.trim();
   const requestNumber = ++friendSearchRequest;
-  friendSuggestions.replaceChildren();
-  if (query.length < 2) {
+  if (query && query.length < 2) {
+    friendSuggestions.replaceChildren();
     friendSuggestions.hidden = true;
-    friendSearchFeedback.textContent = "Type at least 2 letters to see NFD member suggestions.";
+    friendDiscoveryMore.hidden = true;
+    friendSearchFeedback.textContent =
+      "Type at least 2 letters to search, or clear the field to browse members.";
     friendSearchFeedback.classList.remove("error");
     return;
   }
+  if (!append) {
+    friendSuggestionOffset = 0;
+    friendSuggestions.replaceChildren();
+  }
+  const offset = append ? friendSuggestionOffset : 0;
   friendSuggestions.hidden = false;
-  friendSearchFeedback.textContent = "Looking for matching NFD names…";
+  friendDiscoveryMore.hidden = true;
+  friendSearchFeedback.textContent = query ? "Searching NFD members…" : "Finding people to connect with…";
   friendSearchFeedback.classList.remove("error");
   try {
-    const response = await fetch(`/api/friends/suggestions?q=${encodeURIComponent(query)}`, {
+    const params = new URLSearchParams({ offset: String(offset) });
+    if (query) params.set("q", query);
+    const response = await fetch(`/api/friends/suggestions?${params}`, {
       headers: { accept: "application/json" },
       cache: "no-store",
     });
@@ -2545,13 +2709,20 @@ async function loadFriendSuggestions() {
     if (requestNumber !== friendSearchRequest) return;
     if (!response.ok) throw new Error(result.error || "Friend suggestions could not be loaded.");
     const suggestions = result.suggestions || [];
-    if (!suggestions.length) {
-      friendSuggestions.hidden = true;
-      friendSearchFeedback.textContent =
-        "No matching NFD members found. Try a different spelling or Ghost ID.";
+    if (!suggestions.length && !append) {
+      friendSuggestions.replaceChildren();
+      friendSuggestions.hidden = false;
+      friendSearchFeedback.textContent = query
+        ? "No matching NFD members found. Try another name or Ghost ID."
+        : "No members are available to add right now.";
+      friendDiscoveryMore.hidden = true;
       return;
     }
-    friendSearchFeedback.textContent = `${suggestions.length} matching ${suggestions.length === 1 ? "member" : "members"} found.`;
+    friendSuggestionOffset = offset + suggestions.length;
+    friendSearchFeedback.textContent = query
+      ? `${friendSuggestionOffset} matching ${friendSuggestionOffset === 1 ? "member" : "members"}${result.nextOffset != null ? " shown" : " found"}.`
+      : `${friendSuggestionOffset} ${friendSuggestionOffset === 1 ? "member" : "members"} shown.`;
+    friendDiscoveryMore.hidden = result.nextOffset == null;
     suggestions.forEach((suggestion) => {
       const item = document.createElement("li");
       item.className = "friend-item friend-suggestion-item";
@@ -2577,12 +2748,10 @@ async function loadFriendSuggestions() {
           });
           const sent = await send.json().catch(() => ({}));
           if (!send.ok) throw new Error(sent.error || "The friend request could not be sent.");
-          friendSearchInput.value = "";
-          friendSuggestions.replaceChildren();
-          friendSuggestions.hidden = true;
-          friendSearchFeedback.textContent =
-            sent.message || "Friend request sent. They’ll see it in their NFD profile.";
+          friendSearchFeedback.textContent = sent.message || "Friend request sent.";
+          friendSearchFeedback.classList.remove("error");
           await loadFriends();
+          await loadFriendSuggestions();
         } catch (error) {
           connect.disabled = false;
           connect.textContent = "Connect";
@@ -2596,6 +2765,7 @@ async function loadFriendSuggestions() {
   } catch (error) {
     if (requestNumber !== friendSearchRequest) return;
     friendSuggestions.hidden = true;
+    friendDiscoveryMore.hidden = true;
     friendSearchFeedback.textContent = error.message;
     friendSearchFeedback.classList.add("error");
   }
@@ -2604,6 +2774,7 @@ friendSearchInput.addEventListener("input", () => {
   clearTimeout(friendSearchTimer);
   friendSearchTimer = setTimeout(loadFriendSuggestions, 220);
 });
+friendDiscoveryMore.addEventListener("click", () => loadFriendSuggestions({ append: true }));
 function setMessageFeedback(message, error = false) {
   messageFeedback.textContent = message;
   messageFeedback.classList.toggle("error", error);
@@ -3246,6 +3417,7 @@ friendRequestForm.addEventListener("submit", async (event) => {
         "If that email belongs to another NFD member, your request will appear in their profile.",
     );
     await loadFriends();
+    await loadFriendSuggestions();
   } catch (error) {
     setFriendsFeedback(error.message, true);
   } finally {
@@ -4620,6 +4792,20 @@ async function updateNavigation() {
     applySessionIdleMinutes(result.sessionIdleMinutes);
     startSessionActivityTracking();
     currentUserId = result.userId || currentUserId;
+    if (localTestUserSwitcher && localTestUserSelect) {
+      const localTestUsers = result.provider === "local-test" ? result.localTestUsers : null;
+      localTestUserSwitcher.hidden = !Array.isArray(localTestUsers) || !localTestUsers.length;
+      if (!localTestUserSwitcher.hidden) {
+        localTestUserSelect.replaceChildren();
+        localTestUsers.forEach((testUser) => {
+          const option = document.createElement("option");
+          option.value = testUser.id;
+          option.textContent = testUser.name;
+          localTestUserSelect.append(option);
+        });
+        localTestUserSelect.value = result.userId;
+      }
+    }
     if (
       location.pathname === "/trust-score" &&
       ["my-agreements", "record"].includes(new URLSearchParams(location.search).get("tab"))
@@ -4635,8 +4821,6 @@ async function updateNavigation() {
     currentGhostMode = result.ghostMode || { allowed: false, active: false, profile: null };
     const hasGhostProfile = Boolean(currentGhostMode.profile);
     ghostModeSetupLink.hidden = !currentGhostMode.allowed || hasGhostProfile;
-    ghostModeToggle.hidden = !currentGhostMode.allowed || !hasGhostProfile;
-    ghostModeToggle.textContent = currentGhostMode.active ? "Turn off Ghost mode" : "Turn on Ghost mode";
     ghostModeBanner.hidden = !currentGhostMode.active;
     ghostModeHandle.textContent = currentGhostMode.profile?.handle
       ? `@${currentGhostMode.profile.handle}`
@@ -4898,21 +5082,58 @@ if (location.pathname === "/login") {
 } else if (location.pathname === "/admin" || location.pathname.startsWith("/admin/")) {
   void loadAdminPage();
 } else if (location.pathname === "/profile") {
+  if (new URLSearchParams(location.search).has("ghost")) {
+    location.replace(`/settings${location.search}`);
+  }
   appLayout.classList.add("profile-mode");
   form.hidden = true;
   reviewPage.hidden = true;
   feedPage.hidden = true;
   profilePage.hidden = false;
+  friendsPage.hidden = true;
+  settingsPage.hidden = true;
   document.title = "Your profile — NFD";
   loadProfile();
+} else if (location.pathname === "/settings") {
+  appLayout.classList.add("profile-mode");
+  form.hidden = true;
+  reviewPage.hidden = true;
+  feedPage.hidden = true;
+  profilePage.hidden = true;
+  friendsPage.hidden = true;
+  messagesPage.hidden = true;
+  settingsPage.hidden = false;
+  document.title = "Settings — NFD";
+  void loadGhostSettings();
+} else if (location.pathname === "/friends") {
+  appLayout.classList.add("profile-mode");
+  form.hidden = true;
+  reviewPage.hidden = true;
+  feedPage.hidden = true;
+  profilePage.hidden = true;
+  messagesPage.hidden = true;
+  settingsPage.hidden = true;
+  friendsPage.hidden = false;
+  const friendsParams = new URLSearchParams(location.search);
+  activateFriendsTab(friendsParams.get("tab") || "friends", false);
+  if (friendsParams.has("removed")) setFriendsFeedback("Friend removed.");
+  document.title = "Friends — NFD";
+  void loadFriends();
+  if (!friendsParams.get("tab") || friendsParams.get("tab") === "friends") {
+    void loadFriendSuggestions();
+  }
 } else if (location.pathname === "/messages") {
   appLayout.classList.add("profile-mode");
+  appLayout.classList.add("messages-mode");
+  document.body.classList.add("messages-screen-mode");
   form.hidden = true;
   reviewPage.hidden = true;
   feedPage.hidden = true;
   profilePage.hidden = true;
   messagesPage.hidden = false;
   document.title = "Messages — NFD";
+  syncMessagesViewport();
+  window.addEventListener("resize", syncMessagesViewport, { passive: true });
   loadMessagesPage();
 } else if (location.pathname === "/trust-score") {
   appLayout.classList.add("profile-mode");

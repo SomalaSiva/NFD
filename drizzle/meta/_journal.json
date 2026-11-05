@@ -71,6 +71,13 @@
       "when": 1793835554514,
       "tag": "0010_profile_author_status_page",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1793839352851,
+      "tag": "0011_nfd_users_active_name_idx",
+      "breakpoints": true
     }
   ]
 }

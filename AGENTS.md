@@ -20,3 +20,19 @@
 - Check the changed UI in the portrait mobile ChatGPT preview and confirm existing related controls still work. Do not claim a flow or feature is intact unless it was actually checked.
 - Verify that a live release succeeded and that its exact source commit was pushed to Git before saying it is live or sharing the live link.
 - If browser access, test accounts, or environment constraints prevent a check, state exactly what was and was not verified before handing off the link.
+
+## Local app testing
+
+- Local app preview and UI testing should not require the user to sign in. The local development launch command enables the explicit test identity; do not ask the user to complete OAuth just to test local changes.
+- The local test identity must only activate for loopback hosts (`localhost`, `127.0.0.1`, or `::1`); never enable or rely on it for a deployed hostname or a production database.
+- Keep real authentication protections covered by automated tests, including checks that the local test identity is rejected on non-loopback hosts.
+
+## Data access and performance
+
+- Keep list reads bounded: select only fields the screen needs and paginate with a stable order. Do not load an entire growing table into memory for a list view.
+- Design indexes alongside new filters and sort orders. Update the Drizzle schema and add a migration; use compatibility setup only when older local databases need the same index.
+- Avoid per-row database requests. Combine related reads where practical, and run independent reads concurrently when doing so does not change their consistency requirements.
+- Keep user searches parameterized, cap search text and page sizes, and escape wildcard characters when using `LIKE`.
+- Do not return private fields such as email addresses unless the feature explicitly needs them. Search should not require exposing them in API responses.
+- For meaningful list/search changes, test authorization, bounds, paging, sensitive-field exclusion, failure behavior, and—when possible—SQLite query plans to confirm the intended index is used.
+- Avoid promising zero latency or capacity without load measurements. Record what was measured and what remains untested.

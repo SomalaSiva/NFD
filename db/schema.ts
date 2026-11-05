@@ -14,7 +14,10 @@ export const nfdUsers = sqliteTable(
     updatedAt: text("updated_at").notNull(),
     active: integer("active").notNull().default(1),
   },
-  (table) => [uniqueIndex("nfd_users_provider_subject_unique").on(table.provider, table.providerSubject)],
+  (table) => [
+    uniqueIndex("nfd_users_provider_subject_unique").on(table.provider, table.providerSubject),
+    index("nfd_users_active_name_idx").on(table.active, sql`${table.displayName} COLLATE NOCASE`, table.id),
+  ],
 );
 
 export const nfdBlockedEmails = sqliteTable(
