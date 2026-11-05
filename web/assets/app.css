@@ -2585,15 +2585,22 @@ textarea.control::placeholder {
 .brand-name {
   font-size: 1.1875rem;
   letter-spacing: -0.65px;
+  color: #8198ae;
+  background: linear-gradient(100deg, #729a98 0%, #8294b5 62%, #d89572 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 .brand-name:after {
   content: ".";
-  color: var(--green);
+  color: #d89572;
+  -webkit-text-fill-color: #d89572;
 }
 .brand-subtitle {
   font-size: 0.5rem;
   text-transform: uppercase;
   letter-spacing: 0.75px;
+  color: #758d96;
 }
 .top-actions a.feed-nav-link {
   color: var(--green);

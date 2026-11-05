@@ -253,7 +253,7 @@ function renderFeed(experiences, { append = false, nextCursor = "" } = {}) {
       link.className = "submit";
       link.href = "/share";
       const icon = document.createElement("img");
-      icon.src = "/nfd-icon.png";
+      icon.src = "/nfd-icon.png?v=mascot-20261105";
       icon.alt = "";
       icon.setAttribute("aria-hidden", "true");
       const label = document.createElement("span");
