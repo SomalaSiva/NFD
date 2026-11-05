@@ -241,6 +241,7 @@ photoViewer?.addEventListener("click", (event) => {
   if (event.target === photoViewer) photoViewer.close();
 });
 let messageNavRefreshTimer;
+let messageNavRefreshInFlight = false;
 let SESSION_IDLE_LIMIT_MS = 4 * 60 * 1000;
 const SESSION_ACTIVITY_STORAGE_KEY = "nfd:last-active-at";
 let inactivityLogoutTimer;
@@ -614,6 +615,7 @@ let currentGhostMode = { allowed: false, active: false, profile: null };
 let currentMessageFriendId = "";
 let messageRefreshTimer;
 let messageRefreshInFlight = false;
+let messageFriendsRefreshInFlight = false;
 let messageSeenPending = new Set();
 let storedAgreementsLoading = false;
 const profileSummary = document.getElementById("profile-summary");
@@ -3549,6 +3551,8 @@ function setMessageFeedback(message, error = false) {
   messageFeedback.classList.toggle("error", error);
 }
 async function refreshMessageNavBadge() {
+  if (messageNavRefreshInFlight) return;
+  messageNavRefreshInFlight = true;
   try {
     const response = await fetch("/api/messages", {
       headers: { accept: "application/json" },
@@ -3563,8 +3567,24 @@ async function refreshMessageNavBadge() {
     navUnreadCount.hidden = unread === 0;
     navUnreadCount.textContent = unread > 99 ? "99+" : String(unread);
     messagesNavLink.setAttribute("aria-label", unread ? `Notifications, ${unread} unread` : "Notifications");
-  } catch {}
+  } catch {
+    // Keep the last known count if a background refresh temporarily fails.
+  } finally {
+    messageNavRefreshInFlight = false;
+  }
 }
+function refreshMessagesOnReturn() {
+  if (document.visibilityState !== "visible") return;
+  void refreshMessageNavBadge();
+  if (location.pathname === "/messages") {
+    void loadMessageFriends({ quiet: true });
+    void loadFriendMessages({ quiet: true });
+  }
+}
+window.addEventListener("focus", refreshMessagesOnReturn);
+window.addEventListener("pageshow", refreshMessagesOnReturn);
+window.addEventListener("online", refreshMessagesOnReturn);
+document.addEventListener("visibilitychange", refreshMessagesOnReturn);
 function personInitials(name) {
   return (
     (name || "NFD member")
@@ -3962,9 +3982,13 @@ function messageExpiryLabel(message) {
   const minutes = Math.ceil(remaining / 60000);
   return `Seen · disappears in ${minutes < 60 ? `${minutes}m` : `${Math.floor(minutes / 60)}h ${minutes % 60}m`}`;
 }
-async function loadMessageFriends() {
-  messageInboxStatus.textContent = "Loading your friends…";
-  messageInboxStatus.classList.remove("error");
+async function loadMessageFriends({ quiet = false } = {}) {
+  if (messageFriendsRefreshInFlight) return [];
+  messageFriendsRefreshInFlight = true;
+  if (!quiet) {
+    messageInboxStatus.textContent = "Loading your friends…";
+    messageInboxStatus.classList.remove("error");
+  }
   try {
     const response = await fetch("/api/messages", {
       headers: { accept: "application/json" },
@@ -3975,9 +3999,11 @@ async function loadMessageFriends() {
     currentUserId = result.currentUserId || currentUserId;
     const friends = result.friends || [];
     messageThreadList.replaceChildren();
-    messageInboxStatus.textContent = friends.length
-      ? `${friends.length} ${friends.length === 1 ? "friend" : "friends"}`
-      : "Your accepted friends will appear here.";
+    if (!quiet) {
+      messageInboxStatus.textContent = friends.length
+        ? `${friends.length} ${friends.length === 1 ? "friend" : "friends"}`
+        : "Your accepted friends will appear here.";
+    }
     messageInboxEmpty.hidden = friends.length > 0;
     friends.forEach((friend) => {
       const item = document.createElement("li");
@@ -4016,9 +4042,13 @@ async function loadMessageFriends() {
     }
     return friends;
   } catch (error) {
-    messageInboxStatus.textContent = error.message;
-    messageInboxStatus.classList.add("error");
+    if (!quiet) {
+      messageInboxStatus.textContent = error.message;
+      messageInboxStatus.classList.add("error");
+    }
     return [];
+  } finally {
+    messageFriendsRefreshInFlight = false;
   }
 }
 let messageSeenObserver;
