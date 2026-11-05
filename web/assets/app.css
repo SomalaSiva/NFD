@@ -5862,6 +5862,27 @@ body.has-mobile-bottom-nav {
   line-height: 1;
   cursor: pointer;
 }
+.trust-admin-search,
+.trust-admin-pagination {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.trust-admin-search {
+  margin-block: 16px;
+}
+.trust-admin-search .control {
+  min-width: 0;
+  flex: 1;
+}
+.trust-admin-pagination {
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+.trust-admin-pagination span {
+  margin-right: auto;
+  color: var(--muted);
+}
 @media (max-width: 600px) {
   .photo-viewer {
     width: 100vw;
@@ -5876,5 +5897,9 @@ body.has-mobile-bottom-nav {
   .photo-viewer-close {
     top: max(7px, env(safe-area-inset-top));
     right: 12px;
+  }
+  .trust-admin-search,
+  .trust-admin-pagination {
+    flex-wrap: wrap;
   }
 }

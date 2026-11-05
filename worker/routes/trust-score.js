@@ -4,6 +4,7 @@ import {
   TRUST_SCORE_DRAFT_POLICY,
   getTrustOutcome,
 } from "../lib/trust-score-rules.js";
+import { ADMIN_PAGE_SIZE, getPageMetadata, getPageOffset } from "../lib/pagination.js";
 
 export function createTrustScoreRoutes({
   getCurrentUser,
@@ -77,6 +78,28 @@ export function createTrustScoreRoutes({
         .first();
       if (!profile) return json({ error: "That Trust Score profile could not be found." }, 404);
 
+      const visibleAllegationFilter = `a.subject_user_id = ? AND (
+        a.author_user_id = ? OR e.visibility IN ('public', 'anonymous') OR
+        (e.visibility = 'friends' AND EXISTS (
+          SELECT 1 FROM nfd_friend_requests f WHERE f.status = 'accepted'
+            AND ((f.from_user_id = a.author_user_id AND f.to_user_id = ?) OR
+                 (f.from_user_id = ? AND f.to_user_id = a.author_user_id))
+        ))
+      )`;
+      const visibleBindings = [profile.id, viewer.id, viewer.id, viewer.id];
+      const summaryRows = await env.DB.prepare(
+        `
+        SELECT a.classification, a.outcome, COUNT(*) AS total
+        FROM nfd_trust_allegations a
+        INNER JOIN experiences e ON e.id = a.experience_id AND e.status = 'shared'
+        INNER JOIN nfd_users author ON author.id = a.author_user_id
+        WHERE ${visibleAllegationFilter}
+        GROUP BY a.classification, a.outcome
+      `,
+      )
+        .bind(...visibleBindings)
+        .all();
+
       const rows = await env.DB.prepare(
         `
         SELECT a.id, a.experience_id, a.author_user_id, a.classification, a.outcome, a.status,
@@ -86,18 +109,11 @@ export function createTrustScoreRoutes({
         FROM nfd_trust_allegations a
         INNER JOIN experiences e ON e.id = a.experience_id AND e.status = 'shared'
         INNER JOIN nfd_users author ON author.id = a.author_user_id
-        WHERE a.subject_user_id = ? AND (
-          a.author_user_id = ? OR e.visibility IN ('public', 'anonymous') OR
-          (e.visibility = 'friends' AND EXISTS (
-            SELECT 1 FROM nfd_friend_requests f WHERE f.status = 'accepted'
-              AND ((f.from_user_id = a.author_user_id AND f.to_user_id = ?) OR
-                   (f.from_user_id = ? AND f.to_user_id = a.author_user_id))
-          ))
-        )
+        WHERE ${visibleAllegationFilter}
         ORDER BY a.created_at DESC, a.id DESC LIMIT 100
       `,
       )
-        .bind(profile.id, viewer.id, viewer.id, viewer.id)
+        .bind(...visibleBindings)
         .all();
 
       const profileRows = rows.results || [];
@@ -130,27 +146,33 @@ export function createTrustScoreRoutes({
       }));
       const positiveRecords = allegations.filter((record) => record.polarity === "positive");
       const negativeRecords = allegations.filter((record) => record.polarity !== "positive");
-      const makeClassificationSummary = (records, polarity) =>
+      const totals = new Map(
+        (summaryRows.results || []).map((row) => [
+          `${row.classification}:${row.outcome}`,
+          Number(row.total) || 0,
+        ]),
+      );
+      const makeClassificationSummary = (polarity) =>
         Object.fromEntries(
           Object.entries(TRUST_CLASSIFICATIONS).map(([key, definition]) => [
             key,
             {
               key,
               label: definition.label,
-              total: records.filter((record) => record.classification === key).length,
+              total: definition.outcomes
+                .filter((outcome) => outcome.polarity === polarity)
+                .reduce((sum, outcome) => sum + (totals.get(`${key}:${outcome.value}`) || 0), 0),
               outcomes: definition.outcomes
                 .filter((outcome) => outcome.polarity === polarity)
                 .map((outcome) => ({
                   ...outcome,
-                  count: records.filter(
-                    (record) => record.classification === key && record.outcome === outcome.value,
-                  ).length,
+                  count: totals.get(`${key}:${outcome.value}`) || 0,
                 })),
             },
           ]),
         );
-      const positiveClassifications = makeClassificationSummary(positiveRecords, "positive");
-      const negativeClassifications = makeClassificationSummary(negativeRecords, "negative");
+      const positiveClassifications = makeClassificationSummary("positive");
+      const negativeClassifications = makeClassificationSummary("negative");
       return json({
         profile: {
           userId: profile.id,
@@ -242,12 +264,42 @@ export function createTrustScoreRoutes({
     if (!env.DB) return json({ error: "Trust Score review data is unavailable right now." }, 503);
     try {
       await ensureTrustScoreTables(env);
+      const url = new URL(request.url);
+      const query = cleanSearchTerm(url.searchParams.get("q")).slice(0, 100);
+      const offset = getPageOffset(request);
+      const searchFilter = `(? = '' OR instr(lower(COALESCE(author.display_name, '')), lower(?)) > 0
+        OR instr(lower(COALESCE(subject.display_name, '')), lower(?)) > 0
+        OR instr(lower(COALESCE(e.short_description, '')), lower(?)) > 0
+        OR instr(lower(a.classification), lower(?)) > 0 OR instr(lower(a.outcome), lower(?)) > 0)`;
+      const searchBindings = [query, query, query, query, query, query];
+      const total = await env.DB.prepare(
+        `
+        SELECT COUNT(*) AS total
+        FROM nfd_trust_allegations a
+        INNER JOIN experiences e ON e.id = a.experience_id
+        INNER JOIN nfd_users author ON author.id = a.author_user_id
+        INNER JOIN nfd_users subject ON subject.id = a.subject_user_id
+        WHERE ${searchFilter}
+      `,
+      )
+        .bind(...searchBindings)
+        .first();
       const rows = await env.DB.prepare(
         `
-        SELECT a.id, a.classification, a.outcome, a.created_at,
+        WITH page_allegations AS (
+          SELECT a.id, a.classification, a.outcome, a.created_at,
           e.short_description,
           COALESCE(NULLIF(trim(author.display_name), ''), 'NFD member') AS author_name,
-          COALESCE(NULLIF(trim(subject.display_name), ''), 'NFD member') AS subject_name,
+          COALESCE(NULLIF(trim(subject.display_name), ''), 'NFD member') AS subject_name
+          FROM nfd_trust_allegations a
+          INNER JOIN experiences e ON e.id = a.experience_id
+          INNER JOIN nfd_users author ON author.id = a.author_user_id
+          INNER JOIN nfd_users subject ON subject.id = a.subject_user_id
+          WHERE ${searchFilter}
+          ORDER BY a.created_at DESC, a.id DESC LIMIT ? OFFSET ?
+        )
+        SELECT p.id, p.classification, p.outcome, p.created_at, p.short_description,
+          p.author_name, p.subject_name,
           COUNT(v.voter_user_id) AS total_votes,
           SUM(CASE WHEN v.choice = 'believe' THEN 1 ELSE 0 END) AS believe_votes,
           SUM(CASE WHEN v.choice = 'not_believe' THEN 1 ELSE 0 END) AS not_believe_votes,
@@ -259,15 +311,15 @@ export function createTrustScoreRoutes({
           SUM(CASE WHEN v.voter_group = 'other' AND v.choice = 'not_believe' THEN 1 ELSE 0 END) AS other_not_believe,
           SUM(CASE WHEN v.choice = 'believe' THEN v.weight ELSE 0 END) AS weighted_believe,
           SUM(CASE WHEN v.choice = 'not_believe' THEN v.weight ELSE 0 END) AS weighted_not_believe
-        FROM nfd_trust_allegations a
-        INNER JOIN experiences e ON e.id = a.experience_id
-        INNER JOIN nfd_users author ON author.id = a.author_user_id
-        INNER JOIN nfd_users subject ON subject.id = a.subject_user_id
-        LEFT JOIN nfd_trust_allegation_votes v ON v.allegation_id = a.id
-        GROUP BY a.id ORDER BY a.created_at DESC LIMIT 300
+        FROM page_allegations p
+        LEFT JOIN nfd_trust_allegation_votes v ON v.allegation_id = p.id
+        GROUP BY p.id ORDER BY p.created_at DESC, p.id DESC
       `,
-      ).all();
+      )
+        .bind(...searchBindings, ADMIN_PAGE_SIZE, offset)
+        .all();
       return json({
+        ...getPageMetadata(offset, total?.total, rows.results?.length || 0),
         rules: { pollWeights: TRUST_SCORE_DRAFT_POLICY.pollWeights },
         allegations: (rows.results || []).map((row) => ({
           id: row.id,

@@ -387,14 +387,27 @@ export function createAdminRoutes(services) {
       const total = await env.DB.prepare("SELECT COUNT(*) AS total FROM nfd_users").first();
       const result = await env.DB.prepare(
         `
-      SELECT u.id, u.provider_subject, u.email, u.display_name, u.provider, u.created_at, u.updated_at, u.active,
-        (SELECT MAX(a.created_at) FROM nfd_activity_audit a WHERE a.actor_user_id = u.id) AS last_activity_at,
-        COUNT(e.id) AS shared_post_count
-      FROM nfd_users u
-      LEFT JOIN experiences e ON e.author_id = u.id AND e.status = 'shared'
-      GROUP BY u.id, u.provider_subject, u.email, u.display_name, u.provider, u.created_at, u.updated_at, u.active
-      ORDER BY u.created_at DESC, u.id DESC
-      LIMIT ? OFFSET ?
+      WITH page_users AS (
+        SELECT id, provider_subject, email, display_name, provider, created_at, updated_at, active
+        FROM nfd_users ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?
+      ), page_post_counts AS (
+        SELECT e.author_id, COUNT(*) AS shared_post_count
+        FROM experiences e
+        INNER JOIN page_users p ON p.id = e.author_id
+        WHERE e.status = 'shared'
+        GROUP BY e.author_id
+      ), page_activity AS (
+        SELECT a.actor_user_id, MAX(a.created_at) AS last_activity_at
+        FROM nfd_activity_audit a
+        INNER JOIN page_users p ON p.id = a.actor_user_id
+        GROUP BY a.actor_user_id
+      )
+      SELECT p.id, p.provider_subject, p.email, p.display_name, p.provider, p.created_at, p.updated_at,
+        p.active, activity.last_activity_at, COALESCE(posts.shared_post_count, 0) AS shared_post_count
+      FROM page_users p
+      LEFT JOIN page_post_counts posts ON posts.author_id = p.id
+      LEFT JOIN page_activity activity ON activity.actor_user_id = p.id
+      ORDER BY p.created_at DESC, p.id DESC
     `,
       )
         .bind(ADMIN_PAGE_SIZE, offset)

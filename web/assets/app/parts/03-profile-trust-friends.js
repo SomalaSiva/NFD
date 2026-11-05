@@ -1,3 +1,6 @@
+let trustAdminOffset = 0;
+let trustAdminQuery = "";
+
 function setProfileMessage(message, isError = false) {
   profileMessage.textContent = message;
   profileMessage.classList.toggle("error", isError);
@@ -714,8 +717,10 @@ async function loadTrustDashboard(userId = activeTrustProfileId) {
 }
 async function loadTrustAdminSummary() {
   if (!trustAdminSummary) return;
+  const params = new URLSearchParams({ offset: String(trustAdminOffset) });
+  if (trustAdminQuery) params.set("q", trustAdminQuery);
   try {
-    const response = await fetch("/api/admin/trust-score/allegations", {
+    const response = await fetch(`/api/admin/trust-score/allegations?${params}`, {
       headers: { accept: "application/json" },
       cache: "no-store",
     });
@@ -732,6 +737,26 @@ async function loadTrustAdminSummary() {
       "trust-score-hint",
       "Positive recognition and allegations are listed separately by type. Allegations remain unverified; poll voter identities are not displayed.",
     );
+    const searchForm = document.createElement("form");
+    searchForm.className = "trust-admin-search";
+    const searchInput = document.createElement("input");
+    searchInput.className = "control";
+    searchInput.type = "search";
+    searchInput.value = trustAdminQuery;
+    searchInput.placeholder = "Search people, categories, outcomes, or post text";
+    searchInput.setAttribute("aria-label", "Search Trust activity review");
+    const searchButton = document.createElement("button");
+    searchButton.className = "secondary-button";
+    searchButton.type = "submit";
+    searchButton.textContent = "Search";
+    searchForm.append(searchInput, searchButton);
+    searchForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      trustAdminQuery = searchInput.value.trim().slice(0, 100);
+      trustAdminOffset = 0;
+      void loadTrustAdminSummary();
+    });
+    trustAdminSummary.append(searchForm);
     for (const allegation of result.allegations || []) {
       const row = document.createElement("article");
       row.className = "trust-admin-poll-row";
@@ -780,6 +805,31 @@ async function loadTrustAdminSummary() {
       );
       trustAdminSummary.append(row);
     }
+    const pager = document.createElement("div");
+    pager.className = "trust-admin-pagination";
+    const start = result.total ? result.offset + 1 : 0;
+    const end = result.offset + (result.allegations || []).length;
+    addText(pager, "span", "", `${start}–${end} of ${result.total || 0}`);
+    const previous = document.createElement("button");
+    previous.className = "secondary-button";
+    previous.type = "button";
+    previous.textContent = "Previous";
+    previous.disabled = result.offset <= 0;
+    previous.addEventListener("click", () => {
+      trustAdminOffset = Math.max(0, result.offset - result.pageSize);
+      void loadTrustAdminSummary();
+    });
+    const next = document.createElement("button");
+    next.className = "secondary-button";
+    next.type = "button";
+    next.textContent = "Next";
+    next.disabled = result.nextOffset === null;
+    next.addEventListener("click", () => {
+      trustAdminOffset = result.nextOffset ?? result.offset;
+      void loadTrustAdminSummary();
+    });
+    pager.append(previous, next);
+    trustAdminSummary.append(pager);
   } catch {}
 }
 async function searchTrustPeople() {

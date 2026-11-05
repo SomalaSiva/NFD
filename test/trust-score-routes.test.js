@@ -45,6 +45,88 @@ test("all allegation review data is restricted to administrators", async () => {
   assert.equal(response.status, 403);
 });
 
+test("Trust Score summaries count all visible records while returning a bounded detail list", async () => {
+  const routes = setup();
+  const db = {
+    prepare(sql) {
+      return {
+        bind() {
+          return this;
+        },
+        async first() {
+          return { id: "viewer-1", name: "Viewer", profile_photo_key: null };
+        },
+        async all() {
+          if (sql.includes("GROUP BY a.classification, a.outcome")) {
+            return { results: [{ classification: "communication", outcome: "did_not_respond", total: 105 }] };
+          }
+          if (sql.includes("SELECT a.id, a.experience_id")) {
+            return {
+              results: [
+                {
+                  id: "allegation-1",
+                  experience_id: "experience-1",
+                  author_user_id: "creator-1",
+                  classification: "communication",
+                  outcome: "did_not_respond",
+                  created_at: "2026-11-01T00:00:00.000Z",
+                  short_description: "A report",
+                  visibility: "public",
+                  author_name: "Creator",
+                },
+              ],
+            };
+          }
+          return { results: [] };
+        },
+      };
+    },
+  };
+  const response = await routes.getDashboard(new Request("https://nfd.test/api/trust-score/dashboard"), {
+    DB: db,
+  });
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(body.negativeClassifications.communication.total, 105);
+  assert.equal(body.negativeClassifications.communication.outcomes[0].count, 105);
+  assert.equal(body.allegations.length, 1);
+});
+
+test("administrator Trust activity review is searchable and paginated", async () => {
+  const routes = setup({ admin: true });
+  const seen = [];
+  const db = {
+    prepare(sql) {
+      seen.push(sql);
+      return {
+        bind() {
+          return this;
+        },
+        async first() {
+          return { total: 205 };
+        },
+        async all() {
+          return { results: Array.from({ length: 100 }, (_, id) => ({ id: `allegation-${id}` })) };
+        },
+      };
+    },
+  };
+  const response = await routes.adminSummary(
+    new Request("https://nfd.test/api/admin/trust-score/allegations?q=deadline&offset=100"),
+    { DB: db },
+  );
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(body.total, 205);
+  assert.equal(body.offset, 100);
+  assert.equal(body.nextOffset, 200);
+  assert.match(seen[1], /page_allegations/);
+  assert.match(seen[1], /LIMIT \? OFFSET \?/);
+  assert.match(seen[1], /short_description/);
+});
+
 test("allegation creator may vote but the person named in the allegation may not", async () => {
   const routes = setup({ user: { id: "creator-1" } });
   const db = {
