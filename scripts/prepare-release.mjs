@@ -12,8 +12,8 @@ try {
   const branch = git(["branch", "--show-current"]);
   if (branch !== "main") throw new Error(`Expected the canonical main checkout; found branch "${branch}".`);
 
-  const dirty = git(["status", "--porcelain", "--untracked-files=no"]);
-  if (dirty) throw new Error("Commit or discard tracked changes before preparing a release.");
+  const dirty = git(["status", "--porcelain", "--untracked-files=normal"]);
+  if (dirty) throw new Error("Commit or set aside uncommitted changes before preparing a release.");
 
   const sha = git(["rev-parse", "HEAD"]);
   const remoteSha = git(["rev-parse", "origin/main"]);
@@ -27,14 +27,17 @@ try {
     );
   }
 
-  const result = spawnSync(process.execPath, [path.join(root, "scripts", "check-changed.mjs")], {
+  const result = spawnSync(process.execPath, [path.join(root, "scripts", "check-changed.mjs"), remoteSha], {
     cwd: root,
     stdio: "inherit",
   });
   if (result.error) throw result.error;
   if (result.status !== 0) throw new Error("Fast release checks failed; do not publish this build.");
 
-  execFileSync("git", ["push", "origin", "HEAD:refs/heads/main"], { cwd: root, stdio: "inherit" });
+  if (git(["rev-parse", "HEAD"]) !== sha || git(["status", "--porcelain"])) {
+    throw new Error("Source changed during checks. Commit the final source and retry.");
+  }
+  execFileSync("git", ["push", "origin", `${sha}:refs/heads/main`], { cwd: root, stdio: "inherit" });
 
   console.log(`Release source SHA: ${sha}`);
   console.log(`Built artifact: ${path.join(root, "dist", "server", "index.js")}`);

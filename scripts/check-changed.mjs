@@ -1,4 +1,4 @@
-import { execFileSync, spawnSync } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import path from "node:path";
 
@@ -12,9 +12,11 @@ const isProjectFile = (file) =>
   );
 const run = (label, command, args) => {
   console.log(`\n${label}`);
-  const result = spawnSync(command, args, { cwd: root, stdio: "inherit" });
-  if (result.error) throw result.error;
-  if (result.status !== 0) throw new Error(`${label} failed.`);
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, args, { cwd: root, stdio: "inherit" });
+    child.once("error", reject);
+    child.once("close", (code) => (code === 0 ? resolve() : reject(new Error(`${label} failed.`))));
+  });
 };
 
 const testMap = new Map([
@@ -37,10 +39,10 @@ const testMap = new Map([
 ]);
 
 try {
+  const base = process.argv[2] || "HEAD";
   const changed = new Set(
     [
-      ...git(["diff", "--name-only", "--diff-filter=ACMR", "HEAD"]).split(/\r?\n/),
-      ...git(["diff", "--cached", "--name-only", "--diff-filter=ACMR", "HEAD"]).split(/\r?\n/),
+      ...git(["diff", "--no-renames", "--name-only", base]).split(/\r?\n/),
       ...git(["ls-files", "--others", "--exclude-standard"]).split(/\r?\n/),
     ]
       .filter(Boolean)
@@ -58,21 +60,23 @@ try {
 
   const appPartsChanged = [...changed].some((file) => /^web\/assets\/app\/parts\/.*\.js$/.test(file));
   if (appPartsChanged) {
-    run("Assemble screen source", process.execPath, [path.join(root, "scripts/assemble-app.mjs")]);
+    await run("Assemble screen source", process.execPath, [path.join(root, "scripts/assemble-app.mjs")]);
     changed.add("web/assets/app.js");
   }
 
-  const eslintFiles = [...changed].filter(
+  const present = [...changed].filter((file) => existsSync(path.join(root, file)));
+  const checks = [];
+  const eslintFiles = present.filter(
     (file) =>
       /\.(?:js|mjs|cjs)$/.test(file) && !file.includes("/dist/") && !/^web\/assets\/app\/parts\//.test(file),
   );
   if (eslintFiles.length) {
     const eslintCli = path.join(root, "node_modules", "eslint", "bin", "eslint.js");
     if (!existsSync(eslintCli)) throw new Error("ESLint is not installed. Run npm ci first.");
-    run("Focused lint", process.execPath, [eslintCli, ...eslintFiles]);
+    checks.push(() => run("Focused lint", process.execPath, [eslintCli, ...eslintFiles]));
   }
 
-  const formatFiles = [...changed].filter(
+  const formatFiles = present.filter(
     (file) =>
       /\.(?:js|mjs|cjs|css|html|ts|json|jsonc|md)$/.test(file) &&
       file !== "web/assets/app.js" &&
@@ -81,7 +85,9 @@ try {
   if (formatFiles.length) {
     const prettierCli = path.join(root, "node_modules", "prettier", "bin", "prettier.cjs");
     if (!existsSync(prettierCli)) throw new Error("Prettier is not installed. Run npm ci first.");
-    run("Focused formatting check", process.execPath, [prettierCli, "--check", ...formatFiles]);
+    checks.push(() =>
+      run("Focused formatting check", process.execPath, [prettierCli, "--check", ...formatFiles]),
+    );
   }
 
   const tests = new Set([...changed].filter((file) => /^test\/.*\.test\.js$/.test(file)));
@@ -96,15 +102,18 @@ try {
   }
 
   if (fullSuite) {
-    run("Data-layer regression suite", process.execPath, ["--test"]);
+    checks.push(() => run("Data-layer regression suite", process.execPath, ["--test"]));
   } else if (tests.size) {
     const existingTests = [...tests].filter((file) => existsSync(path.join(root, file)));
-    run("Focused feature tests", process.execPath, ["--test", ...existingTests]);
+    if (existingTests.length)
+      checks.push(() => run("Focused feature tests", process.execPath, ["--test", ...existingTests]));
   } else {
     console.log("No mapped automated test for these files. Do the affected-flow smoke check before release.");
   }
 
-  run("Production build", process.execPath, [path.join(root, "scripts", "build-worker.mjs")]);
+  const results = await Promise.allSettled(checks.map((check) => check()));
+  for (const result of results) if (result.status === "rejected") throw result.reason;
+  await run("Production build", process.execPath, [path.join(root, "scripts", "build-worker.mjs")]);
 } catch (error) {
   console.error(`Focused check stopped: ${error.message}`);
   process.exitCode = 1;

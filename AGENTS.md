@@ -41,6 +41,7 @@
 - Use `npm run check:fast` to lint and format changed files, run mapped tests for the affected feature, and build once. It runs the full test suite for database/schema changes.
 - Run the relevant tests directly with `npm run test:focused -- test/<relevant-file>.test.js`.
 - Use `npm run check:full` for broad or cross-cutting changes; it runs all tests and the build.
+- For a small production release, commit the change (including the assembled app.js for screen edits) and use release preparation as the single fast check and build. Exercise the affected flow against that build and package it without rebuilding. Skip a production deployment for tooling-only changes that do not change the deployed app.
 - Before publishing, use `npm run release:prepare` to confirm the source tree is clean, the current `main` commit is pushed, and a fresh fast check/build passes. Publish that exact SHA through OpenAI Sites; never use `wrangler deploy`.
 - After publishing, use `npm run release:smoke` to check the live app routes return successfully. This is a route availability check, not a substitute for checking the changed behavior in the app.
 
