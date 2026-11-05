@@ -9,6 +9,8 @@ export const nfdUsers = sqliteTable(
     providerSubject: text("provider_subject").notNull(),
     email: text("email").notNull(),
     displayName: text("display_name"),
+    username: text("username"),
+    bio: text("bio").notNull().default(""),
     profilePhotoKey: text("profile_photo_key"),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
@@ -16,7 +18,9 @@ export const nfdUsers = sqliteTable(
   },
   (table) => [
     uniqueIndex("nfd_users_provider_subject_unique").on(table.provider, table.providerSubject),
-    index("nfd_users_active_name_idx").on(table.active, sql`${table.displayName} COLLATE NOCASE`, table.id),
+    uniqueIndex("nfd_users_username_unique")
+      .on(sql`${table.username} COLLATE NOCASE`)
+      .where(sql`${table.username} IS NOT NULL`),
   ],
 );
 
@@ -107,7 +111,7 @@ export const experiences = sqliteTable(
   },
   (table) => [
     index("experiences_author_created_idx").on(table.authorId, table.createdAt),
-    index("experiences_author_status_page_idx").on(table.authorId, table.status, table.createdAt, table.id),
+    index("experiences_profile_page_idx").on(table.authorId, table.status, table.createdAt, table.id),
     index("experiences_visibility_created_idx").on(table.visibility, table.createdAt),
     index("experiences_status_created_idx").on(table.status, table.createdAt),
   ],
@@ -396,3 +400,48 @@ export const nfdModerationUsage = sqliteTable("nfd_moderation_usage", {
   usageDay: text("usage_day").primaryKey().notNull(),
   requestCount: integer("request_count").notNull().default(0),
 });
+
+export const nfdTrustAllegations = sqliteTable(
+  "nfd_trust_allegations",
+  {
+    id: text("id").primaryKey().notNull(),
+    experienceId: text("experience_id")
+      .notNull()
+      .references(() => experiences.id, { onDelete: "cascade" }),
+    authorUserId: text("author_user_id")
+      .notNull()
+      .references(() => nfdUsers.id, { onDelete: "cascade" }),
+    subjectUserId: text("subject_user_id")
+      .notNull()
+      .references(() => nfdUsers.id, { onDelete: "cascade" }),
+    classification: text("classification").notNull(),
+    outcome: text("outcome").notNull(),
+    status: text("status").notNull().default("unverified"),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("nfd_trust_allegations_experience_unique").on(table.experienceId),
+    index("nfd_trust_allegations_subject_created_idx").on(table.subjectUserId, table.createdAt),
+  ],
+);
+
+export const nfdTrustAllegationVotes = sqliteTable(
+  "nfd_trust_allegation_votes",
+  {
+    allegationId: text("allegation_id")
+      .notNull()
+      .references(() => nfdTrustAllegations.id, { onDelete: "cascade" }),
+    voterUserId: text("voter_user_id")
+      .notNull()
+      .references(() => nfdUsers.id, { onDelete: "cascade" }),
+    choice: text("choice").notNull(),
+    voterGroup: text("voter_group").notNull(),
+    weight: integer("weight").notNull(),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("nfd_trust_votes_allegation_voter_unique").on(table.allegationId, table.voterUserId),
+    index("nfd_trust_votes_allegation_group_idx").on(table.allegationId, table.voterGroup, table.choice),
+  ],
+);

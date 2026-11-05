@@ -54,6 +54,7 @@ function setup() {
     getCurrentUser: async () => ({ id: "user-1" }),
     ensureGhostTables: async () => {},
     ensureStoryTables: async () => {},
+    ensureTrustScoreTables: async () => {},
     ensureExperienceOptionColumns: async () => {},
     ensureEngagementTables: async () => {},
     recordActivity: async (...args) => activity.push(args),
@@ -91,9 +92,10 @@ test("editing can remove selected owned attachments and retain the others", asyn
 
   assert.equal(response.status, 200);
   assert.deepEqual((await response.json()).removedEvidenceIds, [attachmentB]);
-  assert.equal(statements.length, 2);
-  assert.match(statements[1].sql, /DELETE FROM experience_evidence/);
-  assert.deepEqual(statements[1].values, [attachmentB, postId]);
+  assert.equal(statements.length, 3);
+  assert.match(statements[1].sql, /DELETE FROM nfd_trust_allegations/);
+  assert.match(statements[2].sql, /DELETE FROM experience_evidence/);
+  assert.deepEqual(statements[2].values, [attachmentB, postId]);
   assert.deepEqual(removedObjects, ["original/remove.mp4", "preview/remove.webp"]);
   assert.equal(activity[0][2], "experience_edited");
 });

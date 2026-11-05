@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "3a34a3ab-2c6b-41f8-b319-1aded4b4c3f4",
+  "id": "56fffc4c-e704-4a0e-82d5-300ebb3cdd15",
   "prevId": "0d9d9d22-1729-4513-9f8d-a18f7dd841cd",
   "tables": {
     "experience_comments": {
@@ -413,15 +413,15 @@
           ],
           "isUnique": false
         },
-        "experiences_author_status_page_idx": {
-          "name": "experiences_author_status_page_idx",
+        "experiences_profile_page_idx": {
+          "name": "experiences_profile_page_idx",
+          "isUnique": false,
           "columns": [
             "author_id",
             "status",
             "created_at",
             "id"
-          ],
-          "isUnique": false
+          ]
         }
       },
       "foreignKeys": {},

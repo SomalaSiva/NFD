@@ -3,16 +3,11 @@ import { createSocialRoutes } from "./routes/social.js";
 import { createStoryRoutes } from "./routes/stories.js";
 import { createExperienceRoutes } from "./routes/experiences.js";
 import { createAgreementRoutes } from "./routes/agreements.js";
+import { createTrustScoreRoutes } from "./routes/trust-score.js";
 import { ADMIN_PAGE_SIZE, getPageMetadata, getPageOffset } from "./lib/pagination.js";
 import { getSessionIdleMinutes, isSessionIdle } from "./lib/session.js";
 import { getQuickStoriesEnabled } from "./lib/quick-stories.js";
-import {
-  findLocalTestUser,
-  getLocalTestUser,
-  isLocalTestAuthEnabled,
-  LOCAL_TEST_USER_COOKIE,
-  LOCAL_TEST_USERS,
-} from "./lib/local-test-auth.js";
+import { fetchWithRetry } from "./lib/fetch-retry.js";
 import {
   ensureEngagementTables,
   ensureEvidenceCleanupTable,
@@ -21,6 +16,7 @@ import {
   ensureIdentityTables,
   ensureModerationTable,
   ensureStoryTables,
+  ensureTrustScoreTables,
 } from "./db/ensure.js";
 
 const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
@@ -45,7 +41,6 @@ let googleJwksExpiresAt = 0;
 let googleActivityKeySecret = "";
 let googleActivityKeyPromise;
 const googleActivityCookies = new WeakMap();
-const localTestIdentitySeeds = new WeakMap();
 const adminRoutes = createAdminRoutes({
   getCurrentUser,
   isOwner,
@@ -85,6 +80,7 @@ const experienceRoutes = createExperienceRoutes({
   ensureStoryTables,
   ensureExperienceOptionColumns,
   ensureEngagementTables,
+  ensureTrustScoreTables,
   recordActivity,
   json,
   cleanSearchTerm,
@@ -99,6 +95,13 @@ const agreementRoutes = createAgreementRoutes({
   json,
   cleanSearchTerm,
   availableIdentitySql: AVAILABLE_IDENTITY_SQL,
+});
+const trustScoreRoutes = createTrustScoreRoutes({
+  getCurrentUser,
+  isAdmin: (request, env) => adminRoutes.isAdmin(request, env),
+  ensureTrustScoreTables,
+  json,
+  cleanSearchTerm,
 });
 
 const worker = {
@@ -117,6 +120,33 @@ const worker = {
       return new Response(APP_JS, {
         headers: {
           "content-type": "text/javascript; charset=utf-8",
+          "cache-control": "public, max-age=31536000, immutable",
+          "x-content-type-options": "nosniff",
+        },
+      });
+    }
+    if (request.method === "GET" && url.pathname === "/manifest.webmanifest") {
+      return new Response(APP_MANIFEST, {
+        headers: {
+          "content-type": "application/manifest+json; charset=utf-8",
+          "cache-control": "public, max-age=300",
+          "x-content-type-options": "nosniff",
+        },
+      });
+    }
+    if (request.method === "GET" && url.pathname === "/nfd-icon-192.png") {
+      return new Response(APP_ICON_192, {
+        headers: {
+          "content-type": "image/png",
+          "cache-control": "public, max-age=31536000, immutable",
+          "x-content-type-options": "nosniff",
+        },
+      });
+    }
+    if (request.method === "GET" && url.pathname === "/nfd-icon-512.png") {
+      return new Response(APP_ICON_512, {
+        headers: {
+          "content-type": "image/png",
           "cache-control": "public, max-age=31536000, immutable",
           "x-content-type-options": "nosniff",
         },
@@ -149,13 +179,6 @@ const worker = {
     if (request.method === "GET" && url.pathname === "/profile") {
       if (!(await getCurrentUser(request, env))) {
         return Response.redirect(new URL("/login?return_to=%2Fprofile", url), 302);
-      }
-      return html(PAGE_HTML);
-    }
-    if (request.method === "GET" && ["/friends", "/settings"].includes(url.pathname)) {
-      const returnTo = `${url.pathname}${url.search}`;
-      if (!(await getCurrentUser(request, env))) {
-        return Response.redirect(new URL(`/login?return_to=${encodeURIComponent(returnTo)}`, url), 302);
       }
       return html(PAGE_HTML);
     }
@@ -207,33 +230,6 @@ const worker = {
       return html(PAGE_HTML);
     }
 
-    if (request.method === "POST" && url.pathname === "/api/local-test-user") {
-      if (!isLocalTestAuthEnabled(request, env) || !env.DB) {
-        return json({ error: "Local test accounts are only available in local development." }, 404);
-      }
-      const currentUser = await getCurrentUser(request, env);
-      if (!currentUser || currentUser.provider !== "local-test") {
-        return json({ error: "Local test account access is unavailable." }, 403);
-      }
-      let body;
-      try {
-        body = await request.json();
-      } catch {
-        return json({ error: "Choose a valid local test account." }, 400);
-      }
-      const selectedUser = findLocalTestUser(body?.userId);
-      if (!selectedUser) return json({ error: "Choose a valid local test account." }, 400);
-      const account = await env.DB.prepare("SELECT active FROM nfd_users WHERE id = ? LIMIT 1")
-        .bind(selectedUser.id)
-        .first();
-      if (Number(account?.active) !== 1) {
-        return json({ error: "That local test account is inactive." }, 409);
-      }
-      return json({ userId: selectedUser.id, displayName: selectedUser.name }, 200, {
-        "set-cookie": `${LOCAL_TEST_USER_COOKIE}=${selectedUser.id}; Max-Age=2592000; Path=/; HttpOnly; SameSite=Lax`,
-      });
-    }
-
     if (request.method === "GET" && url.pathname === "/api/auth-status") {
       const user = await getCurrentUser(request, env);
       if (!user) {
@@ -260,15 +256,28 @@ const worker = {
         profilePhotoUrl,
         isAdmin: !user.isGhost && (await adminRoutes.isAdmin(request, env)),
         provider: user.provider,
-        ...(isLocalTestAuthEnabled(request, env) && user.provider === "local-test"
-          ? { localTestUsers: LOCAL_TEST_USERS.map(({ id, name }) => ({ id, name })) }
-          : {}),
         ghostMode: await getGhostModeState(request, env, user),
         sessionIdleMinutes: await getSessionIdleMinutes(env),
       });
     }
     if (request.method === "POST" && url.pathname === "/api/trust-score/agreement-draft") {
       return agreementRoutes.generateDraft(request, env);
+    }
+    if (request.method === "GET" && url.pathname === "/api/trust-score/rules") {
+      return trustScoreRoutes.getRules(request, env);
+    }
+    if (request.method === "GET" && url.pathname === "/api/trust-score/people") {
+      return trustScoreRoutes.searchPeople(request, env);
+    }
+    if (request.method === "GET" && url.pathname === "/api/trust-score/dashboard") {
+      return trustScoreRoutes.getDashboard(request, env);
+    }
+    if (request.method === "GET" && url.pathname === "/api/admin/trust-score/allegations") {
+      return trustScoreRoutes.adminSummary(request, env);
+    }
+    const trustPollMatch = url.pathname.match(/^\/api\/trust-score\/allegations\/([0-9a-f-]{36})\/vote$/i);
+    if (trustPollMatch && request.method === "POST") {
+      return trustScoreRoutes.vote(request, env, trustPollMatch[1]);
     }
     if (request.method === "GET" && url.pathname === "/api/trust-score/agreement-people") {
       return agreementRoutes.searchAgreementParticipants(request, env);
@@ -420,6 +429,9 @@ const worker = {
     if (request.method === "GET" && url.pathname === "/api/profile") {
       return experienceRoutes.getProfile(request, env);
     }
+    if (request.method === "PUT" && url.pathname === "/api/profile") {
+      return experienceRoutes.updateProfile(request, env);
+    }
     const ownExperienceMatch = url.pathname.match(/^\/api\/experiences\/([0-9a-f-]{36})$/i);
     if (request.method === "GET" && ownExperienceMatch) {
       return experienceRoutes.getOwnExperience(request, env, ownExperienceMatch[1]);
@@ -549,7 +561,7 @@ async function finishGoogleSignIn(request, env) {
       `
       INSERT INTO nfd_users (id, provider, provider_subject, email, display_name, created_at, updated_at)
       VALUES (?, 'google', ?, ?, ?, ?, ?)
-      ON CONFLICT(id) DO UPDATE SET email = excluded.email, display_name = excluded.display_name, updated_at = excluded.updated_at
+      ON CONFLICT(id) DO UPDATE SET email = excluded.email, updated_at = excluded.updated_at
     `,
     )
       .bind(userId, claims.sub, claims.email.toLowerCase(), claims.name || null, now, now)
@@ -616,58 +628,6 @@ async function signOut(request, env) {
 }
 
 async function getAuthenticatedUser(request, env) {
-  if (isLocalTestAuthEnabled(request, env) && env.DB) {
-    try {
-      await ensureIdentityTables(env);
-      let seedPromise = localTestIdentitySeeds.get(env.DB);
-      if (!seedPromise) {
-        seedPromise = env.DB.batch(
-          LOCAL_TEST_USERS.map((account) =>
-            env.DB.prepare(
-              `
-              INSERT OR IGNORE INTO nfd_users
-                (id, provider, provider_subject, email, display_name, created_at, updated_at)
-              VALUES (?, 'local-test', ?, ?, ?, ?, ?)
-            `,
-            ).bind(
-              account.id,
-              account.id,
-              account.email,
-              account.name,
-              new Date().toISOString(),
-              new Date().toISOString(),
-            ),
-          ),
-        );
-        localTestIdentitySeeds.set(env.DB, seedPromise);
-      }
-      try {
-        await seedPromise;
-      } catch (error) {
-        localTestIdentitySeeds.delete(env.DB);
-        throw error;
-      }
-      const selected = getLocalTestUser(request);
-      const now = new Date().toISOString();
-      await env.DB.prepare(
-        `
-        UPDATE nfd_users SET updated_at = ? WHERE id = ? AND provider = 'local-test'
-      `,
-      )
-        .bind(now, selected.id)
-        .run();
-      const account = await env.DB.prepare(
-        "SELECT id, provider, provider_subject AS subject, email, display_name AS name, active FROM nfd_users WHERE id = ? LIMIT 1",
-      )
-        .bind(selected.id)
-        .first();
-      return Number(account?.active) === 1 ? account : null;
-    } catch (error) {
-      console.error("Local test identity setup failed", error instanceof Error ? error.name : "unknown");
-      return null;
-    }
-  }
-
   const token = getCookie(request, GOOGLE_SESSION_COOKIE);
   if (token && env.DB) {
     try {
@@ -1542,37 +1502,46 @@ async function reviewWithGemini(env, fields, files) {
       if (file.type.startsWith("video/")) await waitForGeminiReviewFile(env, uploaded, controller.signal);
       parts.push({ fileData: { mimeType: uploaded.mimeType, fileUri: uploaded.uri } });
     }
-    const response = await fetch(`${GEMINI_API_ROOT}/v1beta/models/gemini-3.1-flash-lite:generateContent`, {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
-      signal: controller.signal,
-      body: JSON.stringify({
-        contents: [{ role: "user", parts }],
-        generationConfig: {
-          temperature: 0.1,
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: "OBJECT",
-            properties: {
-              approved: { type: "BOOLEAN" },
-              reviewNote: { type: "STRING" },
-              suggestedShortDescription: { type: "STRING" },
-              suggestedFullDescription: { type: "STRING" },
-              flaggedAttachmentIndexes: { type: "ARRAY", items: { type: "INTEGER" } },
+    const response = await fetchWithRetry(
+      fetch,
+      `${GEMINI_API_ROOT}/v1beta/models/gemini-3.1-flash-lite:generateContent`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
+        signal: controller.signal,
+        body: JSON.stringify({
+          contents: [{ role: "user", parts }],
+          generationConfig: {
+            temperature: 0.1,
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: "OBJECT",
+              properties: {
+                approved: { type: "BOOLEAN" },
+                reviewNote: { type: "STRING" },
+                suggestedShortDescription: { type: "STRING" },
+                suggestedFullDescription: { type: "STRING" },
+                flaggedAttachmentIndexes: { type: "ARRAY", items: { type: "INTEGER" } },
+              },
+              required: [
+                "approved",
+                "reviewNote",
+                "suggestedShortDescription",
+                "suggestedFullDescription",
+                "flaggedAttachmentIndexes",
+              ],
             },
-            required: [
-              "approved",
-              "reviewNote",
-              "suggestedShortDescription",
-              "suggestedFullDescription",
-              "flaggedAttachmentIndexes",
-            ],
           },
-        },
-      }),
-    });
+        }),
+      },
+      {
+        maxAttempts: 3,
+        baseDelayMs: 300,
+        maxDelayMs: 1500,
+      },
+    );
     if (!response.ok) {
-      console.error("Gemini review request failed", response.status);
+      console.error("Gemini review request failed after retries", response.status);
       return {
         error:
           "The safety review is unavailable right now. Your story was not shared; please try again later.",

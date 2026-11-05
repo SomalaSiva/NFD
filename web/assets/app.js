@@ -8,6 +8,19 @@ const fullDescription = document.getElementById("full-description");
 const experienceCategoryInput = document.getElementById("experience-category");
 const incidentCategoryInput = document.getElementById("incident-category");
 const incidentCategoryHelper = document.getElementById("incident-category-helper");
+const trustClassificationInput = document.getElementById("trust-classification");
+const trustOutcomeInput = document.getElementById("trust-outcome");
+const trustSubjectInput = document.getElementById("trust-subject");
+const trustSubjectSearchInput = document.getElementById("trust-subject-search");
+const trustSubjectResults = document.getElementById("trust-subject-results");
+const trustSubjectSearchStatus = document.getElementById("trust-subject-search-status");
+const trustSubjectField = document.getElementById("trust-subject-field");
+const trustClassFeedback = document.getElementById("trust-classification-feedback");
+let trustPostOptionsPromise;
+let trustSubjectSearchTimer;
+let trustSubjectSearchController;
+let trustSubjectSelectedName = "";
+let trustAcceptedFriendIds = new Set();
 const incidentCategoriesByExperience = {
   "Personal relationships": [
     "Trust broken or deception",
@@ -122,6 +135,14 @@ const profilePhotoFeedback = document.getElementById("profile-photo-feedback");
 const profilePhotoPreview = document.getElementById("profile-photo-preview");
 const profileSummaryContent = document.getElementById("profile-summary-content");
 const profileSummaryScore = document.getElementById("profile-summary-score");
+const profileDetailsPanel = document.getElementById("profile-details-panel");
+const profileDetailsForm = document.getElementById("profile-details-form");
+const profileDisplayNameInput = document.getElementById("profile-display-name");
+const profileUsernameInput = document.getElementById("profile-username");
+const profileBioInput = document.getElementById("profile-bio");
+const profileBioCount = document.getElementById("profile-bio-count");
+const profileDetailsSave = document.getElementById("profile-details-save");
+const profileDetailsFeedback = document.getElementById("profile-details-feedback");
 const accountProfilePhoto = document.getElementById("account-profile-photo");
 const feedState = document.getElementById("feed-state");
 const feedPlaceSearch = document.getElementById("feed-place-search");
@@ -145,10 +166,8 @@ const mainNavRow = document.getElementById("main-nav-row");
 const mobileBottomNav = document.getElementById("mobile-bottom-nav");
 const accountMenuWrap = document.getElementById("account-menu-wrap");
 const accountAdminLink = document.getElementById("account-admin-link");
-const localTestUserSwitcher = document.getElementById("local-test-user-switcher");
-const localTestUserSelect = document.getElementById("local-test-user-select");
-const localTestUserFeedback = document.getElementById("local-test-user-feedback");
 const ghostModeSetupLink = document.getElementById("ghost-mode-setup");
+const ghostModeToggle = document.getElementById("ghost-mode-toggle");
 const ghostModeBanner = document.getElementById("ghost-mode-banner");
 const ghostModeHandle = document.getElementById("ghost-mode-handle");
 const ghostModeExit = document.getElementById("ghost-mode-exit");
@@ -189,124 +208,25 @@ function setMainNavigationVisible(visible) {
   mainNavRow.hidden = !visible;
   accountMenuWrap.hidden = !visible;
   storiesTray.hidden = !visible;
-  if (mobileBottomNav) {
-    mobileBottomNav.hidden = !visible;
-    document.body.classList.toggle("has-mobile-bottom-nav", visible);
-    updateMobileBottomNavigation();
-  }
-  syncMessagesViewport();
-}
-function syncMessagesViewport() {
-  if (!appLayout?.classList.contains("messages-mode")) return;
-  if (!window.matchMedia("(max-width: 720px)").matches) {
-    appLayout.style.removeProperty("--messages-viewport-height");
-    return;
-  }
-  const headerHeight = document.querySelector(".topbar")?.getBoundingClientRect().height || 0;
-  const bottomNavHeight =
-    mobileBottomNav && !mobileBottomNav.hidden ? mobileBottomNav.getBoundingClientRect().height : 0;
-  const availableHeight = Math.max(320, window.innerHeight - headerHeight - bottomNavHeight);
-  appLayout.style.setProperty("--messages-viewport-height", `${availableHeight}px`);
+  mobileBottomNav.hidden = !visible;
+  document.body.classList.toggle("has-mobile-bottom-nav", visible);
+  updateMobileBottomNavigation();
 }
 function updateMobileBottomNavigation() {
   if (!mobileBottomNav) return;
-  const path = location.pathname;
+  const path = location.pathname.replace(/\/$/, "") || "/";
   const params = new URLSearchParams(location.search);
-  const active =
-    path === "/share"
-      ? "post"
-      : path === "/friends" ||
-          (path === "/profile" &&
-            (params.has("friend") || ["friends", "requests", "sent"].includes(params.get("tab"))))
-        ? "friends"
-        : path === "/profile" || path === "/settings"
-          ? "you"
-          : "feed";
+  let active = "feed";
+  if (path === "/share") active = "post";
+  else if (path === "/profile" && (params.get("tab") === "friends" || params.has("friend")))
+    active = "friends";
+  else if (path === "/profile") active = "you";
   mobileBottomNav.querySelectorAll("[data-mobile-nav]").forEach((link) => {
-    if (link.dataset.mobileNav === active) link.setAttribute("aria-current", "page");
+    const selected = link.dataset.mobileNav === active;
+    if (selected) link.setAttribute("aria-current", "page");
     else link.removeAttribute("aria-current");
   });
 }
-const tapSoundsToggle = document.getElementById("tap-sounds-toggle");
-const touchVibrationToggle = document.getElementById("touch-vibration-toggle");
-const settingsPreferenceFeedback = document.getElementById("settings-preference-feedback");
-const TAP_SOUNDS_PREFERENCE_KEY = "nfd:tap-sounds-enabled";
-const TOUCH_VIBRATION_PREFERENCE_KEY = "nfd:touch-vibration-enabled";
-let tapFeedbackAudioContext;
-function readBooleanPreference(key, fallback = true) {
-  try {
-    const saved = localStorage.getItem(key);
-    return saved === null ? fallback : saved === "true";
-  } catch {
-    return fallback;
-  }
-}
-function saveBooleanPreference(key, enabled) {
-  try {
-    localStorage.setItem(key, String(enabled));
-  } catch {
-    if (settingsPreferenceFeedback) {
-      settingsPreferenceFeedback.hidden = false;
-      settingsPreferenceFeedback.textContent = "This preference could not be saved on this device.";
-    }
-  }
-}
-function initializeInteractionPreferences() {
-  if (tapSoundsToggle) tapSoundsToggle.checked = readBooleanPreference(TAP_SOUNDS_PREFERENCE_KEY);
-  if (touchVibrationToggle)
-    touchVibrationToggle.checked = readBooleanPreference(TOUCH_VIBRATION_PREFERENCE_KEY);
-}
-initializeInteractionPreferences();
-tapSoundsToggle?.addEventListener("change", () => {
-  saveBooleanPreference(TAP_SOUNDS_PREFERENCE_KEY, tapSoundsToggle.checked);
-  if (settingsPreferenceFeedback) {
-    settingsPreferenceFeedback.hidden = false;
-    settingsPreferenceFeedback.textContent = `Tap sounds ${tapSoundsToggle.checked ? "on" : "off"}.`;
-  }
-});
-touchVibrationToggle?.addEventListener("change", () => {
-  saveBooleanPreference(TOUCH_VIBRATION_PREFERENCE_KEY, touchVibrationToggle.checked);
-  if (settingsPreferenceFeedback) {
-    settingsPreferenceFeedback.hidden = false;
-    settingsPreferenceFeedback.textContent =
-      touchVibrationToggle.checked && typeof navigator.vibrate !== "function"
-        ? "Touch vibration is saved, but this browser does not support vibration."
-        : `Touch vibration ${touchVibrationToggle.checked ? "on" : "off"}.`;
-  }
-});
-document.addEventListener("click", (event) => {
-  const target = event.target instanceof Element ? event.target : null;
-  if (!target?.closest("button, a, [role=button], input[type=checkbox]")) return;
-  if (tapSoundsToggle?.checked) {
-    try {
-      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-      if (AudioContextClass) {
-        tapFeedbackAudioContext ||= new AudioContextClass();
-        if (tapFeedbackAudioContext.state === "suspended") void tapFeedbackAudioContext.resume();
-        const oscillator = tapFeedbackAudioContext.createOscillator();
-        const gain = tapFeedbackAudioContext.createGain();
-        const now = tapFeedbackAudioContext.currentTime;
-        oscillator.type = "sine";
-        oscillator.frequency.value = 620;
-        gain.gain.setValueAtTime(0.018, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.045);
-        oscillator.connect(gain);
-        gain.connect(tapFeedbackAudioContext.destination);
-        oscillator.start(now);
-        oscillator.stop(now + 0.05);
-      }
-    } catch {
-      // Tap feedback is optional and must never interrupt an action.
-    }
-  }
-  if (touchVibrationToggle?.checked && typeof navigator.vibrate === "function") {
-    try {
-      navigator.vibrate(8);
-    } catch {
-      // Some browsers expose vibration but deny it for the current context.
-    }
-  }
-});
 let messageNavRefreshTimer;
 let SESSION_IDLE_LIMIT_MS = 4 * 60 * 1000;
 const SESSION_ACTIVITY_STORAGE_KEY = "nfd:last-active-at";
@@ -474,29 +394,132 @@ function startSessionActivityTracking() {
 }
 const accountMenuButton = document.getElementById("account-menu-button");
 const accountMenu = document.getElementById("account-menu");
+const soundFeedbackToggle = document.getElementById("sound-feedback-toggle");
+const hapticFeedbackToggle = document.getElementById("haptic-feedback-toggle");
+const TOUCH_FEEDBACK_STORAGE_KEY = "nfd-touch-feedback-v1";
+const prefersTouchFeedback = window.matchMedia?.("(pointer: coarse)").matches ?? false;
+const supportsTouchVibration = typeof navigator.vibrate === "function";
+let touchFeedbackPreferences = {
+  sound: prefersTouchFeedback,
+  haptics: prefersTouchFeedback && supportsTouchVibration,
+};
+let touchFeedbackAudioContext;
+try {
+  const savedPreferences = JSON.parse(localStorage.getItem(TOUCH_FEEDBACK_STORAGE_KEY) || "null");
+  if (savedPreferences && typeof savedPreferences === "object") {
+    touchFeedbackPreferences = {
+      sound: typeof savedPreferences.sound === "boolean" ? savedPreferences.sound : prefersTouchFeedback,
+      haptics:
+        supportsTouchVibration && typeof savedPreferences.haptics === "boolean"
+          ? savedPreferences.haptics
+          : prefersTouchFeedback && supportsTouchVibration,
+    };
+  }
+} catch {
+  // Keep device-appropriate defaults when browser storage is unavailable.
+}
+function saveTouchFeedbackPreferences() {
+  try {
+    localStorage.setItem(TOUCH_FEEDBACK_STORAGE_KEY, JSON.stringify(touchFeedbackPreferences));
+  } catch {
+    // The controls still work for this page when browser storage is unavailable.
+  }
+  soundFeedbackToggle.setAttribute("aria-pressed", String(touchFeedbackPreferences.sound));
+  soundFeedbackToggle.textContent = `Tap sounds: ${touchFeedbackPreferences.sound ? "On" : "Off"}`;
+  hapticFeedbackToggle.disabled = !supportsTouchVibration;
+  hapticFeedbackToggle.setAttribute(
+    "aria-pressed",
+    String(supportsTouchVibration && touchFeedbackPreferences.haptics),
+  );
+  hapticFeedbackToggle.textContent = supportsTouchVibration
+    ? `Touch vibration: ${touchFeedbackPreferences.haptics ? "On" : "Off"}`
+    : "Touch vibration unavailable";
+}
+function playTouchFeedback(kind = "tap") {
+  if (!touchFeedbackPreferences.sound) return;
+  try {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return;
+    touchFeedbackAudioContext ??= new AudioContextClass();
+    if (touchFeedbackAudioContext.state === "suspended") {
+      touchFeedbackAudioContext.resume().catch(() => {});
+    }
+    const now = touchFeedbackAudioContext.currentTime;
+    const oscillator = touchFeedbackAudioContext.createOscillator();
+    const gain = touchFeedbackAudioContext.createGain();
+    const duration = kind === "swipe" ? 0.12 : 0.055;
+    oscillator.type = "sine";
+    oscillator.frequency.setValueAtTime(kind === "swipe" ? 360 : 620, now);
+    if (kind === "swipe") oscillator.frequency.exponentialRampToValueAtTime(540, now + duration);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(kind === "swipe" ? 0.018 : 0.012, now + 0.012);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+    oscillator.connect(gain);
+    gain.connect(touchFeedbackAudioContext.destination);
+    oscillator.start(now);
+    oscillator.stop(now + duration + 0.01);
+  } catch {
+    // Sound is optional; audio restrictions must never block app interactions.
+  }
+}
+function vibrateForTouch(kind = "tap") {
+  if (!touchFeedbackPreferences.haptics || typeof navigator.vibrate !== "function") return;
+  try {
+    navigator.vibrate(kind === "swipe" ? 16 : 9);
+  } catch {
+    // Unsupported haptics are silently ignored.
+  }
+}
+soundFeedbackToggle.addEventListener("click", () => {
+  touchFeedbackPreferences.sound = !touchFeedbackPreferences.sound;
+  saveTouchFeedbackPreferences();
+});
+hapticFeedbackToggle.addEventListener("click", () => {
+  touchFeedbackPreferences.haptics = !touchFeedbackPreferences.haptics;
+  saveTouchFeedbackPreferences();
+  vibrateForTouch("tap");
+});
+saveTouchFeedbackPreferences();
+let swipeStartPoint;
+document.addEventListener(
+  "pointerdown",
+  (event) => {
+    if (event.isPrimary && event.pointerType === "touch")
+      swipeStartPoint = { x: event.clientX, y: event.clientY };
+  },
+  { passive: true },
+);
+document.addEventListener(
+  "pointerup",
+  (event) => {
+    if (!swipeStartPoint) return;
+    const distanceX = event.clientX - swipeStartPoint.x;
+    const distanceY = event.clientY - swipeStartPoint.y;
+    swipeStartPoint = undefined;
+    if (Math.abs(distanceX) < 56 || Math.abs(distanceX) < Math.abs(distanceY) * 1.35) return;
+    playTouchFeedback("swipe");
+    vibrateForTouch("swipe");
+  },
+  { passive: true },
+);
+document.addEventListener("pointercancel", () => (swipeStartPoint = undefined), { passive: true });
+document.addEventListener(
+  "click",
+  (event) => {
+    if (!event.isTrusted || !(event.target instanceof Element)) return;
+    if (
+      event.target.closest("button, a[href], [role='button'], input[type='checkbox'], input[type='radio']")
+    ) {
+      playTouchFeedback("tap");
+      vibrateForTouch("tap");
+    }
+  },
+  true,
+);
 function closeAccountMenu() {
   accountMenu.hidden = true;
   accountMenuButton.setAttribute("aria-expanded", "false");
 }
-localTestUserSelect?.addEventListener("change", async () => {
-  if (!localTestUserSelect.value) return;
-  localTestUserSelect.disabled = true;
-  localTestUserFeedback.hidden = true;
-  try {
-    const response = await fetch("/api/local-test-user", {
-      method: "POST",
-      headers: { "content-type": "application/json", accept: "application/json" },
-      body: JSON.stringify({ userId: localTestUserSelect.value }),
-    });
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(result.error || "Could not switch local test user.");
-    location.reload();
-  } catch (error) {
-    localTestUserFeedback.textContent = error instanceof Error ? error.message : "Could not switch user.";
-    localTestUserFeedback.hidden = false;
-    localTestUserSelect.disabled = false;
-  }
-});
 accountMenuButton.addEventListener("click", (event) => {
   event.stopPropagation();
   const open = accountMenuButton.getAttribute("aria-expanded") !== "true";
@@ -513,12 +536,10 @@ document.addEventListener("keydown", (event) => {
   }
 });
 const profilePage = document.getElementById("profile-page");
-const settingsPage = document.getElementById("settings-page");
-const friendsPage = document.getElementById("friends-page");
 const profileOwnView = document.getElementById("profile-own-view");
 const friendProfileView = document.getElementById("friend-profile-view");
-const friendsTabs = [...document.querySelectorAll("[data-friends-tab]")];
-const friendsTabPanels = [...document.querySelectorAll(".friends-page-panel")];
+const profileTabs = [...document.querySelectorAll("[data-profile-tab]")];
+const profileTabPanels = [...document.querySelectorAll(".profile-tab-panel")];
 const ghostSettings = document.getElementById("ghost-settings");
 const ghostSettingsFeedback = document.getElementById("ghost-settings-feedback");
 const ghostCreateForm = document.getElementById("ghost-create-form");
@@ -531,9 +552,15 @@ const ghostProfileDeactivate = document.getElementById("ghost-profile-deactivate
 const messagesPage = document.getElementById("messages-page");
 const trustScorePage = document.getElementById("trust-score-page");
 const trustScoreOverviewMeter = document.getElementById("trust-score-overview-meter");
+const trustOverviewClassifications = document.getElementById("trust-overview-classifications");
+const trustProfileSearch = document.getElementById("trust-profile-search");
+const trustProfileSearchResults = document.getElementById("trust-profile-search-results");
+const trustProfileHeading = document.getElementById("trust-profile-heading");
+const trustProfileClassifications = document.getElementById("trust-profile-classifications");
+const trustProfileActivityList = document.getElementById("trust-profile-activity-list");
+const trustAdminSummary = document.getElementById("trust-admin-summary");
 const trustScoreTabs = [...document.querySelectorAll("[data-trust-tab]")];
 const trustScorePanels = [...document.querySelectorAll(".trust-score-panel")];
-const openAgreementTabButton = document.getElementById("open-agreement-tab");
 const agreementForm = document.getElementById("agreement-form");
 const agreementDescription = document.getElementById("agreement-description");
 const agreementDescriptionCount = document.getElementById("agreement-description-count");
@@ -580,16 +607,15 @@ const profileSummary = document.getElementById("profile-summary");
 const profilePostCount = document.getElementById("profile-post-count");
 const profilePostList = document.getElementById("profile-post-list");
 const profilePostLoadMore = document.getElementById("profile-post-load-more");
-const profileMessage = document.getElementById("profile-message");
-let profileNextCursor = null;
+let profilePostCursor = null;
 let profileTotalPosts = 0;
 let profilePostsLoading = false;
+const profileMessage = document.getElementById("profile-message");
 const friendRequestForm = document.getElementById("friend-request-form");
-const friendsFeedbackElements = [document.getElementById("friends-feedback-page")].filter(Boolean);
+const friendsFeedback = document.getElementById("friends-feedback");
 const friendSearchInput = document.getElementById("friend-search-query");
 const friendSuggestions = document.getElementById("friend-suggestions");
 const friendSearchFeedback = document.getElementById("friend-search-feedback");
-const friendDiscoveryMore = document.getElementById("friend-discovery-more");
 const audienceNote = document.getElementById("audience-note");
 const experienceStep = document.getElementById("step-experience");
 const detailsProgressStep = document.getElementById("step-details");
@@ -748,6 +774,11 @@ function showReview() {
       : "Not provided";
   document.getElementById("review-experience-category").textContent = selected("experience-category");
   document.getElementById("review-incident-category").textContent = selected("incident-category");
+  const trustReportSection = document.getElementById("review-trust-report-section");
+  trustReportSection.hidden = !trustClassificationInput.value;
+  document.getElementById("review-trust-report").textContent = trustClassificationInput.value
+    ? `${trustOutcomeInput.selectedOptions[0]?.dataset.polarity === "positive" ? "Positive recognition · unverified" : "Unverified allegation"} · ${selected("trust-classification")} · ${selected("trust-outcome")} · About ${trustSubjectSearchInput.value || "NFD friend"}`
+    : "";
   document.getElementById("review-place").textContent = value("place") || "Not provided";
   document.getElementById("review-place-category").textContent = selected("place-category");
   const when = value("incident-time");
@@ -903,6 +934,172 @@ function updateIncidentCategoryOptions() {
     ? `${options.length - 1} matching options, plus “Other or not sure.”`
     : "Optional. Choose an experience category to see incident options.";
 }
+async function loadTrustPostOptions() {
+  if (trustPostOptionsPromise) return trustPostOptionsPromise;
+  trustPostOptionsPromise = (async () => {
+    const [rulesResponse, friendsResponse] = await Promise.all([
+      fetch("/api/trust-score/rules", { headers: { accept: "application/json" }, cache: "no-store" }),
+      fetch("/api/friends", { headers: { accept: "application/json" }, cache: "no-store" }),
+    ]);
+    const rules = await rulesResponse.json().catch(() => ({}));
+    const friends = await friendsResponse.json().catch(() => ({}));
+    if (!rulesResponse.ok) throw new Error(rules.error || "Trust Score categories are unavailable.");
+    trustClassificationInput.replaceChildren(new Option("Regular post — no Trust Score report", ""));
+    for (const classification of rules.classifications || []) {
+      trustClassificationInput.add(new Option(classification.label, classification.key));
+    }
+    const friendOptions = (friends.friends || []).map((friend) => ({
+      value: friend.userId,
+      label: friend.name,
+    }));
+    trustAcceptedFriendIds = new Set(friendOptions.map((friend) => friend.value));
+    return { classifications: rules.classifications || [], friends: friendOptions };
+  })().catch((error) => {
+    trustClassificationInput.disabled = true;
+    trustOutcomeInput.disabled = true;
+    trustSubjectSearchInput.disabled = true;
+    trustClassFeedback.textContent = error.message;
+    throw error;
+  });
+  return trustPostOptionsPromise;
+}
+function hideTrustSubjectResults() {
+  trustSubjectResults.hidden = true;
+  trustSubjectSearchInput.setAttribute("aria-expanded", "false");
+}
+function showTrustSubjectResults() {
+  trustSubjectResults.hidden = false;
+  trustSubjectSearchInput.setAttribute("aria-expanded", "true");
+}
+function selectTrustSubject(person) {
+  trustSubjectInput.value = person.userId;
+  trustSubjectSearchInput.setCustomValidity("");
+  trustSubjectSelectedName = person.name;
+  trustSubjectSearchInput.value = person.name;
+  trustSubjectSearchStatus.textContent = `Selected ${person.name}.`;
+  trustClassFeedback.textContent = "";
+  hideTrustSubjectResults();
+}
+function renderTrustSubjectResults(people, query) {
+  trustSubjectResults.replaceChildren();
+  const acceptedMatches = people.filter((person) => trustAcceptedFriendIds.has(person.userId));
+  for (const person of acceptedMatches) {
+    const option = document.createElement("button");
+    option.type = "button";
+    option.className = "trust-profile-search-option";
+    option.setAttribute("role", "option");
+    option.textContent = person.username ? `${person.name} · @${person.username}` : person.name;
+    option.addEventListener("click", () => selectTrustSubject(person));
+    trustSubjectResults.append(option);
+  }
+  if (people.length && !acceptedMatches.length) {
+    const status = addText(
+      trustSubjectResults,
+      "p",
+      "trust-score-hint",
+      "An NFD profile matched, but only accepted friends can be linked. Send and accept a friend request first.",
+    );
+    status.setAttribute("role", "option");
+    status.setAttribute("aria-disabled", "true");
+  } else if (!people.length) {
+    const status = addText(
+      trustSubjectResults,
+      "p",
+      "trust-score-hint",
+      "No NFD profile matched this search.",
+    );
+    status.setAttribute("role", "option");
+    status.setAttribute("aria-disabled", "true");
+    const notInNfdOption = document.createElement("button");
+    notInNfdOption.type = "button";
+    notInNfdOption.className = "trust-profile-search-option trust-profile-search-not-in-nfd";
+    notInNfdOption.setAttribute("role", "option");
+    notInNfdOption.textContent = "Not in NFD — continue without a profile link";
+    notInNfdOption.addEventListener("click", chooseNotInNfd);
+    trustSubjectResults.append(notInNfdOption);
+  }
+  if (acceptedMatches.length) {
+    trustSubjectSearchStatus.textContent = `${acceptedMatches.length} accepted NFD ${acceptedMatches.length === 1 ? "friend" : "friends"} found.`;
+  } else if (people.length) {
+    trustSubjectSearchStatus.textContent = "This person has an NFD profile but is not an accepted friend.";
+  } else {
+    trustSubjectSearchStatus.textContent = `No NFD profile found for “${query}”.`;
+  }
+  showTrustSubjectResults();
+}
+function scheduleTrustSubjectSearch() {
+  const query = trustSubjectSearchInput.value.trim();
+  if (trustSubjectInput.value && query !== trustSubjectSelectedName) {
+    trustSubjectInput.value = "";
+    trustSubjectSelectedName = "";
+  }
+  trustSubjectSearchInput.setCustomValidity(
+    trustClassificationInput.value && !trustSubjectInput.value
+      ? "Select an accepted NFD friend, or choose Not in NFD to share without a Trust Score link."
+      : "",
+  );
+  trustClassFeedback.textContent = "";
+  window.clearTimeout(trustSubjectSearchTimer);
+  trustSubjectSearchController?.abort();
+  if (query.length < 2) {
+    hideTrustSubjectResults();
+    trustSubjectSearchStatus.textContent = "Type at least 2 letters to search NFD.";
+    return;
+  }
+  trustSubjectSearchStatus.textContent = "Searching NFD…";
+  trustSubjectSearchTimer = window.setTimeout(async () => {
+    const controller = new AbortController();
+    trustSubjectSearchController = controller;
+    try {
+      const response = await fetch(`/api/trust-score/people?q=${encodeURIComponent(query)}`, {
+        headers: { accept: "application/json" },
+        cache: "no-store",
+        signal: controller.signal,
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || "NFD profiles could not be searched right now.");
+      if (!controller.signal.aborted) renderTrustSubjectResults(result.people || [], query);
+    } catch (error) {
+      if (error.name === "AbortError") return;
+      hideTrustSubjectResults();
+      trustSubjectSearchStatus.textContent = error.message || "NFD profiles could not be searched right now.";
+    }
+  }, 250);
+}
+function chooseNotInNfd() {
+  const name = trustSubjectSearchInput.value.trim();
+  if (name && !postPlaceInput.value.trim()) postPlaceInput.value = name;
+  trustSubjectInput.value = "";
+  trustSubjectSelectedName = "";
+  trustClassificationInput.value = "";
+  trustSubjectSearchInput.setCustomValidity("");
+  updateTrustOutcomeOptions([], "");
+  trustClassFeedback.textContent =
+    "Not in NFD selected. This will be shared as a regular post and will not be linked to a Trust Score profile.";
+  trustSubjectSearchStatus.textContent = "The person’s name was added to the optional post details.";
+  hideTrustSubjectResults();
+}
+function updateTrustOutcomeOptions(classifications, selectedOutcome = "") {
+  const selected = classifications.find((entry) => entry.key === trustClassificationInput.value);
+  trustOutcomeInput.replaceChildren(
+    new Option(selected ? "Choose an outcome" : "Choose a classification first", ""),
+  );
+  for (const outcome of selected?.outcomes || []) {
+    const option = new Option(outcome.label, outcome.value);
+    option.dataset.polarity = outcome.polarity || "negative";
+    trustOutcomeInput.add(option);
+  }
+  trustOutcomeInput.disabled = !selected;
+  trustOutcomeInput.required = Boolean(selected);
+  trustSubjectField.hidden = !selected;
+  trustSubjectSearchInput.required = Boolean(selected);
+  trustSubjectSearchInput.setCustomValidity(
+    selected && !trustSubjectInput.value
+      ? "Select an accepted NFD friend, or choose Not in NFD to share without a Trust Score link."
+      : "",
+  );
+  if (selectedOutcome) trustOutcomeInput.value = selectedOutcome;
+}
 function backToEdit() {
   reviewPage.hidden = true;
   form.hidden = false;
@@ -989,6 +1186,7 @@ async function loadPostForEditing() {
     controller.abort();
   }, 15000);
   try {
+    const trustOptions = await loadTrustPostOptions();
     const response = await fetch(`/api/experiences/${encodeURIComponent(editingPostId)}`, {
       headers: { accept: "application/json" },
       cache: "no-store",
@@ -1004,6 +1202,23 @@ async function loadPostForEditing() {
     updateIncidentCategoryOptions();
     incidentCategoryInput.value =
       experience.incidentCategory === "Not provided" ? "" : experience.incidentCategory;
+    trustClassificationInput.value = experience.trustClassification || "";
+    updateTrustOutcomeOptions(trustOptions.classifications, experience.trustOutcome || "");
+    trustSubjectInput.value = experience.trustSubjectUserId || "";
+    trustSubjectSearchInput.setCustomValidity(
+      trustClassificationInput.value && !trustSubjectInput.value
+        ? "Select an accepted NFD friend, or choose Not in NFD to share without a Trust Score link."
+        : "",
+    );
+    const selectedFriend = trustOptions.friends.find((friend) => friend.value === trustSubjectInput.value);
+    trustSubjectSelectedName =
+      selectedFriend?.label || (trustSubjectInput.value ? "Previously selected NFD profile" : "");
+    trustSubjectSearchInput.value = trustSubjectSelectedName;
+    trustSubjectSearchStatus.textContent = selectedFriend
+      ? `Selected ${selectedFriend.label}.`
+      : trustSubjectInput.value
+        ? "This post’s existing NFD profile link is retained unless you choose another friend."
+        : "Search by name or username. Only accepted NFD friends can be linked to a Trust Score report.";
     postPlaceInput.value = experience.place === "Not provided" ? "" : experience.place;
     document.getElementById("place-category").value =
       experience.placeCategory === "Not provided" ? "" : experience.placeCategory;
@@ -1208,14 +1423,14 @@ const feedVideoPosterObserver =
                 video.poster = video.dataset.previewPoster;
                 delete video.dataset.previewPoster;
               }
-              if (video.dataset.capturePreview === "true") {
-                video.preload = "metadata";
-                delete video.dataset.capturePreview;
-              }
               if (video.dataset.videoSrc) {
                 video.src = video.dataset.videoSrc;
                 delete video.dataset.videoSrc;
                 video.load();
+              }
+              if (video.dataset.capturePreview === "true") {
+                video.preload = "metadata";
+                delete video.dataset.capturePreview;
               }
             }
             feedVideoPosterObserver.unobserve(entry.target);
@@ -1329,7 +1544,7 @@ function renderFeed(experiences, { append = false, nextCursor = "" } = {}) {
       titleGroup,
       "h2",
       "feed-category",
-      experience.shortDescription || experience.experienceCategory,
+      String(experience.shortDescription || experience.experienceCategory || "NFD post").slice(0, 150),
     );
     categoryHeading.title = experience.shortDescription || experience.experienceCategory || "NFD post";
     const headerLabels = document.createElement("div");
@@ -1353,11 +1568,39 @@ function renderFeed(experiences, { append = false, nextCursor = "" } = {}) {
       author,
       "span",
       "",
-      experience.visibility === "anonymous"
-        ? "Shared anonymously"
-        : `Shared by ${experience.authorName || "NFD member"}`,
+      experience.visibility === "anonymous" ? "Anonymous" : experience.authorName || "NFD member",
     );
-    main.append(author);
+    titleGroup.append(author);
+    const postContext = document.createElement("div");
+    postContext.className = "feed-post-context";
+    const contextDetails = document.createElement("div");
+    contextDetails.className = "feed-post-context-details";
+    const shared = document.createElement("span");
+    shared.className = "feed-post-context-item";
+    shared.innerHTML = "<strong>Shared</strong> ";
+    shared.append(document.createTextNode(prettyDate(experience.createdAt)));
+    contextDetails.append(shared);
+    if (experience.locationDetails) {
+      const area = document.createElement("span");
+      area.className = "feed-post-context-item feed-post-location";
+      area.innerHTML = "<strong>Area</strong> ";
+      area.append(document.createTextNode(experience.locationDetails));
+      contextDetails.append(area);
+    }
+    postContext.append(contextDetails);
+    main.append(postContext);
+    if (experience.trustReport) {
+      const trustNotice = document.createElement("div");
+      trustNotice.className = `trust-feed-report${experience.trustReport.polarity === "positive" ? " trust-feed-recognition" : ""}`;
+      addText(trustNotice, "strong", "", experience.trustReport.typeLabel || "Unverified allegation");
+      addText(
+        trustNotice,
+        "span",
+        "trust-feed-report-detail",
+        `${experience.trustReport.classificationLabel} · ${experience.trustReport.outcomeLabel} · About: ${experience.trustReport.subjectName || "NFD member"}`,
+      );
+      main.append(trustNotice);
+    }
     const meta = document.createElement("div");
     meta.className = "feed-meta";
     const place = document.createElement("span");
@@ -1365,20 +1608,10 @@ function renderFeed(experiences, { append = false, nextCursor = "" } = {}) {
     const placeSummary = [experience.place, experience.placeCategory].filter(Boolean).join(" · ");
     place.append(document.createTextNode(placeSummary || "Not provided"));
     meta.append(place);
-    if (experience.locationDetails) {
-      const area = document.createElement("span");
-      area.innerHTML = "<strong>Area</strong> ";
-      area.append(document.createTextNode(experience.locationDetails));
-      meta.append(area);
-    }
     const occurred = document.createElement("span");
     occurred.innerHTML = "<strong>When</strong> ";
     occurred.append(document.createTextNode(experienceTimeText(experience)));
     meta.append(occurred);
-    const shared = document.createElement("span");
-    shared.innerHTML = "<strong>Shared</strong> ";
-    shared.append(document.createTextNode(prettyDate(experience.createdAt)));
-    meta.append(shared);
     card.append(main);
     const images = (experience.evidence || []).filter((file) => file.contentType?.startsWith("image/"));
     const videos = (experience.evidence || []).filter((file) => file.contentType?.startsWith("video/"));
@@ -1510,9 +1743,9 @@ function renderFeed(experiences, { append = false, nextCursor = "" } = {}) {
             delete video.dataset.previewPoster;
           }
         }
-        const videoUrl = `/api/evidence/${encodeURIComponent(file.id)}`;
-        if (feedVideoPosterObserver) video.dataset.videoSrc = videoUrl;
-        else video.src = videoUrl;
+        const videoSource = `/api/evidence/${encodeURIComponent(file.id)}`;
+        if (feedVideoPosterObserver) video.dataset.videoSrc = videoSource;
+        else video.src = videoSource;
         if (!file.hasPreview) {
           video.dataset.capturePreview = "true";
           if (feedVideoPosterObserver) feedVideoPosterObserver.observe(videoItem);
@@ -1555,7 +1788,6 @@ function renderFeed(experiences, { append = false, nextCursor = "" } = {}) {
     renderEngagement(card, experience);
     feedList.append(card);
     fitIncidentBadge(card.querySelector(".feed-incident"));
-    enhanceFeedAllegationPolls(card);
   });
   feedLoadedCount += experiences.length;
   feedResultCount.textContent = `${countLabel} · Showing ${feedLoadedCount}${feedNextCursor ? "+" : ""}`;
@@ -1571,50 +1803,154 @@ function renderEngagement(card, experience) {
   const engagement = experience.engagement || { counts: {}, myReaction: "", commentCount: 0 };
   const counts = { like: 0, dislike: 0, love: 0, hate: 0, ...engagement.counts };
   let myReaction = engagement.myReaction || "";
+  const allegationPoll =
+    experience.trustReport && experience.trustReport.polarity !== "positive" ? experience.trustReport : null;
   const section = document.createElement("section");
   section.className = "feed-engagement";
-  section.setAttribute("aria-label", "Reactions and comments");
+  section.setAttribute(
+    "aria-label",
+    allegationPoll ? "Allegation poll and comments" : "Reactions and comments",
+  );
   const controls = document.createElement("div");
   controls.className = "feed-reactions";
   const reactionButtons = new Map();
   const labelButton = (choice) => `${choice[1]} ${choice[2]} · ${counts[choice[0]]}`;
-  reactionChoices.forEach((choice) => {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "feed-reaction";
-    button.textContent = labelButton(choice);
-    button.setAttribute("aria-pressed", String(myReaction === choice[0]));
-    button.setAttribute("aria-label", `${choice[2]}, ${counts[choice[0]]} reactions`);
-    button.addEventListener("click", async () => {
-      button.disabled = true;
-      try {
-        const remove = myReaction === choice[0];
-        const response = await fetch(`/api/experiences/${encodeURIComponent(experience.id)}/reaction`, {
-          method: remove ? "DELETE" : "POST",
-          headers: { "content-type": "application/json", accept: "application/json" },
-          body: remove ? undefined : JSON.stringify({ reaction: choice[0] }),
-        });
-        const result = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(result.error || "Your reaction could not be saved.");
-        if (myReaction) counts[myReaction] = Math.max(0, counts[myReaction] - 1);
-        myReaction = remove ? "" : choice[0];
-        if (myReaction) counts[myReaction]++;
-        reactionButtons.forEach((item, key) => {
-          const option = reactionChoices.find((value) => value[0] === key);
-          item.textContent = labelButton(option);
-          item.setAttribute("aria-pressed", String(myReaction === key));
-          item.setAttribute("aria-label", `${option[2]}, ${counts[key]} reactions`);
-        });
-        feedback.textContent = "Reaction saved.";
-      } catch (error) {
-        feedback.textContent = error.message;
-      } finally {
-        button.disabled = false;
-      }
+  if (!allegationPoll)
+    reactionChoices.forEach((choice) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "feed-reaction";
+      button.textContent = labelButton(choice);
+      button.setAttribute("aria-pressed", String(myReaction === choice[0]));
+      button.setAttribute("aria-label", `${choice[2]}, ${counts[choice[0]]} reactions`);
+      button.addEventListener("click", async () => {
+        button.disabled = true;
+        try {
+          const remove = myReaction === choice[0];
+          const response = await fetch(`/api/experiences/${encodeURIComponent(experience.id)}/reaction`, {
+            method: remove ? "DELETE" : "POST",
+            headers: { "content-type": "application/json", accept: "application/json" },
+            body: remove ? undefined : JSON.stringify({ reaction: choice[0] }),
+          });
+          const result = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(result.error || "Your reaction could not be saved.");
+          if (myReaction) counts[myReaction] = Math.max(0, counts[myReaction] - 1);
+          myReaction = remove ? "" : choice[0];
+          if (myReaction) counts[myReaction]++;
+          reactionButtons.forEach((item, key) => {
+            const option = reactionChoices.find((value) => value[0] === key);
+            item.textContent = labelButton(option);
+            item.setAttribute("aria-pressed", String(myReaction === key));
+            item.setAttribute("aria-label", `${option[2]}, ${counts[key]} reactions`);
+          });
+          feedback.textContent = "Reaction saved.";
+        } catch (error) {
+          feedback.textContent = error.message;
+        } finally {
+          button.disabled = false;
+        }
+      });
+      reactionButtons.set(choice[0], button);
+      controls.append(button);
     });
-    reactionButtons.set(choice[0], button);
-    controls.append(button);
-  });
+  if (allegationPoll) {
+    const poll = document.createElement("div");
+    poll.className = "feed-allegation-poll";
+    addText(poll, "h3", "feed-allegation-poll-question", "Do you believe this allegation?");
+    let pollState = {
+      total: Number(allegationPoll.poll?.total) || 0,
+      believe: Number(allegationPoll.poll?.believe) || 0,
+      notBelieve: Number(allegationPoll.poll?.notBelieve) || 0,
+    };
+    let myVote = allegationPoll.myVote || "";
+    const pollResult = addText(poll, "p", "feed-allegation-poll-result", "");
+    const options = document.createElement("div");
+    options.className = "feed-allegation-poll-options";
+    const pollSummary = document.createElement("div");
+    pollSummary.className = "feed-allegation-poll-summary";
+    const pollBar = document.createElement("div");
+    pollBar.className = "feed-allegation-poll-bar";
+    pollBar.setAttribute("role", "img");
+    const believeBar = document.createElement("span");
+    believeBar.className = "feed-allegation-poll-believe";
+    const notBelieveBar = document.createElement("span");
+    notBelieveBar.className = "feed-allegation-poll-disbelieve";
+    pollBar.append(believeBar, notBelieveBar);
+    pollSummary.append(pollBar, pollResult);
+    const pollRow = document.createElement("div");
+    pollRow.className = "feed-allegation-poll-row";
+    pollRow.append(options, pollSummary);
+    const updatePoll = () => {
+      const believePercent = pollState.total ? Math.round((pollState.believe * 100) / pollState.total) : 0;
+      const notBelievePercent = pollState.total ? 100 - believePercent : 0;
+      believeBar.style.width = `${believePercent}%`;
+      notBelieveBar.style.width = `${notBelievePercent}%`;
+      pollBar.setAttribute(
+        "aria-label",
+        `Believe ${believePercent} percent; don’t believe ${notBelievePercent} percent`,
+      );
+      pollResult.textContent = pollState.total
+        ? `${pollState.believe} believe (${believePercent}%) · ${pollState.notBelieve} don’t believe (${notBelievePercent}%) · ${pollState.total} votes · Private`
+        : "No votes yet · Private";
+      pollButtons.forEach(({ button, choice, label }) => {
+        const count = choice === "believe" ? pollState.believe : pollState.notBelieve;
+        button.textContent = pollState.total ? `${label} · ${count}` : label;
+        button.setAttribute("aria-pressed", String(myVote === choice));
+        button.setAttribute("aria-label", `${label}, ${count} votes`);
+        button.classList.toggle("is-selected", myVote === choice);
+        button.hidden = !allegationPoll.canVote;
+      });
+    };
+    const pollButtons = [];
+    for (const [choice, label] of [
+      ["believe", "Believe"],
+      ["not_believe", "Don’t believe"],
+    ]) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "feed-allegation-poll-option";
+      button.addEventListener("click", async () => {
+        pollButtons.forEach((item) => (item.button.disabled = true));
+        try {
+          const response = await fetch(
+            `/api/trust-score/allegations/${encodeURIComponent(allegationPoll.id)}/vote`,
+            {
+              method: "POST",
+              headers: { "content-type": "application/json", accept: "application/json" },
+              body: JSON.stringify({ choice }),
+            },
+          );
+          const result = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(result.error || "Your poll response could not be saved.");
+          pollState = {
+            total: Number(result.poll?.total) || 0,
+            believe: Number(result.poll?.believe) || 0,
+            notBelieve: Number(result.poll?.notBelieve) || 0,
+          };
+          myVote = choice;
+          updatePoll();
+          feedback.textContent = "Your response is private. Only poll totals are shown.";
+        } catch (error) {
+          feedback.textContent = error.message;
+        } finally {
+          pollButtons.forEach((item) => (item.button.disabled = false));
+        }
+      });
+      pollButtons.push({ button, choice, label });
+      options.append(button);
+    }
+    poll.append(pollRow);
+    if (!allegationPoll.canVote) {
+      addText(
+        poll,
+        "p",
+        "feed-allegation-poll-privacy",
+        "The person named in this allegation can’t vote. Voter identities stay private.",
+      );
+    }
+    section.append(poll);
+    updatePoll();
+  }
   let commentsEnabled = experience.commentsEnabled !== false;
   const commentToggle = document.createElement("button");
   commentToggle.type = "button";
@@ -1790,54 +2126,6 @@ function renderEngagement(card, experience) {
     }
   });
 }
-function enhanceFeedAllegationPolls(root) {
-  root.querySelectorAll(".feed-allegation-poll").forEach((poll) => {
-    const result = poll.querySelector(".feed-allegation-poll-result");
-    const voteButtons = [...poll.querySelectorAll("button")];
-    if (!result || !voteButtons.length || result.dataset.compactPoll === "true") return;
-
-    const row = document.createElement("div");
-    row.className = "feed-allegation-poll-row";
-    const choices = document.createElement("div");
-    choices.className = "feed-allegation-poll-choices";
-    voteButtons.forEach((button) => choices.append(button));
-
-    const summary = document.createElement("div");
-    summary.className = "feed-allegation-poll-summary";
-    const bar = document.createElement("div");
-    bar.className = "feed-allegation-poll-bar";
-    bar.setAttribute("role", "img");
-    const believe = document.createElement("span");
-    believe.className = "feed-allegation-poll-believe";
-    const disbelieve = document.createElement("span");
-    disbelieve.className = "feed-allegation-poll-disbelieve";
-    bar.append(believe, disbelieve);
-    summary.append(bar, result);
-    row.append(choices, summary);
-
-    const resultObserver = new MutationObserver(updatePollBar);
-    function updatePollBar() {
-      const percentages = [...result.textContent.matchAll(/(\d+(?:\.\d+)?)\s*%/g)].map((match) =>
-        Math.max(0, Math.min(100, Number(match[1]))),
-      );
-      const believePercent = percentages[0] ?? 0;
-      const disbelievePercent = percentages[1] ?? 0;
-      believe.style.width = `${believePercent}%`;
-      disbelieve.style.width = `${disbelievePercent}%`;
-      bar.setAttribute(
-        "aria-label",
-        `Believe ${believePercent} percent; don’t believe ${disbelievePercent} percent`,
-      );
-    }
-    result.dataset.compactPoll = "true";
-    resultObserver.observe(result, { childList: true, characterData: true, subtree: true });
-    updatePollBar();
-    const heading = poll.querySelector("h2, h3, [role=heading]");
-    if (heading?.parentElement === poll) heading.after(row);
-    else poll.prepend(row);
-  });
-}
-
 function setProfileMessage(message, isError = false) {
   profileMessage.textContent = message;
   profileMessage.classList.toggle("error", isError);
@@ -1846,8 +2134,7 @@ function setProfileMessage(message, isError = false) {
 function renderGhostSettings(state) {
   currentGhostMode = state || { allowed: false, active: false, profile: null };
   const setupRequested = new URLSearchParams(location.search).get("ghost") === "setup";
-  ghostSettings.hidden = !currentGhostMode.allowed;
-  ghostModeSetupLink.hidden = !currentGhostMode.allowed || Boolean(currentGhostMode.profile);
+  ghostSettings.hidden = !currentGhostMode.allowed || (!currentGhostMode.profile && !setupRequested);
   if (!currentGhostMode.allowed) return;
   const profile = currentGhostMode.profile;
   ghostProfileReady.hidden = !profile;
@@ -1873,7 +2160,7 @@ async function loadGhostSettings() {
     renderGhostSettings(result);
   } catch (error) {
     ghostSettings.hidden = true;
-    ghostSettingsFeedback.textContent = error.message;
+    setProfileMessage(error.message, true);
   }
 }
 async function changeGhostMode(active, button) {
@@ -1909,7 +2196,7 @@ ghostCreateForm.addEventListener("submit", async (event) => {
     });
     const result = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(result.error || "Your Ghost profile could not be created.");
-    window.history.replaceState(null, "", "/settings");
+    window.history.replaceState(null, "", "/profile");
     await loadGhostSettings();
   } catch (error) {
     ghostSettingsFeedback.textContent = error.message;
@@ -1937,36 +2224,62 @@ ghostProfileDeactivate.addEventListener("click", async () => {
     });
     const result = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(result.error || "Your Ghost ID could not be deactivated.");
-    window.location.assign("/settings");
+    window.location.assign("/profile");
   } catch (error) {
     ghostSettingsFeedback.textContent = error.message;
     ghostProfileDeactivate.disabled = false;
   }
 });
+ghostModeToggle.addEventListener("click", () => changeGhostMode(!currentGhostMode.active, ghostModeToggle));
 ghostModeExit.addEventListener("click", () => changeGhostMode(false, ghostModeExit));
 function renderProfile(data, { append = false } = {}) {
   const user = data.user || {};
+  const isProfileDetailsPage = new URLSearchParams(location.search).get("edit") === "details";
   const displayName = user.name || user.email?.split("@")[0] || "NFD member";
   if (!append) {
     document.getElementById("profile-intro").textContent =
       user.provider === "ghost"
         ? "This Ghost identity has its own friends, messages, and posts, separate from your personal NFD profile."
-        : "Your account details and the experiences you’ve shared. Your profile details are visible only to you.";
+        : "Your display name, username, and bio are visible on your NFD profile. Your email and sign-in details stay private.";
     profileSummaryContent.replaceChildren();
     setProfilePhotoEverywhere(user.photoUrl || "", displayName);
     const identity = addText(profileSummaryContent, "div", "profile-identity", "");
-    addText(identity, "h2", "", displayName);
+    const titleRow = document.createElement("div");
+    titleRow.className = "profile-identity-title-row";
+    addText(titleRow, "h2", "", displayName);
+    if (user.provider !== "ghost") {
+      const editProfileLink = addText(titleRow, "a", "profile-edit-link", "Edit");
+      editProfileLink.href = "/profile?edit=details";
+      editProfileLink.setAttribute("aria-label", "Edit profile details");
+    }
+    identity.append(titleRow);
     if (user.provider === "ghost" && user.ghostHandle) {
-      addText(identity, "p", "", `@${user.ghostHandle}`);
+      addText(identity, "p", "profile-identity-handle", `@${user.ghostHandle}`);
+    } else if (user.username) {
+      addText(identity, "p", "profile-identity-handle", `@${user.username}`);
+    }
+    if (user.bio) addText(identity, "p", "profile-identity-bio", user.bio);
+    profileDetailsPanel.hidden = user.provider === "ghost" || !isProfileDetailsPage;
+    if (user.provider !== "ghost") {
+      profileDisplayNameInput.value = user.name || "";
+      profileUsernameInput.value = user.username || "";
+      profileBioInput.value = user.bio || "";
+      profileBioCount.textContent = `${profileBioInput.value.length}/160`;
+      profileDetailsFeedback.hidden = true;
+      profileDetailsFeedback.textContent = "";
+      profileDetailsSave.disabled = false;
+      profileDetailsSave.textContent = "Save profile";
     }
     profileSummaryScore.replaceChildren(createTrustScorePreview(displayName, true));
     profilePostList.replaceChildren();
-    profileTotalPosts = Number(data.total) || 0;
+    profilePostCursor = null;
   }
   const posts = data.experiences || [];
-  profileNextCursor = data.nextCursor || null;
-  profilePostCount.textContent = `${profileTotalPosts} ${profileTotalPosts === 1 ? "post" : "posts"} shared`;
-  if (!posts.length && !append) {
+  if (!append) {
+    profileTotalPosts = Number(data.total) || 0;
+    profilePostCount.textContent = `${profileTotalPosts} ${profileTotalPosts === 1 ? "post" : "posts"} shared`;
+  }
+  if (!append && !posts.length) {
     const empty = document.createElement("div");
     empty.className = "profile-empty";
     addText(empty, "strong", "", "Nothing here yet");
@@ -2037,108 +2350,111 @@ function renderProfile(data, { append = false } = {}) {
     addText(full, "p", "", experience.fullDescription || "No additional details were provided.");
     card.append(full);
     const evidence = experience.evidence || [];
-    if (evidence.length) {
-      const images = evidence.filter((file) => file.contentType?.startsWith("image/"));
-      const videos = evidence.filter((file) => file.contentType?.startsWith("video/"));
-      const documents = evidence.filter(
-        (file) => !file.contentType?.startsWith("image/") && !file.contentType?.startsWith("video/"),
+    const images = evidence.filter((file) => file.contentType?.startsWith("image/"));
+    const videos = evidence.filter((file) => file.contentType?.startsWith("video/"));
+    const documents = evidence.filter(
+      (file) => !file.contentType?.startsWith("image/") && !file.contentType?.startsWith("video/"),
+    );
+    if (images.length) {
+      const gallery = document.createElement("div");
+      gallery.className = `feed-photo-grid${images.length > 1 ? " multi scrollable" : ""}`;
+      gallery.setAttribute(
+        "aria-label",
+        `${images.length} attached ${images.length === 1 ? "photo" : "photos"}`,
       );
-      if (images.length) {
-        const gallery = document.createElement("div");
-        gallery.className = `feed-photo-grid${images.length > 1 ? " multi scrollable" : ""}`;
-        gallery.setAttribute(
-          "aria-label",
-          images.length > 1 ? `${images.length} attached photos` : "Attached photo",
+      images.forEach((file) => {
+        const link = document.createElement("a");
+        link.className = "feed-photo";
+        link.href = `/api/evidence/${encodeURIComponent(file.id)}`;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        const image = document.createElement("img");
+        image.className = "feed-photo-image";
+        image.alt = `Photo attached to ${experience.shortDescription || "your post"}`;
+        image.loading = "lazy";
+        image.decoding = "async";
+        image.title = file.originalFilename;
+        image.addEventListener(
+          "load",
+          () => {
+            const isPortrait = image.naturalHeight > image.naturalWidth;
+            image.classList.toggle("is-portrait", isPortrait);
+            link.classList.toggle("is-portrait", isPortrait);
+          },
+          { once: true },
         );
-        images.forEach((file) => {
-          const link = document.createElement("a");
-          const originalUrl = `/api/evidence/${encodeURIComponent(file.id)}`;
-          link.className = "feed-photo";
-          link.href = originalUrl;
-          link.target = "_blank";
-          link.rel = "noopener noreferrer";
-          const image = document.createElement("img");
-          image.className = "feed-photo-image";
-          image.alt = `Photo attached to ${experience.experienceCategory} post`;
-          image.loading = "lazy";
-          image.decoding = "async";
-          image.title = file.originalFilename;
-          image.src = file.hasPreview ? `${originalUrl}?variant=preview` : originalUrl;
-          image.addEventListener(
-            "load",
-            () => {
-              const isPortrait = image.naturalHeight > image.naturalWidth;
-              image.classList.toggle("is-portrait", isPortrait);
-              link.classList.toggle("is-portrait", isPortrait);
-            },
-            { once: true },
-          );
-          link.append(image);
-          gallery.append(link);
+        image.src = file.hasPreview ? `${link.href}?variant=preview` : link.href;
+        link.append(image);
+        gallery.append(link);
+      });
+      const media = document.createElement("div");
+      media.className = "feed-media profile-post-media";
+      media.append(gallery);
+      card.append(media);
+    }
+    if (videos.length) {
+      const gallery = document.createElement("div");
+      gallery.className = `feed-video-grid${videos.length === 1 ? " single" : ""} profile-post-media`;
+      videos.forEach((file) => {
+        const item = document.createElement("div");
+        item.className = "feed-video-item";
+        const video = document.createElement("video");
+        video.className = "feed-video";
+        video.controls = true;
+        video.preload = "none";
+        video.playsInline = true;
+        video.title = file.originalFilename;
+        video.poster = videoFallbackPoster;
+        video.addEventListener("loadedmetadata", () => {
+          item.classList.toggle("is-portrait", video.videoHeight > video.videoWidth);
         });
-        const media = document.createElement("div");
-        media.className = "feed-media profile-post-media";
-        media.append(gallery);
-        card.append(media);
-      }
-      if (videos.length) {
-        const gallery = document.createElement("div");
-        gallery.className = `feed-video-grid${videos.length === 1 ? " single" : ""}`;
-        videos.forEach((file) => {
-          const item = document.createElement("div");
-          item.className = "feed-video-item";
-          const video = document.createElement("video");
-          video.className = "feed-video";
-          video.controls = true;
-          video.preload = "none";
-          video.playsInline = true;
-          video.title = file.originalFilename;
-          video.poster = videoFallbackPoster;
-          if (file.hasPreview)
-            video.dataset.previewPoster = `/api/evidence/${encodeURIComponent(file.id)}?variant=preview`;
-          else video.dataset.capturePreview = "true";
-          video.dataset.videoSrc = `/api/evidence/${encodeURIComponent(file.id)}`;
-          video.addEventListener("loadedmetadata", () => {
-            item.classList.toggle("is-portrait", video.videoHeight > video.videoWidth);
-          });
-          if (!file.hasPreview)
-            video.addEventListener("loadedmetadata", () => captureFirstVideoFrame(video), { once: true });
-          item.append(video);
-          const playbackMessage = addText(
-            item,
-            "p",
-            "feed-video-error",
-            "This video could not be played. Its format or codec may not be supported by this browser.",
-          );
-          video.addEventListener("error", () => playbackMessage.classList.add("is-visible"));
-          gallery.append(item);
-          if (feedVideoPosterObserver) feedVideoPosterObserver.observe(item);
-          else {
-            if (file.hasPreview) video.poster = video.dataset.previewPoster;
-            else video.preload = "metadata";
-            video.src = video.dataset.videoSrc;
-            delete video.dataset.videoSrc;
-            video.load();
-          }
+        const source = `/api/evidence/${encodeURIComponent(file.id)}`;
+        if (file.hasPreview) video.dataset.previewPoster = `${source}?variant=preview`;
+        if (!file.hasPreview) {
+          video.dataset.capturePreview = "true";
+          video.addEventListener("loadedmetadata", () => captureFirstVideoFrame(video), { once: true });
+        }
+        if (feedVideoPosterObserver) {
+          video.dataset.videoSrc = source;
+          feedVideoPosterObserver.observe(item);
+        } else {
+          video.src = source;
+          if (file.hasPreview) video.poster = `${source}?variant=preview`;
+          else video.preload = "metadata";
+        }
+        const playbackMessage = addText(
+          item,
+          "p",
+          "feed-video-error",
+          "This video could not be played. Its format or codec may not be supported by this browser.",
+        );
+        playbackMessage.hidden = true;
+        playbackMessage.setAttribute("role", "status");
+        video.addEventListener("error", () => {
+          playbackMessage.hidden = false;
         });
-        const media = document.createElement("div");
-        media.className = "feed-media profile-post-media";
-        media.append(gallery);
-        card.append(media);
-      }
-      if (documents.length) {
-        const files = document.createElement("div");
-        files.className = "profile-post-evidence";
-        documents.forEach((file) => {
-          const link = document.createElement("a");
-          link.href = `/api/evidence/${encodeURIComponent(file.id)}`;
-          link.target = "_blank";
-          link.rel = "noopener noreferrer";
-          link.textContent = `Open document · ${file.originalFilename}`;
-          files.append(link);
-        });
-        card.append(files);
-      }
+        item.prepend(video);
+        gallery.append(item);
+      });
+      card.append(gallery);
+    }
+    if (documents.length) {
+      const files = document.createElement("div");
+      files.className = "profile-post-evidence";
+      documents.forEach((file) => {
+        const link = document.createElement("a");
+        link.href = `/api/evidence/${encodeURIComponent(file.id)}`;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        const label = file.contentType?.startsWith("video/")
+          ? "Play video"
+          : file.contentType?.startsWith("image/")
+            ? "View photo"
+            : "Open document";
+        link.textContent = `${label} · ${file.originalFilename}`;
+        files.append(link);
+      });
+      card.append(files);
     }
     const actions = document.createElement("div");
     actions.className = "profile-post-actions";
@@ -2171,7 +2487,10 @@ function renderProfile(data, { append = false } = {}) {
         card.remove();
         profileTotalPosts = Math.max(0, profileTotalPosts - 1);
         profilePostCount.textContent = `${profileTotalPosts} ${profileTotalPosts === 1 ? "post" : "posts"} shared`;
-        if (profileTotalPosts === 0) {
+        if (profilePostCursor) profilePostCursor = null;
+        profilePostLoadMore.hidden = true;
+        const remaining = profilePostList.querySelectorAll(".profile-post-card").length;
+        if (!remaining) {
           const empty = document.createElement("div");
           empty.className = "profile-empty";
           addText(empty, "strong", "", "Nothing here yet");
@@ -2193,28 +2512,26 @@ function renderProfile(data, { append = false } = {}) {
     card.append(actions);
     profilePostList.append(card);
   });
-  profilePostLoadMore.hidden = !profileNextCursor;
+  profilePostCursor = data.nextCursor || null;
+  profilePostLoadMore.hidden = !profilePostCursor;
+  profilePostLoadMore.disabled = false;
+  profilePostLoadMore.textContent = "Load more posts";
 }
 async function loadProfile() {
   const profileParams = new URLSearchParams(location.search);
   const friendId = profileParams.get("friend");
-  if (!friendId && ["friends", "requests", "sent"].includes(profileParams.get("tab"))) {
-    location.replace(
-      `/friends${profileParams.get("tab") === "friends" ? "" : `?tab=${profileParams.get("tab")}`}`,
-    );
-    return;
-  }
   if (friendId) {
+    appLayout.classList.remove("profile-details-mode");
     profileOwnView.hidden = true;
     friendProfileView.hidden = false;
     await loadFriendProfile(friendId);
     return;
   }
+  const isProfileDetailsPage = profileParams.get("edit") === "details";
+  appLayout.classList.toggle("profile-details-mode", isProfileDetailsPage);
   profileOwnView.hidden = false;
   friendProfileView.hidden = true;
-  profileNextCursor = null;
-  profileTotalPosts = 0;
-  profilePostLoadMore.hidden = true;
+  activateProfileTab(profileParams.get("tab") || "posts", false);
   if (profileParams.has("removed")) setFriendsFeedback("Friend removed.");
   profileMessage.hidden = true;
   profilePostList.replaceChildren();
@@ -2235,6 +2552,8 @@ async function loadProfile() {
     if (!response.ok) throw new Error(result.error || "Your profile could not be loaded.");
     renderProfile(result);
     if (profileParams.has("updated")) setProfileMessage("Your post was updated.");
+    loadFriends();
+    await loadGhostSettings();
   } catch (error) {
     profileSummaryContent.replaceChildren();
     profileSummaryScore.replaceChildren();
@@ -2252,47 +2571,42 @@ async function loadProfile() {
   }
 }
 profilePostLoadMore.addEventListener("click", async () => {
-  if (profilePostsLoading || !profileNextCursor) return;
+  if (!profilePostCursor || profilePostsLoading) return;
   profilePostsLoading = true;
   profilePostLoadMore.disabled = true;
-  profilePostLoadMore.textContent = "Loading posts…";
-  setProfileMessage("");
+  profilePostLoadMore.textContent = "Loading…";
+  const params = new URLSearchParams({ before: profilePostCursor.createdAt, beforeId: profilePostCursor.id });
   try {
-    const params = new URLSearchParams({
-      before: profileNextCursor.createdAt,
-      beforeId: profileNextCursor.id,
-    });
     const response = await fetch(`/api/profile?${params}`, {
       headers: { accept: "application/json" },
       cache: "no-store",
     });
     const result = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(result.error || "More of your posts could not be loaded.");
+    if (!response.ok) throw new Error(result.error || "More posts could not be loaded.");
     renderProfile(result, { append: true });
   } catch (error) {
-    setProfileMessage(error.message || "More of your posts could not be loaded.", true);
+    setProfileMessage(error.message, true);
+    profilePostLoadMore.disabled = false;
+    profilePostLoadMore.textContent = "Try loading more";
   } finally {
     profilePostsLoading = false;
-    profilePostLoadMore.disabled = false;
-    profilePostLoadMore.textContent = "Load more posts";
   }
 });
-function activateFriendsTab(tab, updateUrl = true) {
-  const availableTabs = new Set(friendsTabs.map((button) => button.dataset.friendsTab));
-  const activeTab = availableTabs.has(tab) ? tab : "friends";
-  friendsTabs.forEach((button) => {
-    const selected = button.dataset.friendsTab === activeTab;
+function activateProfileTab(tab, updateUrl = true) {
+  const availableTabs = new Set(profileTabs.map((button) => button.dataset.profileTab));
+  const activeTab = availableTabs.has(tab) ? tab : "posts";
+  profileTabs.forEach((button) => {
+    const selected = button.dataset.profileTab === activeTab;
     button.setAttribute("aria-selected", String(selected));
     button.tabIndex = selected ? 0 : -1;
   });
-  friendsTabPanels.forEach((panel) => {
-    panel.hidden = panel.id !== `friends-panel-${activeTab === "friends" ? "list" : activeTab}`;
+  profileTabPanels.forEach((panel) => {
+    panel.hidden = panel.id !== `profile-panel-${activeTab}`;
   });
   if (updateUrl) {
     const url = new URL(location.href);
-    url.pathname = "/friends";
     url.search = "";
-    if (activeTab !== "friends") url.searchParams.set("tab", activeTab);
+    if (activeTab !== "posts") url.searchParams.set("tab", activeTab);
     history.replaceState(null, "", url);
   }
 }
@@ -2313,21 +2627,342 @@ function activateTrustScoreTab(tab, updateUrl = true) {
     history.replaceState(null, "", url);
   }
   if (activeTab === "my-agreements" || activeTab === "record") loadStoredAgreements();
+  if (activeTab === "allegations") loadTrustDashboard();
 }
-friendsTabs.forEach((button, index) => {
-  button.addEventListener("click", () => {
-    activateFriendsTab(button.dataset.friendsTab);
-    if (button.dataset.friendsTab === "friends" && !friendSuggestions.children.length) {
-      void loadFriendSuggestions();
+let activeTrustProfileId = "";
+let trustPeopleSearchTimer;
+function mergeTrustClassificationSummaries(positive = {}, negative = {}) {
+  return Object.fromEntries(
+    Object.entries(positive).map(([key, classification]) => {
+      const negativeClassification = negative[key];
+      const outcomes = [...(classification.outcomes || []), ...(negativeClassification?.outcomes || [])];
+      return [
+        key,
+        {
+          ...classification,
+          total: (classification.total || 0) + (negativeClassification?.total || 0),
+          outcomes,
+        },
+      ];
+    }),
+  );
+}
+function renderTrustClassificationCards(container, classifications = {}) {
+  if (!container) return;
+  container.replaceChildren();
+  const entries = Object.values(classifications);
+  if (!entries.length) {
+    addText(container, "p", "trust-score-hint", "No Trust activity has been recorded for this profile yet.");
+    return;
+  }
+  for (const classification of entries) {
+    const card = document.createElement("article");
+    card.className = "trust-classification-card";
+    const header = document.createElement("div");
+    header.className = "trust-classification-heading";
+    addText(header, "h3", "", classification.label);
+    addText(header, "strong", "trust-classification-total", String(classification.total || 0));
+    card.append(header);
+    const outcomes = document.createElement("ul");
+    outcomes.className = "trust-classification-outcomes";
+    for (const outcome of classification.outcomes || []) {
+      const item = document.createElement("li");
+      item.classList.add(outcome.polarity === "positive" ? "is-positive" : "is-allegation");
+      addText(
+        item,
+        "span",
+        "trust-classification-outcome-label",
+        `${outcome.polarity === "positive" ? "Positive" : "Unverified"} · ${outcome.label}`,
+      );
+      addText(item, "strong", "", String(outcome.count || 0));
+      outcomes.append(item);
     }
-  });
+    card.append(outcomes);
+    container.append(card);
+  }
+}
+function renderTrustRecords(
+  container,
+  records = [],
+  refresh = () => loadTrustDashboard(activeTrustProfileId),
+) {
+  if (!container) return;
+  container.replaceChildren();
+  if (!records.length) {
+    addText(
+      container,
+      "p",
+      "trust-score-hint",
+      "No audience-visible Trust activity is recorded for this profile yet.",
+    );
+    return;
+  }
+  for (const allegation of records) {
+    const positive = allegation.polarity === "positive";
+    const card = document.createElement("article");
+    card.className = "trust-allegation-card";
+    const header = document.createElement("div");
+    header.className = "trust-allegation-heading";
+    const status = addText(
+      header,
+      "span",
+      "trust-allegation-status",
+      positive ? "Positive recognition · unverified" : "Unverified allegation",
+    );
+    if (positive) status.classList.add("is-positive");
+    addText(header, "time", "", prettyDate(allegation.createdAt));
+    card.append(header);
+    addText(card, "h3", "", `${allegation.classificationLabel} · ${allegation.outcomeLabel}`);
+    addText(card, "p", "", allegation.shortDescription || "No short description.");
+    addText(
+      card,
+      "p",
+      "trust-allegation-author",
+      `Shared by ${allegation.authorName || "Anonymous NFD member"}`,
+    );
+    if (!positive) {
+      addText(
+        card,
+        "p",
+        "trust-poll-note",
+        `Poll: ${allegation.poll?.believePercent || 0}% Believe · ${100 - (allegation.poll?.believePercent || 0)}% Don’t believe · ${allegation.poll?.total || 0} responses. Weighted result: ${allegation.poll?.weightedBelieve || 0} to ${allegation.poll?.weightedNotBelieve || 0}. Voter identities are not shown.`,
+      );
+    }
+    if (allegation.canVote) {
+      const actions = document.createElement("div");
+      actions.className = "trust-poll-actions";
+      for (const [choice, label] of [
+        ["believe", "Believe"],
+        ["not_believe", "Don’t believe"],
+      ]) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = choice === "believe" ? "secondary-button" : "secondary-button trust-poll-disagree";
+        button.textContent = label;
+        button.addEventListener("click", async () => {
+          button.disabled = true;
+          try {
+            const response = await fetch(
+              `/api/trust-score/allegations/${encodeURIComponent(allegation.id)}/vote`,
+              {
+                method: "POST",
+                headers: { "content-type": "application/json", accept: "application/json" },
+                body: JSON.stringify({ choice }),
+              },
+            );
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(result.error || "Your poll response could not be saved.");
+            await refresh();
+          } catch (error) {
+            addText(
+              card,
+              "p",
+              "trust-score-error",
+              error.message || "Your poll response could not be saved.",
+            );
+          } finally {
+            button.disabled = false;
+          }
+        });
+        actions.append(button);
+      }
+      card.append(actions);
+    }
+    container.append(card);
+  }
+}
+async function loadTrustDashboard(userId = activeTrustProfileId) {
+  if (!trustScorePage || trustScorePage.hidden) return;
+  if (trustOverviewClassifications) trustOverviewClassifications.setAttribute("aria-busy", "true");
+  try {
+    const query = userId ? `?userId=${encodeURIComponent(userId)}` : "";
+    const response = await fetch(`/api/trust-score/dashboard${query}`, {
+      headers: { accept: "application/json" },
+      cache: "no-store",
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || "Trust Score could not be loaded.");
+    activeTrustProfileId = result.profile?.userId || "";
+    if (trustProfileSearch && !userId) trustProfileSearch.value = "";
+    renderTrustClassificationCards(
+      trustOverviewClassifications,
+      mergeTrustClassificationSummaries(
+        result.positiveClassifications,
+        result.negativeClassifications || result.classifications,
+      ),
+    );
+    renderTrustClassificationCards(
+      trustProfileClassifications,
+      mergeTrustClassificationSummaries(
+        result.positiveClassifications,
+        result.negativeClassifications || result.classifications,
+      ),
+    );
+    trustProfileHeading.replaceChildren();
+    const identity = document.createElement("div");
+    identity.className = "trust-profile-identity";
+    addText(
+      identity,
+      "h3",
+      "",
+      result.profile?.isSelf ? "Your Trust profile" : result.profile?.name || "NFD member",
+    );
+    const score = createTrustScorePreview(result.profile?.name || "NFD member", true);
+    identity.append(score);
+    trustProfileHeading.append(identity);
+    addText(
+      trustProfileHeading,
+      "p",
+      "trust-score-hint",
+      result.scoreNote || "Unverified reports do not affect the current score.",
+    );
+    renderTrustRecords(
+      trustProfileActivityList,
+      [...(result.recognitions || []), ...(result.allegations || [])].sort(
+        (left, right) => new Date(right.createdAt) - new Date(left.createdAt),
+      ),
+    );
+    void loadTrustAdminSummary();
+  } catch (error) {
+    const message = error.message || "Trust Score could not be loaded right now.";
+    if (trustOverviewClassifications)
+      trustOverviewClassifications.replaceChildren(
+        addText(document.createElement("div"), "p", "trust-score-error", message),
+      );
+    if (trustProfileActivityList)
+      trustProfileActivityList.replaceChildren(
+        addText(document.createElement("div"), "p", "trust-score-error", message),
+      );
+  } finally {
+    trustOverviewClassifications?.removeAttribute("aria-busy");
+  }
+}
+async function loadTrustAdminSummary() {
+  if (!trustAdminSummary) return;
+  try {
+    const response = await fetch("/api/admin/trust-score/allegations", {
+      headers: { accept: "application/json" },
+      cache: "no-store",
+    });
+    if (response.status === 403 || response.status === 401) return;
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) return;
+    const weights = result.rules?.pollWeights || {};
+    trustAdminSummary.hidden = false;
+    trustAdminSummary.replaceChildren();
+    addText(trustAdminSummary, "h3", "", "Administrator Trust activity review");
+    addText(
+      trustAdminSummary,
+      "p",
+      "trust-score-hint",
+      "Positive recognition and allegations are listed separately by type. Allegations remain unverified; poll voter identities are not displayed.",
+    );
+    for (const allegation of result.allegations || []) {
+      const row = document.createElement("article");
+      row.className = "trust-admin-poll-row";
+      addText(
+        row,
+        "strong",
+        "",
+        `${allegation.typeLabel || "Unverified allegation"} · ${allegation.classificationLabel} · ${allegation.outcomeLabel}`,
+      );
+      addText(
+        row,
+        "p",
+        "",
+        `Reported by ${allegation.authorName || "NFD member"} about ${allegation.subjectName || "NFD member"}`,
+      );
+      addText(row, "p", "", allegation.postSummary || "No short description provided.");
+      addText(row, "p", "", `Status: ${allegation.typeLabel || "Unverified allegation"}`);
+      if (allegation.polarity === "positive") {
+        trustAdminSummary.append(row);
+        continue;
+      }
+      const groups = allegation.votes?.groups || {};
+      addText(
+        row,
+        "p",
+        "",
+        `Receiver’s friends (${weights.receiverFriend ?? "—"}×): ${groups.receiverFriends?.believe || 0} Believe / ${groups.receiverFriends?.notBelieve || 0} Don’t believe`,
+      );
+      addText(
+        row,
+        "p",
+        "",
+        `Creator’s friends (${weights.creatorFriend ?? "—"}×): ${groups.creatorFriends?.believe || 0} Believe / ${groups.creatorFriends?.notBelieve || 0} Don’t believe`,
+      );
+      addText(
+        row,
+        "p",
+        "",
+        `Other members (${weights.other ?? "—"}×): ${groups.others?.believe || 0} Believe / ${groups.others?.notBelieve || 0} Don’t believe`,
+      );
+      addText(
+        row,
+        "p",
+        "",
+        `Weighted totals: ${allegation.votes?.weighted?.believe || 0} Believe / ${allegation.votes?.weighted?.notBelieve || 0} Don’t believe`,
+      );
+      trustAdminSummary.append(row);
+    }
+  } catch {}
+}
+async function searchTrustPeople() {
+  const query = trustProfileSearch?.value.trim() || "";
+  if (!trustProfileSearchResults) return;
+  trustProfileSearchResults.replaceChildren();
+  if (query.length < 2) {
+    trustProfileSearchResults.hidden = true;
+    return;
+  }
+  try {
+    const response = await fetch(`/api/trust-score/people?q=${encodeURIComponent(query)}`, {
+      headers: { accept: "application/json" },
+      cache: "no-store",
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || "Profiles could not be searched.");
+    for (const person of result.people || []) {
+      const option = document.createElement("button");
+      option.type = "button";
+      option.className = "trust-profile-search-option";
+      option.setAttribute("role", "option");
+      option.textContent = person.username ? `${person.name} · @${person.username}` : person.name;
+      option.addEventListener("click", () => {
+        trustProfileSearch.value = person.name;
+        trustProfileSearchResults.hidden = true;
+        loadTrustDashboard(person.userId);
+      });
+      trustProfileSearchResults.append(option);
+    }
+    if (!result.people?.length)
+      addText(trustProfileSearchResults, "p", "trust-score-hint", "No matching NFD profiles.");
+    trustProfileSearchResults.hidden = false;
+  } catch (error) {
+    trustProfileSearchResults.replaceChildren(
+      addText(document.createElement("div"), "p", "trust-score-error", error.message),
+    );
+    trustProfileSearchResults.hidden = false;
+  }
+}
+trustProfileSearch?.addEventListener("input", () => {
+  clearTimeout(trustPeopleSearchTimer);
+  trustPeopleSearchTimer = setTimeout(searchTrustPeople, 220);
+});
+document.addEventListener("click", (event) => {
+  if (!trustProfileSearchResults?.contains(event.target) && event.target !== trustProfileSearch) {
+    trustProfileSearchResults.hidden = true;
+  }
+});
+profileTabs.forEach((button, index) => {
+  button.addEventListener("click", () => activateProfileTab(button.dataset.profileTab));
   button.addEventListener("keydown", (event) => {
     if (!event.key.startsWith("Arrow")) return;
     event.preventDefault();
     const direction = event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : 1;
-    const next = (index + direction + friendsTabs.length) % friendsTabs.length;
-    friendsTabs[next].focus();
-    activateFriendsTab(friendsTabs[next].dataset.friendsTab);
+    const next = (index + direction + profileTabs.length) % profileTabs.length;
+    profileTabs[next].focus();
+    activateProfileTab(profileTabs[next].dataset.profileTab);
   });
 });
 trustScoreTabs.forEach((button, index) => {
@@ -2345,10 +2980,6 @@ trustScoreTabs.forEach((button, index) => {
     activateTrustScoreTab(trustScoreTabs[next].dataset.trustTab);
   });
 });
-openAgreementTabButton?.addEventListener("click", () => {
-  activateTrustScoreTab("agreements");
-  document.getElementById("trust-tab-agreements")?.focus();
-});
 async function loadFriendProfile(friendId) {
   friendProfileView.replaceChildren();
   addText(friendProfileView, "p", "profile-loading", "Loading friend profile…");
@@ -2362,7 +2993,7 @@ async function loadFriendProfile(friendId) {
     const friend = result.friend || {};
     friendProfileView.replaceChildren();
     const back = addText(friendProfileView, "a", "friend-profile-back", "← Back to friends");
-    back.href = "/friends";
+    back.href = "/profile?tab=friends";
     const header = document.createElement("div");
     header.className = "friend-profile-header";
     const avatar = document.createElement("div");
@@ -2390,8 +3021,13 @@ async function loadFriendProfile(friendId) {
       identity,
       "p",
       "",
-      friend.provider === "ghost" ? `Ghost profile · @${friend.ghostHandle}` : "NFD friend",
+      friend.provider === "ghost"
+        ? `Ghost profile · @${friend.ghostHandle}`
+        : friend.username
+          ? `NFD friend · @${friend.username}`
+          : "NFD friend",
     );
+    if (friend.bio) addText(identity, "p", "friend-profile-bio", friend.bio);
     header.append(avatar, identity);
     const actions = document.createElement("div");
     actions.className = "friend-profile-actions";
@@ -2409,7 +3045,7 @@ async function loadFriendProfile(friendId) {
         });
         const removed = await removal.json().catch(() => ({}));
         if (!removal.ok) throw new Error(removed.error || "This friend could not be removed.");
-        location.assign("/friends?removed=1");
+        location.assign("/profile?tab=friends&removed=1");
       } catch (error) {
         feedback.textContent = error.message;
         feedback.classList.add("error");
@@ -2420,7 +3056,58 @@ async function loadFriendProfile(friendId) {
     const feedback = addText(friendProfileView, "p", "friend-profile-feedback", "");
     feedback.setAttribute("role", "status");
     header.append(actions);
-    friendProfileView.append(back, header, feedback, createTrustScorePreview(friend.name || "This member"));
+    friendProfileView.append(back, header, feedback);
+    const friendTabList = document.createElement("div");
+    friendTabList.className = "profile-tabs friend-profile-tabs";
+    friendTabList.setAttribute("role", "tablist");
+    friendTabList.setAttribute("aria-label", `${friend.name || "Friend"} profile sections`);
+    const postsTab = addText(friendTabList, "button", "profile-tab", "Posts");
+    postsTab.type = "button";
+    postsTab.id = "friend-profile-tab-posts";
+    postsTab.setAttribute("role", "tab");
+    postsTab.setAttribute("aria-controls", "friend-profile-panel-posts");
+    postsTab.dataset.friendProfileTab = "posts";
+    const trustTab = addText(friendTabList, "button", "profile-tab", "Trust Score");
+    trustTab.type = "button";
+    trustTab.id = "friend-profile-tab-trust";
+    trustTab.setAttribute("role", "tab");
+    trustTab.setAttribute("aria-controls", "friend-profile-panel-trust");
+    trustTab.dataset.friendProfileTab = "trust";
+    const postsPanel = document.createElement("section");
+    postsPanel.className = "profile-tab-panel friend-profile-tab-panel";
+    postsPanel.id = "friend-profile-panel-posts";
+    postsPanel.setAttribute("role", "tabpanel");
+    postsPanel.setAttribute("aria-labelledby", postsTab.id);
+    postsPanel.tabIndex = 0;
+    const trustPanel = document.createElement("section");
+    trustPanel.className = "profile-tab-panel friend-profile-tab-panel";
+    trustPanel.id = "friend-profile-panel-trust";
+    trustPanel.setAttribute("role", "tabpanel");
+    trustPanel.setAttribute("aria-labelledby", trustTab.id);
+    trustPanel.tabIndex = 0;
+    const trustSection = document.createElement("section");
+    trustSection.className = "friend-trust-dashboard trust-allegation-dashboard";
+    trustSection.setAttribute("aria-labelledby", "friend-trust-heading");
+    addText(trustSection, "h2", "", "Trust Score").id = "friend-trust-heading";
+    addText(
+      trustSection,
+      "p",
+      "trust-score-hint",
+      "Audience-visible positive experiences and unverified allegations for this NFD profile.",
+    );
+    const trustScore = document.createElement("div");
+    trustScore.className = "friend-trust-score-meter";
+    trustScore.append(createTrustScorePreview(friend.name || "This member", true));
+    trustSection.append(trustScore);
+    addText(trustSection, "h3", "trust-activity-subheading", "Activity by category");
+    const trustClassifications = document.createElement("div");
+    trustClassifications.className = "trust-classification-grid";
+    trustSection.append(trustClassifications);
+    addText(trustSection, "h3", "trust-activity-subheading", "Trust activity");
+    const trustRecords = document.createElement("div");
+    trustRecords.className = "trust-allegation-list";
+    trustSection.append(trustRecords);
+    trustPanel.append(trustSection);
     const postsHeading = addText(
       friendProfileView,
       "h2",
@@ -2509,26 +3196,109 @@ async function loadFriendProfile(friendId) {
         posts.append(card);
       });
     }
-    friendProfileView.append(postsHeading, posts);
+    postsPanel.append(postsHeading, posts);
+    friendProfileView.append(friendTabList, postsPanel, trustPanel);
+    const updateFriendTab = (activeTab, updateUrl = false) => {
+      const selectedTab = activeTab === "trust" ? "trust" : "posts";
+      for (const button of [postsTab, trustTab]) {
+        const selected = button.dataset.friendProfileTab === selectedTab;
+        button.setAttribute("aria-selected", String(selected));
+        button.tabIndex = selected ? 0 : -1;
+      }
+      postsPanel.hidden = selectedTab !== "posts";
+      trustPanel.hidden = selectedTab !== "trust";
+      if (updateUrl) {
+        const nextUrl = new URL(location.href);
+        if (selectedTab === "trust") nextUrl.searchParams.set("friend_tab", "trust");
+        else nextUrl.searchParams.delete("friend_tab");
+        history.replaceState(null, "", nextUrl);
+      }
+      if (selectedTab === "trust" && trustPanel.dataset.loaded !== "true") {
+        trustPanel.dataset.loaded = "true";
+        void loadFriendTrustDashboard(
+          friend.userId,
+          friend.name || "This member",
+          trustScore,
+          trustClassifications,
+          trustRecords,
+        );
+      }
+    };
+    for (const button of [postsTab, trustTab]) {
+      button.addEventListener("click", () => updateFriendTab(button.dataset.friendProfileTab, true));
+      button.addEventListener("keydown", (event) => {
+        if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+        event.preventDefault();
+        const nextTab = button === postsTab ? trustTab : postsTab;
+        nextTab.focus();
+        updateFriendTab(nextTab.dataset.friendProfileTab, true);
+      });
+    }
+    updateFriendTab(new URLSearchParams(location.search).get("friend_tab"));
     document.title = `${friend.name || "Friend"} — NFD`;
   } catch (error) {
     friendProfileView.replaceChildren();
     const back = addText(friendProfileView, "a", "friend-profile-back", "← Back to friends");
-    back.href = "/friends";
+    back.href = "/profile?tab=friends";
     const message = addText(friendProfileView, "p", "profile-error", error.message);
     message.setAttribute("role", "alert");
   }
 }
 
-function createTrustScorePreview(profileName, compact = false) {
+async function loadFriendTrustDashboard(
+  userId,
+  name,
+  scoreContainer,
+  classificationsContainer,
+  recordsContainer,
+) {
+  try {
+    const response = await fetch(`/api/trust-score/dashboard?userId=${encodeURIComponent(userId)}`, {
+      headers: { accept: "application/json" },
+      cache: "no-store",
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || "This Trust Score could not be loaded.");
+    scoreContainer.replaceChildren(createTrustScorePreview(name, true, result.profile?.score));
+    renderTrustClassificationCards(
+      classificationsContainer,
+      mergeTrustClassificationSummaries(
+        result.positiveClassifications,
+        result.negativeClassifications || result.classifications,
+      ),
+    );
+    renderTrustRecords(
+      recordsContainer,
+      [...(result.recognitions || []), ...(result.allegations || [])].sort(
+        (left, right) => new Date(right.createdAt) - new Date(left.createdAt),
+      ),
+      () =>
+        loadFriendTrustDashboard(userId, name, scoreContainer, classificationsContainer, recordsContainer),
+    );
+  } catch (error) {
+    scoreContainer.replaceChildren();
+    classificationsContainer.replaceChildren();
+    recordsContainer.replaceChildren(
+      addText(
+        document.createElement("div"),
+        "p",
+        "trust-score-error",
+        error.message || "This Trust Score could not be loaded.",
+      ),
+    );
+  }
+}
+
+function createTrustScorePreview(profileName, compact = false, scoreValue = 40) {
+  const scoreNumber = Math.max(1, Math.min(100, Number(scoreValue) || 40));
   const section = document.createElement("section");
   section.className = `profile-trust-score${compact ? " profile-trust-score-compact" : ""}`;
   section.setAttribute("aria-label", `${profileName}’s Trust Score`);
   const value = document.createElement("span");
   value.className = "profile-trust-score-value";
-  addText(value, "strong", "", "40");
+  addText(value, "strong", "", String(scoreNumber));
   addText(value, "span", "", "/100");
-  value.setAttribute("aria-label", "40 out of 100");
+  value.setAttribute("aria-label", `${scoreNumber} out of 100`);
   const heading = document.createElement("div");
   heading.className = "profile-trust-score-heading";
   addText(heading, "strong", "profile-trust-score-label", "Trust score");
@@ -2539,13 +3309,13 @@ function createTrustScorePreview(profileName, compact = false) {
   track.setAttribute("aria-label", `${profileName}’s Trust Score`);
   track.setAttribute("aria-valuemin", "1");
   track.setAttribute("aria-valuemax", "100");
-  track.setAttribute("aria-valuenow", "40");
+  track.setAttribute("aria-valuenow", String(scoreNumber));
   const fill = document.createElement("span");
   fill.className = "profile-trust-score-fill";
   fill.style.width = "0%";
   track.append(fill);
   requestAnimationFrame(() => {
-    fill.style.width = "40%";
+    fill.style.width = `${scoreNumber}%`;
   });
   const scale = document.createElement("div");
   scale.className = "profile-trust-score-scale";
@@ -2555,7 +3325,7 @@ function createTrustScorePreview(profileName, compact = false) {
     const current = addText(scale, "span", "profile-trust-score-current", "");
     current.append(document.createTextNode("Trust score "));
     const compactValue = document.createElement("strong");
-    compactValue.textContent = "40/100";
+    compactValue.textContent = `${scoreNumber}/100`;
     current.append(compactValue);
   }
   addText(scale, "span", "", "100");
@@ -2565,10 +3335,8 @@ function createTrustScorePreview(profileName, compact = false) {
   return section;
 }
 function setFriendsFeedback(message, error = false) {
-  friendsFeedbackElements.forEach((element) => {
-    element.textContent = message;
-    element.classList.toggle("error", error);
-  });
+  friendsFeedback.textContent = message;
+  friendsFeedback.classList.toggle("error", error);
 }
 function renderFriendList(listId, emptyId, entries, kind) {
   const list = document.getElementById(listId);
@@ -2676,32 +3444,21 @@ async function loadFriends() {
 }
 let friendSearchTimer;
 let friendSearchRequest = 0;
-let friendSuggestionOffset = 0;
-async function loadFriendSuggestions({ append = false } = {}) {
+async function loadFriendSuggestions() {
   const query = friendSearchInput.value.trim();
   const requestNumber = ++friendSearchRequest;
-  if (query && query.length < 2) {
-    friendSuggestions.replaceChildren();
+  friendSuggestions.replaceChildren();
+  if (query.length < 2) {
     friendSuggestions.hidden = true;
-    friendDiscoveryMore.hidden = true;
-    friendSearchFeedback.textContent =
-      "Type at least 2 letters to search, or clear the field to browse members.";
+    friendSearchFeedback.textContent = "Type at least 2 letters to see NFD member suggestions.";
     friendSearchFeedback.classList.remove("error");
     return;
   }
-  if (!append) {
-    friendSuggestionOffset = 0;
-    friendSuggestions.replaceChildren();
-  }
-  const offset = append ? friendSuggestionOffset : 0;
   friendSuggestions.hidden = false;
-  friendDiscoveryMore.hidden = true;
-  friendSearchFeedback.textContent = query ? "Searching NFD members…" : "Finding people to connect with…";
+  friendSearchFeedback.textContent = "Looking for matching NFD names…";
   friendSearchFeedback.classList.remove("error");
   try {
-    const params = new URLSearchParams({ offset: String(offset) });
-    if (query) params.set("q", query);
-    const response = await fetch(`/api/friends/suggestions?${params}`, {
+    const response = await fetch(`/api/friends/suggestions?q=${encodeURIComponent(query)}`, {
       headers: { accept: "application/json" },
       cache: "no-store",
     });
@@ -2709,20 +3466,13 @@ async function loadFriendSuggestions({ append = false } = {}) {
     if (requestNumber !== friendSearchRequest) return;
     if (!response.ok) throw new Error(result.error || "Friend suggestions could not be loaded.");
     const suggestions = result.suggestions || [];
-    if (!suggestions.length && !append) {
-      friendSuggestions.replaceChildren();
-      friendSuggestions.hidden = false;
-      friendSearchFeedback.textContent = query
-        ? "No matching NFD members found. Try another name or Ghost ID."
-        : "No members are available to add right now.";
-      friendDiscoveryMore.hidden = true;
+    if (!suggestions.length) {
+      friendSuggestions.hidden = true;
+      friendSearchFeedback.textContent =
+        "No matching NFD members found. Try a different spelling or Ghost ID.";
       return;
     }
-    friendSuggestionOffset = offset + suggestions.length;
-    friendSearchFeedback.textContent = query
-      ? `${friendSuggestionOffset} matching ${friendSuggestionOffset === 1 ? "member" : "members"}${result.nextOffset != null ? " shown" : " found"}.`
-      : `${friendSuggestionOffset} ${friendSuggestionOffset === 1 ? "member" : "members"} shown.`;
-    friendDiscoveryMore.hidden = result.nextOffset == null;
+    friendSearchFeedback.textContent = `${suggestions.length} matching ${suggestions.length === 1 ? "member" : "members"} found.`;
     suggestions.forEach((suggestion) => {
       const item = document.createElement("li");
       item.className = "friend-item friend-suggestion-item";
@@ -2748,10 +3498,12 @@ async function loadFriendSuggestions({ append = false } = {}) {
           });
           const sent = await send.json().catch(() => ({}));
           if (!send.ok) throw new Error(sent.error || "The friend request could not be sent.");
-          friendSearchFeedback.textContent = sent.message || "Friend request sent.";
-          friendSearchFeedback.classList.remove("error");
+          friendSearchInput.value = "";
+          friendSuggestions.replaceChildren();
+          friendSuggestions.hidden = true;
+          friendSearchFeedback.textContent =
+            sent.message || "Friend request sent. They’ll see it in their NFD profile.";
           await loadFriends();
-          await loadFriendSuggestions();
         } catch (error) {
           connect.disabled = false;
           connect.textContent = "Connect";
@@ -2765,7 +3517,6 @@ async function loadFriendSuggestions({ append = false } = {}) {
   } catch (error) {
     if (requestNumber !== friendSearchRequest) return;
     friendSuggestions.hidden = true;
-    friendDiscoveryMore.hidden = true;
     friendSearchFeedback.textContent = error.message;
     friendSearchFeedback.classList.add("error");
   }
@@ -2774,7 +3525,6 @@ friendSearchInput.addEventListener("input", () => {
   clearTimeout(friendSearchTimer);
   friendSearchTimer = setTimeout(loadFriendSuggestions, 220);
 });
-friendDiscoveryMore.addEventListener("click", () => loadFriendSuggestions({ append: true }));
 function setMessageFeedback(message, error = false) {
   messageFeedback.textContent = message;
   messageFeedback.classList.toggle("error", error);
@@ -3090,6 +3840,50 @@ profilePhotoFile.addEventListener("change", () => {
   profilePhotoFeedback.textContent = "";
   profilePhotoSave.disabled = !file;
   profilePhotoSave.hidden = !file;
+});
+profileBioInput.addEventListener("input", () => {
+  profileBioCount.textContent = `${profileBioInput.value.length}/160`;
+});
+function markProfileDetailsEdited() {
+  if (profileDetailsSave.textContent === "Saved") {
+    profileDetailsSave.textContent = "Save profile";
+    profileDetailsSave.disabled = false;
+  }
+}
+profileDetailsForm.addEventListener("input", markProfileDetailsEdited);
+profileDetailsForm.addEventListener("change", markProfileDetailsEdited);
+profileDetailsForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  profileDetailsSave.disabled = true;
+  profileDetailsFeedback.hidden = false;
+  profileDetailsFeedback.classList.remove("error");
+  profileDetailsFeedback.textContent = "Saving your profile…";
+  try {
+    const response = await fetch("/api/profile", {
+      method: "PUT",
+      headers: { "content-type": "application/json", accept: "application/json" },
+      body: JSON.stringify({
+        displayName: profileDisplayNameInput.value,
+        username: profileUsernameInput.value,
+        bio: profileBioInput.value,
+      }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || "Your profile could not be updated.");
+    const feedback = profileDetailsFeedback;
+    await loadProfile();
+    feedback.hidden = false;
+    feedback.classList.remove("error");
+    feedback.textContent = "Profile updated.";
+    profileDetailsSave.textContent = "Saved";
+    profileDetailsSave.disabled = true;
+  } catch (error) {
+    profileDetailsFeedback.hidden = false;
+    profileDetailsFeedback.classList.add("error");
+    profileDetailsFeedback.textContent = error.message;
+  } finally {
+    if (profileDetailsSave.textContent !== "Saved") profileDetailsSave.disabled = false;
+  }
 });
 document.querySelector(".profile-photo-camera")?.addEventListener("keydown", (event) => {
   if (event.key !== "Enter" && event.key !== " ") return;
@@ -3417,7 +4211,6 @@ friendRequestForm.addEventListener("submit", async (event) => {
         "If that email belongs to another NFD member, your request will appear in their profile.",
     );
     await loadFriends();
-    await loadFriendSuggestions();
   } catch (error) {
     setFriendsFeedback(error.message, true);
   } finally {
@@ -4792,20 +5585,6 @@ async function updateNavigation() {
     applySessionIdleMinutes(result.sessionIdleMinutes);
     startSessionActivityTracking();
     currentUserId = result.userId || currentUserId;
-    if (localTestUserSwitcher && localTestUserSelect) {
-      const localTestUsers = result.provider === "local-test" ? result.localTestUsers : null;
-      localTestUserSwitcher.hidden = !Array.isArray(localTestUsers) || !localTestUsers.length;
-      if (!localTestUserSwitcher.hidden) {
-        localTestUserSelect.replaceChildren();
-        localTestUsers.forEach((testUser) => {
-          const option = document.createElement("option");
-          option.value = testUser.id;
-          option.textContent = testUser.name;
-          localTestUserSelect.append(option);
-        });
-        localTestUserSelect.value = result.userId;
-      }
-    }
     if (
       location.pathname === "/trust-score" &&
       ["my-agreements", "record"].includes(new URLSearchParams(location.search).get("tab"))
@@ -4821,6 +5600,8 @@ async function updateNavigation() {
     currentGhostMode = result.ghostMode || { allowed: false, active: false, profile: null };
     const hasGhostProfile = Boolean(currentGhostMode.profile);
     ghostModeSetupLink.hidden = !currentGhostMode.allowed || hasGhostProfile;
+    ghostModeToggle.hidden = !currentGhostMode.allowed || !hasGhostProfile;
+    ghostModeToggle.textContent = currentGhostMode.active ? "Turn off Ghost mode" : "Turn on Ghost mode";
     ghostModeBanner.hidden = !currentGhostMode.active;
     ghostModeHandle.textContent = currentGhostMode.profile?.handle
       ? `@${currentGhostMode.profile.handle}`
@@ -5082,58 +5863,25 @@ if (location.pathname === "/login") {
 } else if (location.pathname === "/admin" || location.pathname.startsWith("/admin/")) {
   void loadAdminPage();
 } else if (location.pathname === "/profile") {
-  if (new URLSearchParams(location.search).has("ghost")) {
-    location.replace(`/settings${location.search}`);
-  }
   appLayout.classList.add("profile-mode");
   form.hidden = true;
   reviewPage.hidden = true;
   feedPage.hidden = true;
   profilePage.hidden = false;
-  friendsPage.hidden = true;
-  settingsPage.hidden = true;
+  appLayout.classList.toggle(
+    "profile-details-mode",
+    new URLSearchParams(location.search).get("edit") === "details",
+  );
   document.title = "Your profile — NFD";
   loadProfile();
-} else if (location.pathname === "/settings") {
-  appLayout.classList.add("profile-mode");
-  form.hidden = true;
-  reviewPage.hidden = true;
-  feedPage.hidden = true;
-  profilePage.hidden = true;
-  friendsPage.hidden = true;
-  messagesPage.hidden = true;
-  settingsPage.hidden = false;
-  document.title = "Settings — NFD";
-  void loadGhostSettings();
-} else if (location.pathname === "/friends") {
-  appLayout.classList.add("profile-mode");
-  form.hidden = true;
-  reviewPage.hidden = true;
-  feedPage.hidden = true;
-  profilePage.hidden = true;
-  messagesPage.hidden = true;
-  settingsPage.hidden = true;
-  friendsPage.hidden = false;
-  const friendsParams = new URLSearchParams(location.search);
-  activateFriendsTab(friendsParams.get("tab") || "friends", false);
-  if (friendsParams.has("removed")) setFriendsFeedback("Friend removed.");
-  document.title = "Friends — NFD";
-  void loadFriends();
-  if (!friendsParams.get("tab") || friendsParams.get("tab") === "friends") {
-    void loadFriendSuggestions();
-  }
 } else if (location.pathname === "/messages") {
   appLayout.classList.add("profile-mode");
-  appLayout.classList.add("messages-mode");
-  document.body.classList.add("messages-screen-mode");
   form.hidden = true;
   reviewPage.hidden = true;
   feedPage.hidden = true;
   profilePage.hidden = true;
   messagesPage.hidden = false;
   document.title = "Messages — NFD";
-  syncMessagesViewport();
-  window.addEventListener("resize", syncMessagesViewport, { passive: true });
   loadMessagesPage();
 } else if (location.pathname === "/trust-score") {
   appLayout.classList.add("profile-mode");
@@ -5144,7 +5892,9 @@ if (location.pathname === "/login") {
   messagesPage.hidden = true;
   trustScorePage.hidden = false;
   trustScoreOverviewMeter.replaceChildren(createTrustScorePreview("Your profile", true));
-  activateTrustScoreTab(new URLSearchParams(location.search).get("tab"), false);
+  const initialTrustTab = new URLSearchParams(location.search).get("tab");
+  activateTrustScoreTab(initialTrustTab, false);
+  if (initialTrustTab !== "allegations") void loadTrustDashboard();
   document.title = "Trust Score — NFD";
 } else if (location.pathname === "/feed" || location.pathname === "/feed/") {
   appLayout.classList.add("feed-mode");
@@ -5161,6 +5911,19 @@ if (location.pathname === "/login") {
 experienceCategoryInput.addEventListener("change", updateIncidentCategoryOptions);
 if (location.pathname === "/share") {
   updateIncidentCategoryOptions();
+  void loadTrustPostOptions()
+    .then((options) => {
+      trustClassificationInput.addEventListener("change", () => {
+        trustClassFeedback.textContent = "";
+        updateTrustOutcomeOptions(options.classifications);
+      });
+      if (trustClassificationInput.value) updateTrustOutcomeOptions(options.classifications);
+    })
+    .catch(() => {});
+  trustSubjectSearchInput.addEventListener("input", scheduleTrustSubjectSearch);
+  trustSubjectSearchInput.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") hideTrustSubjectResults();
+  });
   const editId = new URLSearchParams(location.search).get("edit");
   if (editId) {
     editingPostId = editId;
@@ -5832,6 +6595,9 @@ document.getElementById("confirm-review").addEventListener("click", async (event
   payload.append("shortDescription", shortDescription.value.trim());
   payload.append("fullDescription", fullDescription.value.trim());
   payload.append("visibility", document.querySelector('input[name="visibility"]:checked')?.value || "public");
+  payload.append("trustClassification", trustClassificationInput.value);
+  payload.append("trustOutcome", trustOutcomeInput.value);
+  payload.append("trustSubjectUserId", trustSubjectInput.value);
   if (!aiReviewConsent.hidden && aiReviewConsentCheckbox.checked) payload.append("aiReviewConsent", "yes");
   selectedFiles.forEach((file) => payload.append("evidence", file, file.name));
   if (savingEdit) removedEditingEvidenceIds.forEach((id) => payload.append("removeEvidence", id));

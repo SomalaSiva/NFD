@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "ab4fc93a-40aa-4fe9-bf1f-05a1eda8120f",
-  "prevId": "0265a8f6-5eb0-4bfc-a153-3a895aa3e987",
+  "id": "ebe645da-115a-495e-9aa0-5f893ad62e61",
+  "prevId": "1b42bd8d-7742-40f0-a1c1-d4e6fe1d8316",
   "tables": {
     "experience_comments": {
       "name": "experience_comments",
@@ -394,16 +394,6 @@
           "columns": [
             "author_id",
             "created_at"
-          ],
-          "isUnique": false
-        },
-        "experiences_author_status_page_idx": {
-          "name": "experiences_author_status_page_idx",
-          "columns": [
-            "author_id",
-            "status",
-            "created_at",
-            "id"
           ],
           "isUnique": false
         },
@@ -1865,6 +1855,233 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
+    "nfd_trust_allegation_votes": {
+      "name": "nfd_trust_allegation_votes",
+      "columns": {
+        "allegation_id": {
+          "name": "allegation_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "voter_user_id": {
+          "name": "voter_user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "choice": {
+          "name": "choice",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "voter_group": {
+          "name": "voter_group",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "weight": {
+          "name": "weight",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "nfd_trust_votes_allegation_voter_unique": {
+          "name": "nfd_trust_votes_allegation_voter_unique",
+          "columns": [
+            "allegation_id",
+            "voter_user_id"
+          ],
+          "isUnique": true
+        },
+        "nfd_trust_votes_allegation_group_idx": {
+          "name": "nfd_trust_votes_allegation_group_idx",
+          "columns": [
+            "allegation_id",
+            "voter_group",
+            "choice"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "nfd_trust_allegation_votes_allegation_id_nfd_trust_allegations_id_fk": {
+          "name": "nfd_trust_allegation_votes_allegation_id_nfd_trust_allegations_id_fk",
+          "tableFrom": "nfd_trust_allegation_votes",
+          "tableTo": "nfd_trust_allegations",
+          "columnsFrom": [
+            "allegation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "nfd_trust_allegation_votes_voter_user_id_nfd_users_id_fk": {
+          "name": "nfd_trust_allegation_votes_voter_user_id_nfd_users_id_fk",
+          "tableFrom": "nfd_trust_allegation_votes",
+          "tableTo": "nfd_users",
+          "columnsFrom": [
+            "voter_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "nfd_trust_allegations": {
+      "name": "nfd_trust_allegations",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "experience_id": {
+          "name": "experience_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "author_user_id": {
+          "name": "author_user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "subject_user_id": {
+          "name": "subject_user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "classification": {
+          "name": "classification",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "outcome": {
+          "name": "outcome",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'unverified'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "nfd_trust_allegations_experience_unique": {
+          "name": "nfd_trust_allegations_experience_unique",
+          "columns": [
+            "experience_id"
+          ],
+          "isUnique": true
+        },
+        "nfd_trust_allegations_subject_created_idx": {
+          "name": "nfd_trust_allegations_subject_created_idx",
+          "columns": [
+            "subject_user_id",
+            "created_at"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "nfd_trust_allegations_experience_id_experiences_id_fk": {
+          "name": "nfd_trust_allegations_experience_id_experiences_id_fk",
+          "tableFrom": "nfd_trust_allegations",
+          "tableTo": "experiences",
+          "columnsFrom": [
+            "experience_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "nfd_trust_allegations_author_user_id_nfd_users_id_fk": {
+          "name": "nfd_trust_allegations_author_user_id_nfd_users_id_fk",
+          "tableFrom": "nfd_trust_allegations",
+          "tableTo": "nfd_users",
+          "columnsFrom": [
+            "author_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "nfd_trust_allegations_subject_user_id_nfd_users_id_fk": {
+          "name": "nfd_trust_allegations_subject_user_id_nfd_users_id_fk",
+          "tableFrom": "nfd_trust_allegations",
+          "tableTo": "nfd_users",
+          "columnsFrom": [
+            "subject_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
     "nfd_users": {
       "name": "nfd_users",
       "columns": {
@@ -1902,6 +2119,21 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
+        },
+        "username": {
+          "name": "username",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "bio": {
+          "name": "bio",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "''"
         },
         "profile_photo_key": {
           "name": "profile_photo_key",
@@ -1942,14 +2174,13 @@
           ],
           "isUnique": true
         },
-        "nfd_users_active_name_idx": {
-          "name": "nfd_users_active_name_idx",
+        "nfd_users_username_unique": {
+          "name": "nfd_users_username_unique",
           "columns": [
-            "active",
-            "\"display_name\" COLLATE NOCASE",
-            "id"
+            "\"username\" COLLATE NOCASE"
           ],
-          "isUnique": false
+          "isUnique": true,
+          "where": "username IS NOT NULL"
         }
       },
       "foreignKeys": {},
@@ -1967,16 +2198,16 @@
   },
   "internal": {
     "indexes": {
-      "nfd_ghost_profiles_handle_unique": {
+      "nfd_users_username_unique": {
         "columns": {
-          "\"handle\" COLLATE NOCASE": {
+          "\"username\" COLLATE NOCASE": {
             "isExpression": true
           }
         }
       },
-      "nfd_users_active_name_idx": {
+      "nfd_ghost_profiles_handle_unique": {
         "columns": {
-          "\"display_name\" COLLATE NOCASE": {
+          "\"handle\" COLLATE NOCASE": {
             "isExpression": true
           }
         }

@@ -10,6 +10,59 @@ let emailRestrictionTablesPromise;
 let messagingTablesPromise;
 let storyTablesPromise;
 let appSettingsTablePromise;
+let trustScoreTablesPromise;
+
+export async function ensureTrustScoreTables(env) {
+  if (!env.DB) throw new Error("The NFD database is unavailable.");
+  trustScoreTablesPromise ||= (async () => {
+    await env.DB.prepare(
+      `
+      CREATE TABLE IF NOT EXISTS nfd_trust_allegations (
+        id TEXT PRIMARY KEY NOT NULL,
+        experience_id TEXT NOT NULL UNIQUE,
+        author_user_id TEXT NOT NULL,
+        subject_user_id TEXT NOT NULL,
+        classification TEXT NOT NULL,
+        outcome TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'unverified',
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (experience_id) REFERENCES experiences(id) ON DELETE CASCADE,
+        FOREIGN KEY (author_user_id) REFERENCES nfd_users(id) ON DELETE CASCADE,
+        FOREIGN KEY (subject_user_id) REFERENCES nfd_users(id) ON DELETE CASCADE
+      )
+    `,
+    ).run();
+    await env.DB.prepare(
+      `
+      CREATE INDEX IF NOT EXISTS nfd_trust_allegations_subject_created_idx
+      ON nfd_trust_allegations (subject_user_id, created_at DESC)
+    `,
+    ).run();
+    await env.DB.prepare(
+      `
+      CREATE TABLE IF NOT EXISTS nfd_trust_allegation_votes (
+        allegation_id TEXT NOT NULL,
+        voter_user_id TEXT NOT NULL,
+        choice TEXT NOT NULL,
+        voter_group TEXT NOT NULL,
+        weight INTEGER NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY (allegation_id, voter_user_id),
+        FOREIGN KEY (allegation_id) REFERENCES nfd_trust_allegations(id) ON DELETE CASCADE,
+        FOREIGN KEY (voter_user_id) REFERENCES nfd_users(id) ON DELETE CASCADE
+      )
+    `,
+    ).run();
+    await env.DB.prepare(
+      "CREATE INDEX IF NOT EXISTS nfd_trust_votes_allegation_group_idx ON nfd_trust_allegation_votes (allegation_id, voter_group, choice)",
+    ).run();
+  })().catch((error) => {
+    trustScoreTablesPromise = undefined;
+    throw error;
+  });
+  await trustScoreTablesPromise;
+}
 
 export async function ensureAppSettings(env) {
   if (!env.DB) throw new Error("The NFD database is unavailable.");
@@ -223,8 +276,17 @@ export async function ensureIdentityTables(env) {
         if (!(refreshedColumns.results || []).some((column) => column.name === "active")) throw error;
       }
     }
+    const existingUserColumns = new Set(
+      (await env.DB.prepare("PRAGMA table_info(nfd_users)").all()).results.map((column) => column.name),
+    );
+    if (!existingUserColumns.has("username")) {
+      await env.DB.prepare("ALTER TABLE nfd_users ADD COLUMN username TEXT").run();
+    }
+    if (!existingUserColumns.has("bio")) {
+      await env.DB.prepare("ALTER TABLE nfd_users ADD COLUMN bio TEXT NOT NULL DEFAULT ''").run();
+    }
     await env.DB.prepare(
-      "CREATE INDEX IF NOT EXISTS nfd_users_active_name_idx ON nfd_users (active, display_name COLLATE NOCASE, id)",
+      "CREATE UNIQUE INDEX IF NOT EXISTS nfd_users_username_unique ON nfd_users (username COLLATE NOCASE) WHERE username IS NOT NULL",
     ).run();
     await env.DB.prepare(
       `

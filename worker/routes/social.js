@@ -1,8 +1,6 @@
 import { ensureMessagingTables, ensureStoryTables } from "../db/ensure.js";
 
 const MESSAGE_RETENTION_MS = 90 * 24 * 60 * 60 * 1000;
-const FRIEND_DISCOVERY_PAGE_SIZE = 20;
-const MAX_FRIEND_DISCOVERY_OFFSET = 10_000;
 
 export function createSocialRoutes(services) {
   const { getCurrentUser, ensureGhostTables, recordActivity, json, cleanSearchTerm, availableIdentitySql } =
@@ -175,7 +173,7 @@ export function createSocialRoutes(services) {
         `
         SELECT f.id AS relationship_id, u.id AS user_id,
           COALESCE(NULLIF(trim(u.display_name), ''), 'NFD member') AS name,
-          u.provider, gp.handle AS ghost_handle, u.profile_photo_key
+          u.provider, gp.handle AS ghost_handle, u.username, u.bio, u.profile_photo_key
         FROM nfd_friend_requests f
         INNER JOIN nfd_users u ON u.id = CASE WHEN f.from_user_id = ? THEN f.to_user_id ELSE f.from_user_id END
         LEFT JOIN nfd_ghost_profiles gp ON gp.ghost_user_id = u.id AND gp.active = 1
@@ -230,6 +228,8 @@ export function createSocialRoutes(services) {
           relationshipId: friend.relationship_id,
           userId: friend.user_id,
           name: friend.name,
+          username: friend.username || "",
+          bio: friend.bio || "",
           provider: friend.provider === "ghost" ? "ghost" : "member",
           ghostHandle: friend.provider === "ghost" ? friend.ghost_handle || "" : "",
           photoUrl: friend.profile_photo_key
@@ -473,60 +473,52 @@ export function createSocialRoutes(services) {
     const user = await getCurrentUser(request, env);
     if (!user) return json({ error: "Sign in to find NFD friends." }, 401);
     if (!env.DB) return json({ error: "NFD friend search is unavailable right now." }, 503);
-    const query = cleanSearchTerm(new URL(request.url).searchParams.get("q")).slice(0, 80);
-    if (query && query.length < 2) return json({ suggestions: [], nextOffset: null, minimumCharacters: 2 });
-    const requestedOffset = Number.parseInt(new URL(request.url).searchParams.get("offset") || "0", 10);
-    const offset = Number.isFinite(requestedOffset)
-      ? Math.min(MAX_FRIEND_DISCOVERY_OFFSET, Math.max(0, requestedOffset))
-      : 0;
-    // Prefix search keeps these lookups eligible for the member-name and ghost-handle indexes.
-    // Escape LIKE metacharacters so user input remains a literal search string.
-    const searchPattern = `${query.replace(/[!%_]/g, "!$&")}%`;
-    const searchClause = query
-      ? `AND (u.display_name LIKE ? ESCAPE '!'
-          OR p.handle LIKE ? ESCAPE '!')`
-      : "";
-    const searchOrder = query ? `CASE WHEN u.display_name LIKE ? ESCAPE '!' THEN 0 ELSE 1 END,` : "";
+    const url = new URL(request.url);
+    const query = cleanSearchTerm(url.searchParams.get("q")).slice(0, 80);
+    const requestedOffset = Number.parseInt(url.searchParams.get("offset") || "0", 10);
+    const offset = Number.isFinite(requestedOffset) ? Math.max(0, Math.min(requestedOffset, 10_000)) : 0;
+    if (query && query.length < 2) {
+      return json({ suggestions: [], nextOffset: null, minimumCharacters: 2 });
+    }
     try {
       await ensureGhostTables(env);
+      const escapedQuery = query.replace(/[!%_]/g, "!$&");
+      const queryClause = query ? `AND (u.display_name LIKE ? ESCAPE '!' OR p.handle LIKE ? ESCAPE '!')` : "";
+      const priorityClause = query ? "CASE WHEN u.display_name LIKE ? ESCAPE '!' THEN 0 ELSE 1 END," : "";
       const result = await env.DB.prepare(
         `
       SELECT u.id, COALESCE(NULLIF(trim(u.display_name), ''), 'NFD member') AS display_name, p.handle
       FROM nfd_users u
       LEFT JOIN nfd_ghost_profiles p ON p.ghost_user_id = u.id AND p.active = 1
-      WHERE u.id != ? AND u.active = 1 AND (u.provider != 'ghost' OR p.ghost_user_id IS NOT NULL)
-        ${searchClause}
+      WHERE u.id != ? AND ${availableIdentitySql} ${queryClause}
         AND NOT EXISTS (
           SELECT 1 FROM nfd_friend_requests f
           WHERE f.status IN ('pending', 'accepted')
             AND ((f.from_user_id = ? AND f.to_user_id = u.id) OR (f.from_user_id = u.id AND f.to_user_id = ?))
         )
-      ORDER BY ${searchOrder} u.display_name COLLATE NOCASE, u.id
+      ORDER BY ${priorityClause} u.display_name COLLATE NOCASE, u.id
       LIMIT ? OFFSET ?
     `,
       )
         .bind(
           user.id,
-          ...(query ? [searchPattern, searchPattern] : []),
+          ...(query ? [`${escapedQuery}%`, `${escapedQuery}%`] : []),
           user.id,
           user.id,
-          ...(query ? [searchPattern] : []),
-          FRIEND_DISCOVERY_PAGE_SIZE + 1,
+          ...(query ? [`${escapedQuery}%`] : []),
+          21,
           offset,
         )
         .all();
-      const rows = result.results || [];
-      const hasMore = rows.length > FRIEND_DISCOVERY_PAGE_SIZE;
+      const page = result.results || [];
+      const hasMore = page.length > 20;
       return json({
-        suggestions: rows.slice(0, FRIEND_DISCOVERY_PAGE_SIZE).map((row) => ({
+        suggestions: (hasMore ? page.slice(0, 20) : page).map((row) => ({
           id: row.id,
-          name: row.display_name,
+          name: row.display_name || "NFD member",
           handle: row.handle || "",
         })),
-        nextOffset:
-          hasMore && offset < MAX_FRIEND_DISCOVERY_OFFSET
-            ? Math.min(MAX_FRIEND_DISCOVERY_OFFSET, offset + FRIEND_DISCOVERY_PAGE_SIZE)
-            : null,
+        nextOffset: hasMore && offset < 10_000 ? offset + 20 : null,
       });
     } catch (error) {
       console.error("NFD friend search failed", error);
@@ -544,23 +536,27 @@ export function createSocialRoutes(services) {
       await ensureGhostTables(env);
       const result = await env.DB.prepare(
         `
-        SELECT u.display_name, p.handle
+        SELECT u.display_name, u.username, p.handle
         FROM nfd_users u
         LEFT JOIN nfd_ghost_profiles p ON p.ghost_user_id = u.id AND p.active = 1
         WHERE u.id != ? AND ${availableIdentitySql}
           AND (instr(lower(COALESCE(u.display_name, '')), lower(?)) > 0
+            OR instr(lower(COALESCE(u.username, '')), lower(?)) > 0
             OR instr(lower(COALESCE(p.handle, '')), lower(?)) > 0)
-        ORDER BY CASE WHEN instr(lower(COALESCE(u.display_name, '')), lower(?)) = 1 THEN 0 ELSE 1 END,
+        ORDER BY CASE WHEN instr(lower(COALESCE(u.display_name, '')), lower(?)) = 1
+          OR instr(lower(COALESCE(u.username, '')), lower(?)) = 1 THEN 0 ELSE 1 END,
           lower(COALESCE(NULLIF(trim(u.display_name), ''), 'NFD member'))
         LIMIT 8
       `,
       )
-        .bind(user.id, query, query, query)
+        .bind(user.id, query, query, query, query, query)
         .all();
       const suggestions = [];
       for (const row of result.results || []) {
         const name = row.display_name?.trim() || "NFD member";
         suggestions.push({ value: name, label: "NFD member" });
+        if (row.username)
+          suggestions.push({ value: `@${row.username}`, label: `${name} · @${row.username}` });
         if (row.handle) suggestions.push({ value: `@${row.handle}`, label: `${name} · Ghost ID` });
       }
       return json({ suggestions });
