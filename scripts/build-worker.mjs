@@ -2,6 +2,7 @@ import { copyFileSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileS
 import { createHash } from "node:crypto";
 import path from "node:path";
 import { build } from "esbuild";
+import { assembleAppSource } from "./assemble-app.mjs";
 
 const root = realpathSync(process.cwd());
 const dist = path.resolve(root, "dist");
@@ -20,9 +21,9 @@ const appCssBase64 = Buffer.from(
   readFileSync(path.join(root, "web/assets/app.css"), "utf8"),
   "utf8",
 ).toString("base64");
-const appJsBase64 = Buffer.from(readFileSync(path.join(root, "web/assets/app.js"), "utf8"), "utf8").toString(
-  "base64",
-);
+const appJsSource = assembleAppSource();
+writeFileSync(path.join(root, "web/assets/app.js"), appJsSource, "utf8");
+const appJsBase64 = Buffer.from(appJsSource, "utf8").toString("base64");
 const appCss = Buffer.from(appCssBase64, "base64");
 const appJs = Buffer.from(appJsBase64, "base64");
 const cssAssetName = `app.${createHash("sha256").update(appCss).digest("hex").slice(0, 12)}.css`;

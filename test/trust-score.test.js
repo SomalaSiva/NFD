@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { assembleAppSource } from "../scripts/assemble-app.mjs";
 import {
   TRUST_CLASSIFICATIONS,
   TRUST_SCORE_BASE,
@@ -12,7 +13,7 @@ import {
 
 const html = await readFile(new URL("../web/index.html", import.meta.url), "utf8");
 const normalizedHtml = html.replace(/\s+/g, " ");
-const appJs = await readFile(new URL("../web/assets/app.js", import.meta.url), "utf8");
+const appJs = assembleAppSource();
 const appCss = await readFile(new URL("../web/assets/app.css", import.meta.url), "utf8");
 
 test("Trust Score policy and editable classification source stay centralized", async () => {

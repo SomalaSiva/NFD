@@ -1,0 +1,13 @@
+[
+  "00-shared-bindings.js",
+  "01-post-composer.js",
+  "02-feed-rendering.js",
+  "03-profile-trust-friends.js",
+  "04-stories-messages.js",
+  "05-feed-discovery.js",
+  "06-admin.js",
+  "07-navigation.js",
+  "08-login-screen.js",
+  "09-share-screen.js",
+  "10-trust-agreements.js"
+]

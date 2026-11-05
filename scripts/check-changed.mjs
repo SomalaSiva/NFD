@@ -18,6 +18,7 @@ const run = (label, command, args) => {
 };
 
 const testMap = new Map([
+  ["web/assets/app.js", ["test/app-source-bundle.test.js", "test/trust-score.test.js"]],
   [
     "worker/routes/experiences.js",
     [
@@ -52,8 +53,15 @@ try {
   if (!changed.size) throw new Error("No changed files found in the working tree or latest commit.");
   console.log(`Checking ${changed.size} changed file(s).`);
 
+  const appPartsChanged = [...changed].some((file) => /^web\/assets\/app\/parts\/.*\.js$/.test(file));
+  if (appPartsChanged) {
+    run("Assemble screen source", process.execPath, [path.join(root, "scripts/assemble-app.mjs")]);
+    changed.add("web/assets/app.js");
+  }
+
   const eslintFiles = [...changed].filter(
-    (file) => /\.(?:js|mjs|cjs)$/.test(file) && !file.includes("/dist/"),
+    (file) =>
+      /\.(?:js|mjs|cjs)$/.test(file) && !file.includes("/dist/") && !/^web\/assets\/app\/parts\//.test(file),
   );
   if (eslintFiles.length) {
     const eslintCli = path.join(root, "node_modules", "eslint", "bin", "eslint.js");
@@ -61,7 +69,12 @@ try {
     run("Focused lint", process.execPath, [eslintCli, ...eslintFiles]);
   }
 
-  const formatFiles = [...changed].filter((file) => /\.(?:js|mjs|cjs|css|html|ts|json|jsonc|md)$/.test(file));
+  const formatFiles = [...changed].filter(
+    (file) =>
+      /\.(?:js|mjs|cjs|css|html|ts|json|jsonc|md)$/.test(file) &&
+      file !== "web/assets/app.js" &&
+      !/^web\/assets\/app\/parts\//.test(file),
+  );
   if (formatFiles.length) {
     const prettierCli = path.join(root, "node_modules", "prettier", "bin", "prettier.cjs");
     if (!existsSync(prettierCli)) throw new Error("Prettier is not installed. Run npm ci first.");
@@ -74,6 +87,9 @@ try {
   );
   for (const file of changed) {
     for (const testFile of testMap.get(file) || []) tests.add(testFile);
+    if (/^web\/assets\/app\/parts\/.*\.js$/.test(file)) {
+      for (const testFile of testMap.get("web/assets/app.js") || []) tests.add(testFile);
+    }
   }
 
   if (fullSuite) {
