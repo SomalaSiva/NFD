@@ -127,6 +127,9 @@ const storyPreviousButton = document.getElementById("story-previous-button");
 const storyNextButton = document.getElementById("story-next-button");
 const storyDeleteButton = document.getElementById("story-delete-button");
 const storySoundButton = document.getElementById("story-sound-button");
+const photoViewer = document.getElementById("photo-viewer");
+const photoViewerImage = document.getElementById("photo-viewer-image");
+const photoViewerClose = document.getElementById("photo-viewer-close");
 const profilePhotoForm = document.getElementById("profile-photo-form");
 const profilePhotoFile = document.getElementById("profile-photo-file");
 const profilePhotoSave = document.getElementById("profile-photo-save");
@@ -227,6 +230,16 @@ function updateMobileBottomNavigation() {
     else link.removeAttribute("aria-current");
   });
 }
+function openPhotoViewer(source, alt) {
+  if (!photoViewer || !photoViewerImage || !source) return;
+  photoViewerImage.src = source;
+  photoViewerImage.alt = alt || "Photo";
+  photoViewer.showModal();
+}
+photoViewerClose?.addEventListener("click", () => photoViewer.close());
+photoViewer?.addEventListener("click", (event) => {
+  if (event.target === photoViewer) photoViewer.close();
+});
 let messageNavRefreshTimer;
 let SESSION_IDLE_LIMIT_MS = 4 * 60 * 1000;
 const SESSION_ACTIVITY_STORAGE_KEY = "nfd:last-active-at";
@@ -1631,8 +1644,11 @@ function renderFeed(experiences, { append = false, nextCursor = "" } = {}) {
         const link = document.createElement("a");
         link.className = "feed-photo";
         link.href = `/api/evidence/${encodeURIComponent(file.id)}`;
-        link.target = "_blank";
-        link.rel = "noopener noreferrer";
+        link.setAttribute("aria-label", `Open photo: ${file.originalFilename || "attached photo"}`);
+        link.addEventListener("click", (event) => {
+          event.preventDefault();
+          openPhotoViewer(link.href, image.alt);
+        });
         const image = document.createElement("img");
         image.className = "feed-photo-image";
         image.alt = `Photo attached to ${experience.experienceCategory} experience`;
@@ -2366,8 +2382,11 @@ function renderProfile(data, { append = false } = {}) {
         const link = document.createElement("a");
         link.className = "feed-photo";
         link.href = `/api/evidence/${encodeURIComponent(file.id)}`;
-        link.target = "_blank";
-        link.rel = "noopener noreferrer";
+        link.setAttribute("aria-label", `Open photo: ${file.originalFilename || "attached photo"}`);
+        link.addEventListener("click", (event) => {
+          event.preventDefault();
+          openPhotoViewer(link.href, image.alt);
+        });
         const image = document.createElement("img");
         image.className = "feed-photo-image";
         image.alt = `Photo attached to ${experience.shortDescription || "your post"}`;
