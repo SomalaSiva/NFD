@@ -27,11 +27,9 @@ try {
     );
   }
 
-  const npm = process.platform === "win32" ? "npm.cmd" : "npm";
-  const result = spawnSync(npm, ["run", "check:fast"], {
+  const result = spawnSync(process.execPath, [path.join(root, "scripts", "check-changed.mjs")], {
     cwd: root,
     stdio: "inherit",
-    shell: process.platform === "win32",
   });
   if (result.error) throw result.error;
   if (result.status !== 0) throw new Error("Fast release checks failed; do not publish this build.");
