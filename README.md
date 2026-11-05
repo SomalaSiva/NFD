@@ -51,20 +51,23 @@ The Worker still has idempotent schema checks for compatibility with older insta
 
 ## Quality checks
 
-- `npm run check` — lint, formatting check, unit tests, and production build.
+- `npm run check` or `npm run check:fast` — lint and format changed files, run the mapped feature tests, and build once. Database/schema changes trigger the full test suite.
+- `npm run test:focused -- test/<file>.test.js` — run only the relevant test file(s).
+- `npm run test:case -- --test-name-pattern="case name" test/<file>.test.js` — run only matching named test case(s) in a file.
+- `npm run check:full` — lint, formatting check, the full unit test suite, and production build.
 - `npm run format` — format project source.
-- `npm test` — run the Node built-in test suite.
+- `npm test` — run the complete Node built-in test suite.
 - `npm run build` — create the deployable Worker at `dist/server/index.js`.
 
-Run `npm run check` before handing off or publishing a change.
+For a small change, run `npm run check:fast` and a smoke check of the affected app flow. The fast check picks tests for mapped Worker routes and directly changed test files. Use `npm run test:focused -- test/<relevant-file>.test.js` when a source change needs a test that is not mapped yet. Use `npm run check:full` for changes that cross routes or shared systems, affect authentication/permissions/data integrity, or when focused checks uncover a wider risk.
 
 ## Responsive UI baseline
 
-The responsive layout is a project-wide requirement. Keep essential content and actions consistent across desktop and mobile, reflowing only as needed to fit. Check every route and major UI state at narrow mobile, standard mobile, tablet, and desktop widths. Prevent page-level horizontal overflow and keep compact labels, badges, controls, and navigation from wrapping unexpectedly. Horizontal scrolling is reserved for intentional content such as media galleries; narrative text should remain readable and naturally wrapped. See [AGENTS.md](AGENTS.md) for the contributor instruction.
+The responsive layout is a project-wide requirement. Keep essential content and actions consistent across desktop and mobile, reflowing only as needed to fit. Check affected routes and states at relevant widths; include narrow mobile, standard mobile, tablet, and desktop when shared navigation or responsive layout changes. Prevent page-level horizontal overflow and keep compact labels, badges, controls, and navigation from wrapping unexpectedly. Horizontal scrolling is reserved for intentional content such as media galleries; narrative text should remain readable and naturally wrapped. See [AGENTS.md](AGENTS.md) for the contributor instruction.
 
 ## Production publishing
 
-NFD production is published through OpenAI Sites. Commit and push the exact source to GitHub first, build/package that commit, save a Sites version, then deploy the saved version. Do not use `wrangler deploy`; the Wrangler config is for local development only. Keep the production audience, secrets, D1, and R2 bindings unchanged unless a task specifically requires changing them.
+The project root `main` checkout is the canonical source. Do not build or publish from nested recovery, archive, or Sites checkout folders. Commit the tested changes to `main`, then run `npm run release:prepare`; it verifies the clean source, runs the fast checks/build, and pushes that exact SHA to GitHub. Save and deploy the printed SHA through OpenAI Sites, then run `npm run release:smoke`. The smoke command checks route availability; exercise the changed behavior in the app as well. Do not use `wrangler deploy`; the Wrangler config is for local development only. Keep the production audience, secrets, D1, and R2 bindings unchanged unless a task specifically requires changing them.
 
 ## Admin pages
 

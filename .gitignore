@@ -3,6 +3,15 @@
 /.wrangler/
 /.sites-runtime/
 *.tar
+/.release-*/
+/.release-*.tar.gz
+/.sites-checkout-*/
+/.sites-source-*/
+/.sites-publish-*.tar.gz
+/.sites-rebuilt-*.tar.gz
+/.sites-release-*.tar.gz
+/nfd-*-release.tar.gz
+/nfd-allegation-poll-*.tar.gz
 .dev.vars
 .dev.vars.*
 !.dev.vars.example
