@@ -5183,15 +5183,10 @@ textarea.control::placeholder {
   min-height: 38px;
   padding: 7px clamp(7px, 1vw, 12px);
   border-radius: 999px;
-  background: color-mix(in srgb, var(--accent) 8%, var(--paper));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 16%, transparent);
+  background: transparent;
+  box-shadow: none;
   font-size: 1.2em;
   font-weight: 650;
-}
-.topbar-navigation .top-actions > .feed-nav-link:hover,
-.topbar-navigation .top-actions > #trust-score-nav-link:hover,
-.topbar-navigation .top-actions > .nav-utility-links > .messages-nav-link:hover {
-  background: color-mix(in srgb, var(--accent) 14%, var(--paper));
 }
 .topbar-navigation .top-actions a.nav-share-link {
   display: none;
