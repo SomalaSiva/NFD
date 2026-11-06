@@ -226,6 +226,12 @@ function updateFeedRoll() {
   if (root.style.getPropertyValue("--feed-scroll-padding-top") !== topPaddingValue)
     root.style.setProperty("--feed-scroll-padding-top", topPaddingValue);
   const availableHeight = Math.max(1, window.innerHeight - topPadding - bottomPadding - 12);
+  const cardMaxHeight = `${availableHeight}px`;
+  if (root.style.getPropertyValue("--feed-card-max-height") !== cardMaxHeight)
+    root.style.setProperty("--feed-card-max-height", cardMaxHeight);
+  const bottomPaddingValue = `${bottomPadding}px`;
+  if (root.style.getPropertyValue("--feed-scroll-padding-bottom") !== bottomPaddingValue)
+    root.style.setProperty("--feed-scroll-padding-bottom", bottomPaddingValue);
   const center = (topPadding + window.innerHeight - bottomPadding) / 2;
   const radius = Math.max(1, window.innerHeight * 0.78);
   const feedTop = feedList.getBoundingClientRect().top;
@@ -234,9 +240,7 @@ function updateFeedRoll() {
     cardCenter: feedTop + card.offsetTop + card.offsetHeight / 2,
     cardHeight: card.offsetHeight,
   }));
-  measurements.forEach(({ card, cardHeight }) => {
-    card.classList.toggle("is-feed-tall", cardHeight > availableHeight);
-  });
+  measurements.forEach(({ card }) => card.classList.remove("is-feed-tall"));
   let activeIndex = 0;
   let closestDistance = Infinity;
   measurements.forEach(({ cardCenter }, index) => {
@@ -247,9 +251,9 @@ function updateFeedRoll() {
     }
   });
   const activeCard = cards[activeIndex];
-  measurements.forEach(({ card, cardCenter, cardHeight }, index) => {
+  measurements.forEach(({ card, cardCenter }, index) => {
     const distance = (cardCenter - center) / radius;
-    if (reduceMotion || cardHeight > availableHeight || Math.abs(distance) > 1.35) {
+    if (reduceMotion || Math.abs(distance) > 1.35) {
       card.style.removeProperty("--feed-roll-angle");
       card.style.removeProperty("--feed-roll-depth");
     } else {
@@ -273,6 +277,7 @@ function scheduleFeedRoll() {
 window.addEventListener("scroll", scheduleFeedRoll, { passive: true });
 window.addEventListener("resize", scheduleFeedRoll, { passive: true });
 function renderFeed(experiences, { append = false, nextCursor = "" } = {}) {
+  feedList.classList.add("feed-roll-track");
   if (!append) {
     feedList.replaceChildren();
     feedLoadedCount = 0;
@@ -603,6 +608,14 @@ function renderFeed(experiences, { append = false, nextCursor = "" } = {}) {
   });
   feedLoadedCount += experiences.length;
   scheduleFeedRoll();
+  if (!append) {
+    requestAnimationFrame(() => {
+      const firstCard = feedList.querySelector(".feed-roll-card");
+      if (!firstCard) return;
+      firstCard.scrollIntoView({ block: "center", behavior: "auto" });
+      scheduleFeedRoll();
+    });
+  }
   feedResultCount.textContent = `${countLabel} · Showing ${feedLoadedCount}${feedNextCursor ? "+" : ""}`;
   feedLoadMore.hidden = !feedNextCursor;
 }

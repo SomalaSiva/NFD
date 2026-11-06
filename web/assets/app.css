@@ -949,21 +949,21 @@ textarea.control::placeholder {
 .feed-list.feed-roll-track::before,
 .feed-list.feed-roll-track::after {
   position: absolute;
-  z-index: 0;
+  z-index: 2;
   top: 0;
   bottom: 0;
-  width: 8px;
-  border: 1px solid rgba(24, 91, 70, 0.18);
+  width: 12px;
+  border: 1px solid rgba(24, 91, 70, 0.2);
   border-radius: 50%;
-  background: linear-gradient(90deg, rgba(24, 91, 70, 0.2), rgba(24, 91, 70, 0.035) 70%, transparent);
+  background: linear-gradient(90deg, rgba(24, 91, 70, 0.24), rgba(24, 91, 70, 0.055) 70%, transparent);
   content: "";
   pointer-events: none;
 }
 .feed-list.feed-roll-track::before {
-  left: max(7px, calc(50% - 470px));
+  left: max(3px, calc(50% - 470px));
 }
 .feed-list.feed-roll-track::after {
-  right: max(7px, calc(50% - 470px));
+  right: max(3px, calc(50% - 470px));
   transform: scaleX(-1);
 }
 .feed-card {
@@ -974,8 +974,8 @@ textarea.control::placeholder {
   backface-visibility: hidden;
   background: var(--paper);
   border: 1px solid var(--line);
-  border-radius: 16px;
-  box-shadow: var(--shadow);
+  border-radius: 26px;
+  box-shadow: 0 18px 44px rgba(31, 70, 54, 0.16);
   overflow: hidden;
 }
 .feed-roll-card.roll-before,
@@ -988,15 +988,19 @@ textarea.control::placeholder {
 html.feed-scroll-snap {
   scroll-snap-type: y mandatory;
   scroll-padding-top: var(--feed-scroll-padding-top, 12px);
+  scroll-padding-bottom: var(--feed-scroll-padding-bottom, 0px);
 }
 .feed-roll-card {
   scroll-snap-align: center;
   scroll-snap-stop: always;
-}
-.feed-roll-card.is-feed-tall {
-  scroll-snap-align: start;
-  transform: none !important;
-  opacity: 1;
+  max-height: var(--feed-card-max-height, none);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(24, 91, 70, 0.35) transparent;
+  content-visibility: visible;
+  contain-intrinsic-size: none;
 }
 .feed-load-more {
   scroll-snap-align: start;
@@ -5368,11 +5372,11 @@ html.feed-scroll-snap {
 }
 @media (max-width: 680px) {
   html.feed-scroll-snap {
-    scroll-padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+    scroll-padding-bottom: var(--feed-scroll-padding-bottom, calc(72px + env(safe-area-inset-bottom, 0px)));
   }
   .feed-photo-grid .feed-photo-image.is-portrait,
   .feed-video-item.is-portrait .feed-video {
-    max-height: min(42svh, 360px);
+    max-height: min(38svh, 320px, max(120px, calc(var(--feed-card-max-height, 560px) - 230px)));
   }
   .feed-roll-card.has-portrait-media {
     content-visibility: visible;
