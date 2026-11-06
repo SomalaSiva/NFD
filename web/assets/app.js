@@ -3690,6 +3690,7 @@ async function loadStories() {
     const response = await fetch("/api/stories", {
       headers: { accept: "application/json" },
       cache: "no-store",
+      signal: AbortSignal.timeout(15000),
     });
     const result = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(result.error || "Stories could not be loaded.");
@@ -4043,6 +4044,7 @@ async function loadMessageFriends({ quiet = false } = {}) {
     const response = await fetch("/api/messages", {
       headers: { accept: "application/json" },
       cache: "no-store",
+      signal: AbortSignal.timeout(15000),
     });
     const result = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(result.error || "Your messages could not be loaded.");
@@ -4125,6 +4127,7 @@ function observeIncomingMessage(bubble, message, friendId) {
   if (messageSeenObserver) messageSeenObserver.observe(bubble);
   else markMessagesSeen(friendId, [message.id]);
 }
+let messageConversationRevision = 0;
 function renderMessageConversation(result, friendId) {
   if (friendId !== currentMessageFriendId) return;
   messageFriendName.textContent = result.friend?.name || "NFD friend";
@@ -4134,6 +4137,10 @@ function renderMessageConversation(result, friendId) {
   messageCompose.hidden = false;
   const nearBottom = messageList.scrollHeight - messageList.scrollTop - messageList.clientHeight < 100;
   const messages = result.messages || [];
+  const signature = JSON.stringify([friendId, messages]);
+  if (messageList.dataset.signature === signature) return;
+  messageList.dataset.signature = signature;
+  messageSeenObserver?.disconnect();
   messageList.replaceChildren();
   if (!messages.length)
     addText(
@@ -4142,36 +4149,39 @@ function renderMessageConversation(result, friendId) {
       "message-empty-conversation",
       "No messages here yet. Say hi when you’re ready.",
     );
-  messages.forEach((message) => {
-    const own = message.senderId === currentUserId;
-    const bubble = document.createElement("article");
-    bubble.className = `message-bubble${own ? " own" : ""}`;
-    bubble.dataset.messageId = message.id;
-    addText(bubble, "div", "message-bubble-text", message.body);
-    const meta = addText(
-      bubble,
-      "div",
-      "message-bubble-meta",
-      `${formatMessageTime(message.createdAt)}${own ? ` · ${messageExpiryLabel(message)}` : ""}`,
-    );
-    meta.title = own && message.seenAt ? `Seen at ${new Date(message.seenAt).toLocaleString()}` : "";
-    messageList.append(bubble);
-    if (!own && !message.seenAt) observeIncomingMessage(bubble, message, friendId);
-  });
+  messages.forEach((message) => appendMessageBubble(message, friendId));
   if (!messages.length || nearBottom) messageList.scrollTop = messageList.scrollHeight;
+}
+function appendMessageBubble(message, friendId) {
+  if (friendId !== currentMessageFriendId) return;
+  if ([...messageList.children].some((child) => child.dataset.messageId === message.id)) return;
+  messageList.querySelector(".message-empty-conversation")?.remove();
+  const own = message.senderId === currentUserId;
+  const bubble = document.createElement("article");
+  bubble.className = `message-bubble${own ? " own" : ""}`;
+  bubble.dataset.messageId = message.id;
+  addText(bubble, "div", "message-bubble-text", message.body);
+  const meta = addText(bubble, "div", "message-bubble-meta",
+    `${formatMessageTime(message.createdAt)}${own ? ` � ${messageExpiryLabel(message)}` : ""}`);
+  meta.title = own && message.seenAt ? `Seen at ${new Date(message.seenAt).toLocaleString()}` : "";
+  messageList.append(bubble);
+  if (!own && !message.seenAt) observeIncomingMessage(bubble, message, friendId);
 }
 async function loadFriendMessages({ quiet = false } = {}) {
   const friendId = currentMessageFriendId;
   if (!friendId || messageRefreshInFlight) return;
   messageRefreshInFlight = true;
+  const revision = messageConversationRevision;
   if (!quiet) setMessageFeedback("Loading conversation…");
   try {
     const response = await fetch(`/api/messages/${encodeURIComponent(friendId)}`, {
       headers: { accept: "application/json" },
       cache: "no-store",
+      signal: AbortSignal.timeout(15000),
     });
     const result = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(result.error || "This conversation could not be loaded.");
+    if (friendId !== currentMessageFriendId || revision !== messageConversationRevision) return;
     messageSeenPending = new Set(
       (result.messages || []).filter((message) => message.seenAt).map((message) => message.id),
     );
@@ -4184,6 +4194,7 @@ async function loadFriendMessages({ quiet = false } = {}) {
   }
 }
 async function openMessageThread(friendId, friendName = "") {
+  messageConversationRevision++;
   currentMessageFriendId = friendId;
   messageThreadHeader.hidden = false;
   messageFriendName.textContent = friendName || "Loading…";
@@ -4221,23 +4232,36 @@ messageSeenObserver =
     : null;
 messageCompose.addEventListener("submit", async (event) => {
   event.preventDefault();
-  if (!currentMessageFriendId || !messageInput.value.trim()) return;
+  if (messageSend.disabled || !currentMessageFriendId || !messageInput.value.trim()) return;
+  const friendId = currentMessageFriendId;
   const body = messageInput.value;
   messageSend.disabled = true;
   messageSend.textContent = "Sending…";
   try {
-    const response = await fetch(`/api/messages/${encodeURIComponent(currentMessageFriendId)}`, {
+    const response = await fetch(`/api/messages/${encodeURIComponent(friendId)}`, {
       method: "POST",
+      signal: AbortSignal.timeout(20000),
       headers: { "content-type": "application/json", accept: "application/json" },
       body: JSON.stringify({ body }),
     });
     const result = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(result.error || "Your message could not be sent.");
-    messageInput.value = "";
-    setMessageFeedback("Sent. The one-hour timer starts when your friend sees it.");
-    await Promise.all([loadFriendMessages({ quiet: true }), loadMessageFriends()]);
+    messageConversationRevision++;
+    if (friendId === currentMessageFriendId) {
+      if (messageInput.value === body) messageInput.value = "";
+      appendMessageBubble(result.message, friendId);
+      delete messageList.dataset.signature;
+      messageList.scrollTop = messageList.scrollHeight;
+      setMessageFeedback("Sent. The one-hour timer starts when your friend sees it.");
+    }
+    void loadMessageFriends({ quiet: true });
   } catch (error) {
-    setMessageFeedback(error.message, true);
+    if (friendId === currentMessageFriendId) {
+      setMessageFeedback(error.name === "TimeoutError" || error.name === "AbortError"
+        ? "Delivery is not confirmed yet. Check the conversation before sending again."
+        : error.message, true);
+      void loadFriendMessages({ quiet: true });
+    }
   } finally {
     messageSend.disabled = false;
     messageSend.textContent = "Send";
