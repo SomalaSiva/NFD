@@ -1487,87 +1487,8 @@ function renderDocumentLink(file) {
 }
 let feedLoadedCount = 0;
 let feedNextCursor = "";
-let feedRollFrame = 0;
-function updateFeedRoll() {
-  feedRollFrame = 0;
-  const cards = [...feedList.querySelectorAll(".feed-roll-card")];
-  if (!cards.length) return;
-  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const root = document.documentElement;
-  const topbar = document.querySelector(".topbar");
-  const topbarHeight = topbar && getComputedStyle(topbar).position === "sticky" ? topbar.offsetHeight : 0;
-  const mobileNav = document.getElementById("mobile-bottom-nav");
-  const navHeight = mobileNav && getComputedStyle(mobileNav).display !== "none" ? mobileNav.offsetHeight : 0;
-  const topPadding = topbarHeight + 12;
-  const bottomPadding = Math.max(
-    navHeight,
-    Number.parseFloat(getComputedStyle(root).scrollPaddingBottom) || 0,
-  );
-  const topPaddingValue = `${topPadding}px`;
-  if (root.style.getPropertyValue("--feed-scroll-padding-top") !== topPaddingValue)
-    root.style.setProperty("--feed-scroll-padding-top", topPaddingValue);
-  const availableHeight = Math.max(1, window.innerHeight - topPadding - bottomPadding - 12);
-  const cardMaxHeight = `${availableHeight}px`;
-  if (root.style.getPropertyValue("--feed-card-max-height") !== cardMaxHeight)
-    root.style.setProperty("--feed-card-max-height", cardMaxHeight);
-  const bottomPaddingValue = `${bottomPadding}px`;
-  if (root.style.getPropertyValue("--feed-scroll-padding-bottom") !== bottomPaddingValue)
-    root.style.setProperty("--feed-scroll-padding-bottom", bottomPaddingValue);
-  const shell = feedList.parentElement;
-  const wheelHeight = Math.max(
-    280,
-    window.innerHeight - Math.max(topbarHeight, shell.getBoundingClientRect().top) - navHeight - 8,
-  );
-  const wheelHeightValue = `${wheelHeight}px`;
-  if (shell.style.getPropertyValue("--feed-wheel-height") !== wheelHeightValue)
-    shell.style.setProperty("--feed-wheel-height", wheelHeightValue);
-  const center = feedList.clientHeight / 2;
-  const radius = Math.max(1, feedList.clientHeight * 0.65);
-  const measurements = cards.map((card) => ({
-    card,
-    cardCenter: card.offsetTop - feedList.scrollTop + card.offsetHeight / 2,
-  }));
-  measurements.forEach(({ card, cardCenter }) => {
-    const distance = (cardCenter - center) / radius;
-    const curve = Math.min(1, Math.abs(distance));
-    const angle = Math.max(-55, Math.min(55, distance * 58));
-    if (reduceMotion || Math.abs(distance) > 1.5) {
-      if (card.classList.contains("is-roll-visible")) card.classList.remove("is-roll-visible");
-      if (card.style.getPropertyValue("--feed-roll-angle")) card.style.removeProperty("--feed-roll-angle");
-      if (card.style.getPropertyValue("--feed-roll-scale-x"))
-        card.style.removeProperty("--feed-roll-scale-x");
-      if (card.style.getPropertyValue("--feed-roll-scale-y"))
-        card.style.removeProperty("--feed-roll-scale-y");
-    } else {
-      const angleValue = `${angle.toFixed(1)}deg`;
-      const scaleXValue = (1 - curve * 0.13).toFixed(3);
-      const scaleYValue = (1 - curve * 0.04).toFixed(3);
-      if (!card.classList.contains("is-roll-visible")) card.classList.add("is-roll-visible");
-      if (card.style.getPropertyValue("--feed-roll-angle") !== angleValue)
-        card.style.setProperty("--feed-roll-angle", angleValue);
-      if (card.style.getPropertyValue("--feed-roll-scale-x") !== scaleXValue)
-        card.style.setProperty("--feed-roll-scale-x", scaleXValue);
-      if (card.style.getPropertyValue("--feed-roll-scale-y") !== scaleYValue)
-        card.style.setProperty("--feed-roll-scale-y", scaleYValue);
-    }
-  });
-}
-function scheduleFeedRoll() {
-  if (!feedRollFrame) feedRollFrame = requestAnimationFrame(updateFeedRoll);
-}
-window.addEventListener("scroll", scheduleFeedRoll, { passive: true });
-window.addEventListener("resize", scheduleFeedRoll, { passive: true });
 function renderFeed(experiences, { append = false, nextCursor = "" } = {}) {
-  if (!feedList.parentElement.classList.contains("feed-wheel-shell")) {
-    const shell = document.createElement("div");
-    shell.className = "feed-wheel-shell";
-    feedList.before(shell);
-    shell.append(feedList);
-    feedList.addEventListener("scroll", scheduleFeedRoll, { passive: true });
-    feedList.tabIndex = 0;
-    feedList.setAttribute("aria-label", "Story wheel. Scroll to the next story.");
-  }
-  feedList.classList.add("feed-roll-track");
+  feedList.classList.remove("feed-roll-track");
   if (!append) {
     feedList.replaceChildren();
     feedLoadedCount = 0;
@@ -1628,7 +1549,7 @@ function renderFeed(experiences, { append = false, nextCursor = "" } = {}) {
   }
   experiences.forEach((experience, experienceIndex) => {
     const card = document.createElement("article");
-    card.className = "feed-card feed-roll-card";
+    card.className = "feed-card";
     const main = document.createElement("div");
     main.className = "feed-card-main";
     const header = document.createElement("div");
@@ -1745,7 +1666,6 @@ function renderFeed(experiences, { append = false, nextCursor = "" } = {}) {
             link.classList.toggle("is-portrait", isPortrait);
             if (isPortrait) {
               card.classList.add("has-portrait-media");
-              scheduleFeedRoll();
             }
           },
           { once: true },
@@ -1838,7 +1758,6 @@ function renderFeed(experiences, { append = false, nextCursor = "" } = {}) {
           videoItem.classList.toggle("is-portrait", isPortrait);
           if (isPortrait) {
             card.classList.add("has-portrait-media");
-            scheduleFeedRoll();
           }
         });
         video.poster = videoFallbackPoster;
@@ -1897,15 +1816,6 @@ function renderFeed(experiences, { append = false, nextCursor = "" } = {}) {
     fitIncidentBadge(card.querySelector(".feed-incident"));
   });
   feedLoadedCount += experiences.length;
-  scheduleFeedRoll();
-  if (!append) {
-    requestAnimationFrame(() => {
-      const firstCard = feedList.querySelector(".feed-roll-card");
-      if (!firstCard) return;
-      feedList.scrollTop = firstCard.offsetTop - (feedList.clientHeight - firstCard.offsetHeight) / 2;
-      scheduleFeedRoll();
-    });
-  }
   feedResultCount.textContent = `${countLabel} · Showing ${feedLoadedCount}${feedNextCursor ? "+" : ""}`;
   feedLoadMore.hidden = !feedNextCursor;
   feedList.append(feedLoadMore);
