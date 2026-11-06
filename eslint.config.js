@@ -2,7 +2,7 @@ import js from "@eslint/js";
 import globals from "globals";
 
 export default [
-  { ignores: ["dist/**", "node_modules/**", "drizzle/meta/**"] },
+  { ignores: ["dist/**", "node_modules/**", "drizzle/meta/**", "web/assets/app/parts/**"] },
   js.configs.recommended,
   {
     files: ["worker/**/*.js", "web/**/*.js"],
@@ -14,6 +14,8 @@ export default [
         ...globals.serviceworker,
         APP_CSS: "readonly",
         APP_JS: "readonly",
+        APP_ROUTE_ASSETS: "readonly",
+        APP_ROUTE_URLS: "readonly",
         APP_ICON: "readonly",
         APP_ICON_192: "readonly",
         APP_ICON_512: "readonly",

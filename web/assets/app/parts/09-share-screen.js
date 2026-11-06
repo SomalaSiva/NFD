@@ -1,4 +1,5 @@
 if (location.pathname === "/share") {
+  experienceCategoryInput.addEventListener("change", updateIncidentCategoryOptions);
   updateIncidentCategoryOptions();
   void loadTrustPostOptions()
     .then((options) => {

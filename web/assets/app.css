@@ -6135,3 +6135,32 @@ html.feed-scroll-snap {
     line-height: 1.3;
   }
 }
+
+/* Native offscreen rendering retains each measured card height while skipping paint work. */
+.feed-list > .feed-card {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 650px;
+}
+.feed-load-photo {
+  display: block;
+  margin: 18px auto;
+  min-height: 44px;
+}
+.message-pagination[hidden] {
+  display: none;
+}
+.message-pagination {
+  flex: none;
+  align-self: flex-start;
+  margin: 8px 12px;
+  max-width: calc(100% - 24px);
+  white-space: normal;
+}
+.message-inbox,
+.messages-layout {
+  min-width: 0;
+}
+.message-list {
+  min-width: 0;
+  max-width: 100%;
+}

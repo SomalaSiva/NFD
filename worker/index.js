@@ -112,6 +112,26 @@ const trustScoreRoutes = createTrustScoreRoutes({
 const worker = {
   async fetch(request, env) {
     const url = new URL(request.url);
+    const routeGroup =
+      url.pathname === "/messages"
+        ? "messages"
+        : url.pathname === "/share"
+          ? "share"
+          : ["/profile", "/trust-score"].includes(url.pathname)
+            ? "account"
+            : "reader";
+    const pageHtml = url.pathname.startsWith("/admin")
+      ? PAGE_HTML
+      : PAGE_HTML.replace(/\/assets\/app\.[a-f0-9]{12}\.js/, APP_ROUTE_URLS[routeGroup]);
+    if (request.method === "GET" && Object.hasOwn(APP_ROUTE_ASSETS, url.pathname))
+      return new Response(APP_ROUTE_ASSETS[url.pathname], {
+        headers: {
+          "content-type": "text/javascript; charset=utf-8",
+          "cache-control": "public, max-age=31536000, immutable",
+          "x-content-type-options": "nosniff",
+        },
+      });
+
     if (request.method === "GET" && /^\/assets\/app\.[a-f0-9]{12}\.css$/.test(url.pathname)) {
       return new Response(APP_CSS, {
         headers: {
@@ -185,19 +205,19 @@ const worker = {
       if (!(await getCurrentUser(request, env))) {
         return Response.redirect(new URL("/login?return_to=%2Fprofile", url), 302);
       }
-      return html(PAGE_HTML);
+      return html(pageHtml);
     }
     if (request.method === "GET" && ["/messages", "/notifications"].includes(url.pathname)) {
       if (!(await getCurrentUser(request, env))) {
         return Response.redirect(new URL(`/login?return_to=${encodeURIComponent(url.pathname)}`, url), 302);
       }
-      return html(PAGE_HTML);
+      return html(pageHtml);
     }
     if (request.method === "GET" && url.pathname === "/trust-score") {
       if (!(await getCurrentUser(request, env))) {
         return Response.redirect(new URL("/login?return_to=%2Ftrust-score", url), 302);
       }
-      return html(PAGE_HTML);
+      return html(pageHtml);
     }
     if (request.method === "GET" && url.pathname === "/privacy") {
       return html(PRIVACY_HTML);
@@ -206,21 +226,21 @@ const worker = {
       return html(GUIDELINES_HTML);
     }
     if (request.method === "GET" && url.pathname === "/login") {
-      return html(PAGE_HTML);
+      return html(pageHtml);
     }
     if (request.method === "GET" && ["/", "/feed", "/feed/"].includes(url.pathname)) {
       if (!(await getCurrentUser(request, env))) {
         return Response.redirect(new URL("/login?return_to=%2Ffeed", url), 302);
       }
       if (url.pathname === "/") return Response.redirect(new URL("/feed", url), 302);
-      return html(PAGE_HTML);
+      return html(pageHtml);
     }
     if (request.method === "GET" && url.pathname === "/share") {
       if (!(await getCurrentUser(request, env))) {
         const returnTo = safeReturnTo(`${url.pathname}${url.search}`);
         return redirect(`/login?return_to=${encodeURIComponent(returnTo)}`, 302);
       }
-      return html(PAGE_HTML);
+      return html(pageHtml);
     }
     if (request.method === "GET" && (url.pathname === "/admin" || url.pathname.startsWith("/admin/"))) {
       if (!(await getCurrentUser(request, env))) {
@@ -232,7 +252,7 @@ const worker = {
       if (OWNER_ADMIN_PAGES.has(url.pathname) && !(await isOwner(request, env))) {
         return Response.redirect(new URL("/admin?access=owner", url), 302);
       }
-      return html(PAGE_HTML);
+      return html(pageHtml);
     }
 
     if (request.method === "GET" && url.pathname === "/api/auth-status") {
@@ -635,7 +655,13 @@ async function signOut(request, env) {
   return redirect(destination, 302, setCookies);
 }
 
-async function getAuthenticatedUser(request, env) {
+const authenticatedRequests = new WeakMap();
+function getAuthenticatedUser(request, env) {
+  if (!authenticatedRequests.has(request))
+    authenticatedRequests.set(request, resolveAuthenticatedUser(request, env));
+  return authenticatedRequests.get(request);
+}
+async function resolveAuthenticatedUser(request, env) {
   const token = getCookie(request, GOOGLE_SESSION_COOKIE);
   if (token && env.DB) {
     try {
@@ -709,21 +735,24 @@ async function getAuthenticatedUser(request, env) {
         await ensureIdentityTables(env);
         if (await adminRoutes.isRestrictedEmail(env, user.email)) return null;
         const now = new Date().toISOString();
-        const knownAccount = await env.DB.prepare("SELECT id FROM nfd_users WHERE id = ? LIMIT 1")
+        const knownAccount = await env.DB.prepare(
+          "SELECT id, email, active FROM nfd_users WHERE id = ? LIMIT 1",
+        )
           .bind(user.id)
           .first();
-        await env.DB.prepare(
-          `
+        if (!knownAccount || (user.email && knownAccount.email !== user.email))
+          await env.DB.prepare(
+            `
           INSERT INTO nfd_users (id, provider, provider_subject, email, display_name, created_at, updated_at)
           VALUES (?, 'chatgpt', ?, ?, NULL, ?, ?)
           ON CONFLICT(id) DO UPDATE SET email = COALESCE(NULLIF(excluded.email, ''), nfd_users.email), updated_at = excluded.updated_at
         `,
-        )
-          .bind(user.id, user.subject, user.email, now, now)
-          .run();
-        const account = await env.DB.prepare("SELECT active FROM nfd_users WHERE id = ? LIMIT 1")
-          .bind(user.id)
-          .first();
+          )
+            .bind(user.id, user.subject, user.email, now, now)
+            .run();
+        const account =
+          knownAccount ||
+          (await env.DB.prepare("SELECT active FROM nfd_users WHERE id = ? LIMIT 1").bind(user.id).first());
         if (Number(account?.active) !== 1) return null;
         if (!knownAccount)
           await recordActivity(env, user.id, "account_created", "account", user.id, { provider: "chatgpt" });

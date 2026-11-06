@@ -288,17 +288,10 @@ function renderProfile(data, { append = false } = {}) {
         });
         const source = `/api/evidence/${encodeURIComponent(file.id)}`;
         if (file.hasPreview) video.dataset.previewPoster = `${source}?variant=preview`;
-        if (!file.hasPreview) {
-          video.dataset.capturePreview = "true";
-          video.addEventListener("loadedmetadata", () => captureFirstVideoFrame(video), { once: true });
-        }
-        if (feedVideoPosterObserver) {
-          video.dataset.videoSrc = source;
-          feedVideoPosterObserver.observe(item);
-        } else {
-          video.src = source;
-          if (file.hasPreview) video.poster = `${source}?variant=preview`;
-          else video.preload = "metadata";
+        video.src = source;
+        if (file.hasPreview) {
+          if (feedVideoPosterObserver) feedVideoPosterObserver.observe(item);
+          else video.poster = `${source}?variant=preview`;
         }
         const playbackMessage = addText(
           item,
@@ -1459,15 +1452,24 @@ async function refreshMessageNavBadge() {
   messageNavRefreshInFlight = true;
   try {
     const response = await fetch("/api/notifications?summary=1", {
-      headers: { accept: "application/json" }, cache: "no-store", signal: AbortSignal.timeout(15000),
+      headers: { accept: "application/json" },
+      cache: "no-store",
+      signal: AbortSignal.timeout(15000),
     });
     if (!response.ok) return;
     const result = await response.json();
     const unread = Number(result.unreadCount) || 0;
     navUnreadCount.hidden = unread === 0;
     navUnreadCount.textContent = unread > 99 ? "99+" : String(unread);
-    document.getElementById("account-notifications-label").textContent = unread ? `(${unread > 99 ? "99+" : unread})` : "";
-    accountMenuButton.setAttribute("aria-label", unread ? `Open your account menu, ${unread > 99 ? "99+" : unread} unread notifications` : "Open your account menu");
+    document.getElementById("account-notifications-label").textContent = unread
+      ? `(${unread > 99 ? "99+" : unread})`
+      : "";
+    accountMenuButton.setAttribute(
+      "aria-label",
+      unread
+        ? `Open your account menu, ${unread > 99 ? "99+" : unread} unread notifications`
+        : "Open your account menu",
+    );
     messagesNavLink.setAttribute("aria-label", "Messages");
   } catch {
     // Keep the last known count if a background refresh temporarily fails.

@@ -2,6 +2,7 @@
 
 ## Fast, focused execution
 
+- Minimize token consumption: keep updates concise, batch focused reads, avoid repeated explanations and checks, and use only the context needed while completing and verifying the authorized work.
 - Use this project root and its `main` Git checkout as the single source of truth. Do not build or publish from nested release or Sites checkout folders.
 - Take the fastest reliable path to a complete result. Inspect and change only the code and project guidance needed for the request; avoid unrelated refactors and repeated checks that do not add useful confidence.
 - Keep verification proportional to the change. Run the targeted checks and exercise the changed behavior plus directly affected flows. Expand regression coverage when the change touches shared infrastructure, authentication, permissions, data integrity, or when a targeted check exposes a wider risk.

@@ -641,6 +641,11 @@ const storyStepFooter = document.getElementById("story-step-footer");
 const detailsStepFooter = document.getElementById("details-step-footer");
 const formStepTitle = document.getElementById("form-step-title");
 const formStepIntro = document.getElementById("form-step-intro");
+
+const prettySize = (bytes) =>
+  bytes < 1024 * 1024
+    ? `${Math.max(1, Math.round(bytes / 1024))} KB`
+    : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 const formStepCount = document.getElementById("form-step-count");
 let activeStoryFormStep = "story";
 let selectedFiles = [];
@@ -654,10 +659,6 @@ function getFilePreviewUrl(file) {
   if (!filePreviewUrls.has(file)) filePreviewUrls.set(file, URL.createObjectURL(file));
   return filePreviewUrls.get(file);
 }
-const prettySize = (bytes) =>
-  bytes < 1024 * 1024
-    ? `${Math.max(1, Math.round(bytes / 1024))} KB`
-    : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 const iconForFile = () =>
   '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 3.8h7l4 4V20H7a2 2 0 0 1-2-2V5.8a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-width="1.6"/><path d="M14 4v4h4M8.5 12h7M8.5 15.5h7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
 function renderFiles() {
@@ -1310,22 +1311,22 @@ async function createFeedPreview(file) {
   if (
     !file.type.startsWith("image/") ||
     file.type === "image/gif" ||
-    file.size < 300 * 1024 ||
+    file.size < 64 * 1024 ||
     typeof createImageBitmap !== "function"
   )
     return null;
   let bitmap;
   try {
     bitmap = await createImageBitmap(file);
-    const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
+    const scale = Math.min(1, 960 / Math.max(bitmap.width, bitmap.height));
     const canvas = document.createElement("canvas");
     canvas.width = Math.max(1, Math.round(bitmap.width * scale));
     canvas.height = Math.max(1, Math.round(bitmap.height * scale));
     const context = canvas.getContext("2d");
     if (!context) return null;
     context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-    const preview = await new Promise((resolve) => canvas.toBlob(resolve, "image/webp", 0.8));
-    return preview?.type === "image/webp" && preview.size < file.size && preview.size <= 1024 * 1024
+    const preview = await new Promise((resolve) => canvas.toBlob(resolve, "image/webp", 0.72));
+    return preview?.type === "image/webp" && preview.size < file.size && preview.size <= 256 * 1024
       ? preview
       : null;
   } catch {
@@ -1374,7 +1375,7 @@ async function createVideoFeedPreview(file) {
     if (!context) return null;
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
     const preview = await new Promise((resolve) => canvas.toBlob(resolve, "image/webp", 0.78));
-    return preview?.type === "image/webp" && preview.size <= 1024 * 1024 ? preview : null;
+    return preview?.type === "image/webp" && preview.size <= 256 * 1024 ? preview : null;
   } catch {
     return null;
   } finally {
@@ -1382,44 +1383,6 @@ async function createVideoFeedPreview(file) {
     video.load();
     URL.revokeObjectURL(objectUrl);
   }
-}
-function captureFirstVideoFrame(video) {
-  if (
-    video.dataset.posterCaptured ||
-    video.error ||
-    !video.paused ||
-    !Number.isFinite(video.duration) ||
-    video.duration <= 0
-  )
-    return;
-  video.dataset.posterCaptured = "pending";
-  const originalTime = video.currentTime;
-  const frameTime = Math.min(1, video.duration * 0.1);
-  const onSeeked = () => {
-    if (!video.paused) {
-      video.dataset.posterCaptured = "skipped";
-      return;
-    }
-    try {
-      if (!video.videoWidth || !video.videoHeight) return;
-      const scale = Math.min(1, 960 / Math.max(video.videoWidth, video.videoHeight));
-      const canvas = document.createElement("canvas");
-      canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
-      canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
-      const context = canvas.getContext("2d");
-      if (!context) return;
-      context.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const poster = canvas.toDataURL("image/webp", 0.78);
-      if (poster.startsWith("data:image/webp")) video.poster = poster;
-    } catch {
-      // Keep the designed fallback poster if this browser cannot capture a frame.
-    } finally {
-      video.dataset.posterCaptured = "done";
-      if (video.paused) video.currentTime = originalTime;
-    }
-  };
-  video.addEventListener("seeked", onSeeked, { once: true });
-  video.currentTime = frameTime;
 }
 const videoFallbackPoster =
   "data:image/svg+xml," +
@@ -1437,15 +1400,6 @@ const feedVideoPosterObserver =
               if (video.dataset.previewPoster) {
                 video.poster = video.dataset.previewPoster;
                 delete video.dataset.previewPoster;
-              }
-              if (video.dataset.videoSrc) {
-                video.src = video.dataset.videoSrc;
-                delete video.dataset.videoSrc;
-                video.load();
-              }
-              if (video.dataset.capturePreview === "true") {
-                video.preload = "metadata";
-                delete video.dataset.capturePreview;
               }
             }
             feedVideoPosterObserver.unobserve(entry.target);
@@ -1670,7 +1624,22 @@ function renderFeed(experiences, { append = false, nextCursor = "" } = {}) {
           },
           { once: true },
         );
-        image.src = file.hasPreview ? `${link.href}?variant=preview` : link.href;
+        const source = file.hasPreview ? `${link.href}?variant=preview` : link.href;
+        if (!file.hasPreview && file.sizeBytes > 256 * 1024) {
+          const load = document.createElement("button");
+          load.type = "button";
+          load.className = "secondary-button feed-load-photo";
+          load.textContent = `Load photo · ${prettySize(file.sizeBytes)}`;
+          load.addEventListener("click", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            image.src = source;
+            load.remove();
+          });
+          link.append(load);
+        } else {
+          image.src = source;
+        }
         link.append(image);
         gallery.append(link);
       });
@@ -1770,15 +1739,8 @@ function renderFeed(experiences, { append = false, nextCursor = "" } = {}) {
           }
         }
         const videoSource = `/api/evidence/${encodeURIComponent(file.id)}`;
-        if (feedVideoPosterObserver) video.dataset.videoSrc = videoSource;
-        else video.src = videoSource;
-        if (!file.hasPreview) {
-          video.dataset.capturePreview = "true";
-          if (feedVideoPosterObserver) feedVideoPosterObserver.observe(videoItem);
-          else video.preload = "metadata";
-          video.addEventListener("loadedmetadata", () => captureFirstVideoFrame(video), { once: true });
-          if (video.readyState >= 1) captureFirstVideoFrame(video);
-        }
+        // Keep the original video idle until the native play control is used.
+        video.src = videoSource;
         const playbackMessage = addText(
           gallery,
           "p",
@@ -2443,17 +2405,10 @@ function renderProfile(data, { append = false } = {}) {
         });
         const source = `/api/evidence/${encodeURIComponent(file.id)}`;
         if (file.hasPreview) video.dataset.previewPoster = `${source}?variant=preview`;
-        if (!file.hasPreview) {
-          video.dataset.capturePreview = "true";
-          video.addEventListener("loadedmetadata", () => captureFirstVideoFrame(video), { once: true });
-        }
-        if (feedVideoPosterObserver) {
-          video.dataset.videoSrc = source;
-          feedVideoPosterObserver.observe(item);
-        } else {
-          video.src = source;
-          if (file.hasPreview) video.poster = `${source}?variant=preview`;
-          else video.preload = "metadata";
+        video.src = source;
+        if (file.hasPreview) {
+          if (feedVideoPosterObserver) feedVideoPosterObserver.observe(item);
+          else video.poster = `${source}?variant=preview`;
         }
         const playbackMessage = addText(
           item,
@@ -3614,15 +3569,24 @@ async function refreshMessageNavBadge() {
   messageNavRefreshInFlight = true;
   try {
     const response = await fetch("/api/notifications?summary=1", {
-      headers: { accept: "application/json" }, cache: "no-store", signal: AbortSignal.timeout(15000),
+      headers: { accept: "application/json" },
+      cache: "no-store",
+      signal: AbortSignal.timeout(15000),
     });
     if (!response.ok) return;
     const result = await response.json();
     const unread = Number(result.unreadCount) || 0;
     navUnreadCount.hidden = unread === 0;
     navUnreadCount.textContent = unread > 99 ? "99+" : String(unread);
-    document.getElementById("account-notifications-label").textContent = unread ? `(${unread > 99 ? "99+" : unread})` : "";
-    accountMenuButton.setAttribute("aria-label", unread ? `Open your account menu, ${unread > 99 ? "99+" : unread} unread notifications` : "Open your account menu");
+    document.getElementById("account-notifications-label").textContent = unread
+      ? `(${unread > 99 ? "99+" : unread})`
+      : "";
+    accountMenuButton.setAttribute(
+      "aria-label",
+      unread
+        ? `Open your account menu, ${unread > 99 ? "99+" : unread} unread notifications`
+        : "Open your account menu",
+    );
     messagesNavLink.setAttribute("aria-label", "Messages");
   } catch {
     // Keep the last known count if a background refresh temporarily fails.
@@ -4040,7 +4004,18 @@ function messageExpiryLabel(message) {
   const minutes = Math.ceil(remaining / 60000);
   return `Seen · disappears in ${minutes < 60 ? `${minutes}m` : `${Math.floor(minutes / 60)}h ${minutes % 60}m`}`;
 }
-async function loadMessageFriends({ quiet = false } = {}) {
+let messageInboxCursor = null;
+let messageInboxEtag = "";
+let messageInboxRefreshedAt = 0;
+let messageInboxFriends = [];
+const messageInboxMore = document.createElement("button");
+messageInboxMore.type = "button";
+messageInboxMore.className = "secondary-button message-pagination";
+messageInboxMore.textContent = "Load more conversations";
+messageInboxMore.hidden = true;
+messageThreadList.after(messageInboxMore);
+messageInboxMore.addEventListener("click", () => loadMessageFriends({ append: true }));
+async function loadMessageFriends({ quiet = false, append = false } = {}) {
   if (messageFriendsRefreshInFlight) return [];
   messageFriendsRefreshInFlight = true;
   if (!quiet) {
@@ -4048,15 +4023,34 @@ async function loadMessageFriends({ quiet = false } = {}) {
     messageInboxStatus.classList.remove("error");
   }
   try {
-    const response = await fetch("/api/messages", {
-      headers: { accept: "application/json" },
-      cache: "no-store",
-      signal: AbortSignal.timeout(15000),
-    });
+    const response = await fetch(
+      `/api/messages${append && messageInboxCursor ? `?cursor=${encodeURIComponent(messageInboxCursor)}` : ""}`,
+      {
+        headers: {
+          accept: "application/json",
+          ...(!append && messageInboxEtag ? { "if-none-match": messageInboxEtag } : {}),
+        },
+        cache: "no-store",
+        signal: AbortSignal.timeout(15000),
+      },
+    );
+    if (response.status === 304) {
+      messageInboxRefreshedAt = Date.now();
+      return messageInboxFriends;
+    }
+    if (!append) messageInboxEtag = response.headers.get("etag") || "";
     const result = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(result.error || "Your messages could not be loaded.");
     currentUserId = result.currentUserId || currentUserId;
-    const friends = result.friends || [];
+    messageInboxRefreshedAt = Date.now();
+    const page = result.friends || [];
+    if (!append && !quiet) messageInboxFriends = [];
+    const merged = new Map(messageInboxFriends.map((friend) => [friend.id, friend]));
+    page.forEach((friend) => merged.set(friend.id, friend));
+    messageInboxFriends = [...merged.values()];
+    if (!quiet || !messageInboxCursor) messageInboxCursor = result.nextCursor || null;
+    messageInboxMore.hidden = !messageInboxCursor;
+    const friends = messageInboxFriends;
     messageThreadList.replaceChildren();
     if (!quiet) {
       messageInboxStatus.textContent = friends.length
@@ -4135,6 +4129,16 @@ function observeIncomingMessage(bubble, message, friendId) {
   else markMessagesSeen(friendId, [message.id]);
 }
 let messageConversationRevision = 0;
+let messageHistoryCursor = null;
+let messageResponseEtag = "";
+let messageHistory = new Map();
+const messageHistoryMore = document.createElement("button");
+messageHistoryMore.type = "button";
+messageHistoryMore.className = "secondary-button message-pagination";
+messageHistoryMore.textContent = "Load older messages";
+messageHistoryMore.hidden = true;
+messageList.before(messageHistoryMore);
+messageHistoryMore.addEventListener("click", () => loadFriendMessages({ older: true }));
 function renderMessageConversation(result, friendId) {
   if (friendId !== currentMessageFriendId) return;
   messageFriendName.textContent = result.friend?.name || "NFD friend";
@@ -4143,7 +4147,17 @@ function renderMessageConversation(result, friendId) {
   messageList.hidden = false;
   messageCompose.hidden = false;
   const nearBottom = messageList.scrollHeight - messageList.scrollTop - messageList.clientHeight < 100;
-  const messages = result.messages || [];
+  for (const message of result.messages || []) messageHistory.set(message.id, message);
+  const now = Date.now();
+  for (const [id, message] of messageHistory)
+    if (
+      (message.expiresAt && Date.parse(message.expiresAt) <= now) ||
+      Date.parse(message.createdAt) <= now - 90 * 86400000
+    )
+      messageHistory.delete(id);
+  const messages = [...messageHistory.values()].sort(
+    (a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id),
+  );
   const signature = JSON.stringify([friendId, messages]);
   if (messageList.dataset.signature === signature) return;
   messageList.dataset.signature = signature;
@@ -4168,31 +4182,48 @@ function appendMessageBubble(message, friendId) {
   bubble.className = `message-bubble${own ? " own" : ""}`;
   bubble.dataset.messageId = message.id;
   addText(bubble, "div", "message-bubble-text", message.body);
-  const meta = addText(bubble, "div", "message-bubble-meta",
-    `${formatMessageTime(message.createdAt)}${own ? ` · ${messageExpiryLabel(message)}` : ""}`);
+  const meta = addText(
+    bubble,
+    "div",
+    "message-bubble-meta",
+    `${formatMessageTime(message.createdAt)}${own ? ` · ${messageExpiryLabel(message)}` : ""}`,
+  );
   meta.title = own && message.seenAt ? `Seen at ${new Date(message.seenAt).toLocaleString()}` : "";
   messageList.append(bubble);
   if (!own && !message.seenAt) observeIncomingMessage(bubble, message, friendId);
 }
-async function loadFriendMessages({ quiet = false } = {}) {
+async function loadFriendMessages({ quiet = false, older = false } = {}) {
   const friendId = currentMessageFriendId;
   if (!friendId || messageRefreshInFlight) return;
   messageRefreshInFlight = true;
   const revision = messageConversationRevision;
   if (!quiet) setMessageFeedback("Loading conversation…");
   try {
-    const response = await fetch(`/api/messages/${encodeURIComponent(friendId)}`, {
-      headers: { accept: "application/json" },
-      cache: "no-store",
-      signal: AbortSignal.timeout(15000),
-    });
+    const response = await fetch(
+      `/api/messages/${encodeURIComponent(friendId)}${older && messageHistoryCursor ? `?before=${encodeURIComponent(messageHistoryCursor)}` : ""}`,
+      {
+        headers: {
+          accept: "application/json",
+          ...(!older && messageResponseEtag ? { "if-none-match": messageResponseEtag } : {}),
+        },
+        cache: "no-store",
+        signal: AbortSignal.timeout(15000),
+      },
+    );
+    if (response.status === 304) return;
     const result = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(result.error || "This conversation could not be loaded.");
     if (friendId !== currentMessageFriendId || revision !== messageConversationRevision) return;
     messageSeenPending = new Set(
       (result.messages || []).filter((message) => message.seenAt).map((message) => message.id),
     );
+    if (!older) messageResponseEtag = response.headers.get("etag") || "";
+    if (older || messageHistory.size === 0) messageHistoryCursor = result.nextCursor || null;
+    messageHistoryMore.hidden = !messageHistoryCursor;
+    const previousHeight = messageList.scrollHeight;
+    const previousTop = messageList.scrollTop;
     renderMessageConversation(result, friendId);
+    if (older) messageList.scrollTop = previousTop + messageList.scrollHeight - previousHeight;
     if (!quiet) setMessageFeedback("Messages are private to you and your accepted friend.");
   } catch (error) {
     if (!quiet) setMessageFeedback(error.message, true);
@@ -4203,6 +4234,10 @@ async function loadFriendMessages({ quiet = false } = {}) {
 async function openMessageThread(friendId, friendName = "") {
   messageConversationRevision++;
   currentMessageFriendId = friendId;
+  messageHistory = new Map();
+  messageHistoryCursor = null;
+  messageResponseEtag = "";
+  messageHistoryMore.hidden = true;
   messageThreadHeader.hidden = false;
   messageFriendName.textContent = friendName || "Loading…";
   messageThreadEmpty.hidden = true;
@@ -4256,6 +4291,7 @@ messageCompose.addEventListener("submit", async (event) => {
     messageConversationRevision++;
     if (friendId === currentMessageFriendId) {
       if (messageInput.value === body) messageInput.value = "";
+      messageHistory.set(result.message.id, result.message);
       appendMessageBubble(result.message, friendId);
       delete messageList.dataset.signature;
       messageList.scrollTop = messageList.scrollHeight;
@@ -4264,9 +4300,12 @@ messageCompose.addEventListener("submit", async (event) => {
     void loadMessageFriends({ quiet: true });
   } catch (error) {
     if (friendId === currentMessageFriendId) {
-      setMessageFeedback(error.name === "TimeoutError" || error.name === "AbortError"
-        ? "Delivery is not confirmed yet. Check the conversation before sending again."
-        : error.message, true);
+      setMessageFeedback(
+        error.name === "TimeoutError" || error.name === "AbortError"
+          ? "Delivery is not confirmed yet. Check the conversation before sending again."
+          : error.message,
+        true,
+      );
       void loadFriendMessages({ quiet: true });
     }
   } finally {
@@ -4286,12 +4325,17 @@ async function loadMessagesPage() {
     messageCompose.hidden = true;
   }
   clearInterval(messageRefreshTimer);
-  messageRefreshTimer = setInterval(() => {
-    if (document.visibilityState === "visible") {
-      loadMessageFriends();
-      loadFriendMessages({ quiet: true });
-    }
-  }, 15000);
+  messageRefreshTimer = setInterval(
+    () => {
+      if (document.visibilityState === "visible") {
+        if (Date.now() - messageInboxRefreshedAt >= 60000) void loadMessageFriends({ quiet: true });
+        void loadFriendMessages({ quiet: true });
+      }
+    },
+    navigator.connection?.saveData || /(^|-)2g$/.test(navigator.connection?.effectiveType || "")
+      ? 30000
+      : 15000,
+  );
 }
 const notificationList = document.getElementById("notification-list");
 const notificationStatus = document.getElementById("notifications-status");
@@ -5791,66 +5835,7 @@ async function loadAdminPage() {
   }
   adminOverview.hidden = false;
 }
-async function updateNavigation() {
-  if (location.pathname === "/login") {
-    try {
-      sessionStorage.setItem(FEED_TAGLINE_LOGIN_PENDING_KEY, "1");
-    } catch {
-      // Rotation is best-effort when session storage is unavailable.
-    }
-    setMainNavigationVisible(false);
-    return;
-  }
-  try {
-    const response = await fetch("/api/auth-status", {
-      headers: { accept: "application/json" },
-      cache: "no-store",
-    });
-    if (!response.ok) {
-      setMainNavigationVisible(false);
-      if (response.status === 401) location.replace("/auth/signout?idle=1&return_to=%2Flogin%3Fidle%3D1");
-      return;
-    }
-    const result = await response.json().catch(() => ({}));
-    applySessionIdleMinutes(result.sessionIdleMinutes);
-    startSessionActivityTracking();
-    currentUserId = result.userId || currentUserId;
-    if (
-      location.pathname === "/trust-score" &&
-      ["my-agreements", "record"].includes(new URLSearchParams(location.search).get("tab"))
-    ) {
-      loadStoredAgreements();
-    }
-    syncFeedTagline(currentUserId);
-    setProfilePhotoEverywhere(result.profilePhotoUrl || "", result.displayName || "NFD member");
-    accountAdminLink.hidden = !result.isAdmin;
-    setMainNavigationVisible(true);
-    clearInterval(sessionTimeoutRefreshTimer);
-    sessionTimeoutRefreshTimer = setInterval(refreshSessionIdleMinutes, 30000);
-    currentGhostMode = result.ghostMode || { allowed: false, active: false, profile: null };
-    const hasGhostProfile = Boolean(currentGhostMode.profile);
-    ghostModeSetupLink.hidden = !currentGhostMode.allowed || hasGhostProfile;
-    ghostModeToggle.hidden = !currentGhostMode.allowed || !hasGhostProfile;
-    ghostModeToggle.textContent = currentGhostMode.active ? "Turn off Ghost mode" : "Turn on Ghost mode";
-    ghostModeBanner.hidden = !currentGhostMode.active;
-    ghostModeHandle.textContent = currentGhostMode.profile?.handle
-      ? `@${currentGhostMode.profile.handle}`
-      : "";
-    void loadStories();
-    clearInterval(storyTrayRefreshTimer);
-    storyTrayRefreshTimer = setInterval(() => {
-      if (document.visibilityState === "visible") loadStories();
-    }, 60000);
-    await refreshMessageNavBadge();
-    clearInterval(messageNavRefreshTimer);
-    messageNavRefreshTimer = setInterval(() => {
-      if (document.visibilityState === "visible") refreshMessageNavBadge();
-    }, 15000);
-  } catch {
-    setMainNavigationVisible(false);
-  }
-}
-updateNavigation();
+
 sessionTimeoutForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const minutes = Number(sessionTimeoutMinutesInput.value);
@@ -6032,6 +6017,67 @@ document.getElementById("restricted-email-form").addEventListener("submit", asyn
     button.disabled = false;
   }
 });
+async function updateNavigation() {
+  if (location.pathname === "/login") {
+    try {
+      sessionStorage.setItem(FEED_TAGLINE_LOGIN_PENDING_KEY, "1");
+    } catch {
+      // Rotation is best-effort when session storage is unavailable.
+    }
+    setMainNavigationVisible(false);
+    return;
+  }
+  try {
+    const response = await fetch("/api/auth-status", {
+      headers: { accept: "application/json" },
+      cache: "no-store",
+    });
+    if (!response.ok) {
+      setMainNavigationVisible(false);
+      if (response.status === 401) location.replace("/auth/signout?idle=1&return_to=%2Flogin%3Fidle%3D1");
+      return;
+    }
+    const result = await response.json().catch(() => ({}));
+    applySessionIdleMinutes(result.sessionIdleMinutes);
+    startSessionActivityTracking();
+    currentUserId = result.userId || currentUserId;
+    if (
+      location.pathname === "/trust-score" &&
+      ["my-agreements", "record"].includes(new URLSearchParams(location.search).get("tab"))
+    ) {
+      loadStoredAgreements();
+    }
+    syncFeedTagline(currentUserId);
+    setProfilePhotoEverywhere(result.profilePhotoUrl || "", result.displayName || "NFD member");
+    accountAdminLink.hidden = !result.isAdmin;
+    setMainNavigationVisible(true);
+    clearInterval(sessionTimeoutRefreshTimer);
+    sessionTimeoutRefreshTimer = setInterval(refreshSessionIdleMinutes, 30000);
+    currentGhostMode = result.ghostMode || { allowed: false, active: false, profile: null };
+    const hasGhostProfile = Boolean(currentGhostMode.profile);
+    ghostModeSetupLink.hidden = !currentGhostMode.allowed || hasGhostProfile;
+    ghostModeToggle.hidden = !currentGhostMode.allowed || !hasGhostProfile;
+    ghostModeToggle.textContent = currentGhostMode.active ? "Turn off Ghost mode" : "Turn on Ghost mode";
+    ghostModeBanner.hidden = !currentGhostMode.active;
+    ghostModeHandle.textContent = currentGhostMode.profile?.handle
+      ? `@${currentGhostMode.profile.handle}`
+      : "";
+    void loadStories();
+    clearInterval(storyTrayRefreshTimer);
+    storyTrayRefreshTimer = setInterval(() => {
+      if (document.visibilityState === "visible") loadStories();
+    }, 60000);
+    await refreshMessageNavBadge();
+    clearInterval(messageNavRefreshTimer);
+    messageNavRefreshTimer = setInterval(() => {
+      if (document.visibilityState === "visible" && location.pathname !== "/messages")
+        refreshMessageNavBadge();
+    }, 30000);
+  } catch {
+    setMainNavigationVisible(false);
+  }
+}
+updateNavigation();
 if (location.pathname === "/login") {
   appLayout.hidden = true;
   loginPage.hidden = false;
@@ -6149,8 +6195,8 @@ if (location.pathname === "/login") {
   }
   loadFeed();
 }
-experienceCategoryInput.addEventListener("change", updateIncidentCategoryOptions);
 if (location.pathname === "/share") {
+  experienceCategoryInput.addEventListener("change", updateIncidentCategoryOptions);
   updateIncidentCategoryOptions();
   void loadTrustPostOptions()
     .then((options) => {

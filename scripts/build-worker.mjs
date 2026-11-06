@@ -1,7 +1,7 @@
 import { copyFileSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import path from "node:path";
-import { build } from "esbuild";
+import { build, transform } from "esbuild";
 import { assembleAppSource } from "./assemble-app.mjs";
 
 const root = realpathSync(process.cwd());
@@ -17,13 +17,40 @@ if (
   throw new Error("The Worker build requires the NFD D1 and R2 bindings in .openai/hosting.json.");
 }
 
-const appCssBase64 = Buffer.from(
-  readFileSync(path.join(root, "web/assets/app.css"), "utf8"),
-  "utf8",
-).toString("base64");
+const minifiedCss = await transform(readFileSync(path.join(root, "web/assets/app.css"), "utf8"), {
+  loader: "css",
+  minify: true,
+});
+const appCssBase64 = Buffer.from(minifiedCss.code).toString("base64");
 const appJsSource = assembleAppSource();
 writeFileSync(path.join(root, "web/assets/app.js"), appJsSource, "utf8");
-const appJsBase64 = Buffer.from(appJsSource, "utf8").toString("base64");
+const minifiedJs = await transform(appJsSource, { loader: "js", minify: true, target: "es2022" });
+const appJsBase64 = Buffer.from(minifiedJs.code, "utf8").toString("base64");
+const partNames = JSON.parse(readFileSync(path.join(root, "web/assets/app/parts/manifest.json"), "utf8"));
+const routeAssets = {};
+const routeUrls = {};
+for (const [group, omitted] of Object.entries({
+  reader: [
+    "01-post-composer.js",
+    "04-messaging.js",
+    "06-admin.js",
+    "09-share-screen.js",
+    "10-trust-agreements.js",
+  ],
+  messages: ["01-post-composer.js", "06-admin.js", "09-share-screen.js", "10-trust-agreements.js"],
+  account: ["01-post-composer.js", "04-messaging.js", "06-admin.js", "09-share-screen.js"],
+  share: ["04-messaging.js", "06-admin.js"],
+})) {
+  const source = partNames
+    .filter((name) => !omitted.includes(name))
+    .map((name) => readFileSync(path.join(root, "web/assets/app/parts", name), "utf8"))
+    .join("");
+  const output = await transform(source, { loader: "js", minify: true, target: "es2022" });
+  const url = `/assets/${group}.${createHash("sha256").update(output.code).digest("hex").slice(0, 12)}.js`;
+  routeAssets[url] = output.code;
+  routeUrls[group] = url;
+}
+
 const appCss = Buffer.from(appCssBase64, "base64");
 const appJs = Buffer.from(appJsBase64, "base64");
 const cssAssetName = `app.${createHash("sha256").update(appCss).digest("hex").slice(0, 12)}.css`;
@@ -57,7 +84,16 @@ mkdirSync(path.join(dist, "server"), { recursive: true });
 mkdirSync(path.join(dist, ".openai"), { recursive: true });
 writeFileSync(
   path.join(dist, "server/index.js"),
-  `const APP_ICON = Uint8Array.from(atob("${iconBase64}"), (character) => character.charCodeAt(0));\nconst APP_ICON_192 = Uint8Array.from(atob("${icon192Base64}"), (character) => character.charCodeAt(0));\nconst APP_ICON_512 = Uint8Array.from(atob("${icon512Base64}"), (character) => character.charCodeAt(0));\nconst APP_MANIFEST = new TextDecoder().decode(Uint8Array.from(atob("${appManifestBase64}"), (character) => character.charCodeAt(0)));\nconst APP_CSS = new TextDecoder().decode(Uint8Array.from(atob("${appCssBase64}"), (character) => character.charCodeAt(0)));\nconst APP_JS = new TextDecoder().decode(Uint8Array.from(atob("${appJsBase64}"), (character) => character.charCodeAt(0)));\nconst PAGE_HTML = new TextDecoder().decode(Uint8Array.from(atob("${pageBase64}"), (character) => character.charCodeAt(0)));\nconst PRIVACY_HTML = new TextDecoder().decode(Uint8Array.from(atob("${privacyPageBase64}"), (character) => character.charCodeAt(0)));\nconst GUIDELINES_HTML = new TextDecoder().decode(Uint8Array.from(atob("${guidelinesPageBase64}"), (character) => character.charCodeAt(0)));\n${worker}`,
+  `const APP_ROUTE_ASSETS = ${JSON.stringify(routeAssets)};\nconst APP_ROUTE_URLS = ${JSON.stringify(routeUrls)};\nconst APP_ICON = Uint8Array.from(atob("${iconBase64}"), (character) => character.charCodeAt(0));\nconst APP_ICON_192 = Uint8Array.from(atob("${icon192Base64}"), (character) => character.charCodeAt(0));\nconst APP_ICON_512 = Uint8Array.from(atob("${icon512Base64}"), (character) => character.charCodeAt(0));\nconst APP_MANIFEST = new TextDecoder().decode(Uint8Array.from(atob("${appManifestBase64}"), (character) => character.charCodeAt(0)));\nconst APP_CSS = new TextDecoder().decode(Uint8Array.from(atob("${appCssBase64}"), (character) => character.charCodeAt(0)));\nconst APP_JS = new TextDecoder().decode(Uint8Array.from(atob("${appJsBase64}"), (character) => character.charCodeAt(0)));\nconst PAGE_HTML = new TextDecoder().decode(Uint8Array.from(atob("${pageBase64}"), (character) => character.charCodeAt(0)));\nconst PRIVACY_HTML = new TextDecoder().decode(Uint8Array.from(atob("${privacyPageBase64}"), (character) => character.charCodeAt(0)));\nconst GUIDELINES_HTML = new TextDecoder().decode(Uint8Array.from(atob("${guidelinesPageBase64}"), (character) => character.charCodeAt(0)));\n${worker}`,
 );
 copyFileSync(path.join(root, ".openai/hosting.json"), path.join(dist, ".openai/hosting.json"));
 console.log("Built the NFD Site Worker.");
+console.log(
+  JSON.stringify({
+    assets: Object.fromEntries(
+      Object.entries(routeAssets).map(([url, code]) => [url, Buffer.byteLength(code)]),
+    ),
+    cssBytes: appCss.length,
+    fullJsBytes: appJs.length,
+  }),
+);

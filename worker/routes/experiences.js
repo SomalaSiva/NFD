@@ -19,7 +19,7 @@ export function createExperienceRoutes(services) {
   const MAX_FILES = 5;
   const MAX_FILE_BYTES = 25 * 1024 * 1024;
   const MAX_TOTAL_BYTES = 50 * 1024 * 1024;
-  const EXPERIENCE_PAGE_SIZE = 20;
+  const EXPERIENCE_PAGE_SIZE = 10;
   const INCIDENT_CATEGORIES_BY_EXPERIENCE = {
     "Personal relationships": [
       "Trust broken or deception",
@@ -941,11 +941,25 @@ export function createExperienceRoutes(services) {
       const headers = new Headers({
         "content-type": contentType,
         "content-disposition": `${contentType.startsWith("image/") || isVideo ? "inline" : "attachment"}; filename="${filename}"`,
-        "cache-control": "private, no-store",
+        "cache-control": "private, no-cache",
+        vary: "Cookie, oai-authenticated-user-id",
         "x-content-type-options": "nosniff",
         "accept-ranges": isVideo ? "bytes" : "none",
         "content-length": String(length),
       });
+      const etag = object.httpEtag || (object.etag ? `"${object.etag}"` : "");
+      if (etag) headers.set("etag", etag);
+      if (!request.headers.has("range") && etag && request.headers.get("if-none-match") === etag) {
+        await object.body?.cancel?.();
+        return new Response(null, {
+          status: 304,
+          headers: {
+            etag,
+            "cache-control": "private, no-cache",
+            vary: "Cookie, oai-authenticated-user-id",
+          },
+        });
+      }
       if (ranged) headers.set("content-range", `bytes ${offset}-${offset + length - 1}/${object.size}`);
       return new Response(object.body, {
         status: ranged ? 206 : 200,

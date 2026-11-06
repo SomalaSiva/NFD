@@ -29,22 +29,22 @@ async function createFeedPreview(file) {
   if (
     !file.type.startsWith("image/") ||
     file.type === "image/gif" ||
-    file.size < 300 * 1024 ||
+    file.size < 64 * 1024 ||
     typeof createImageBitmap !== "function"
   )
     return null;
   let bitmap;
   try {
     bitmap = await createImageBitmap(file);
-    const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
+    const scale = Math.min(1, 960 / Math.max(bitmap.width, bitmap.height));
     const canvas = document.createElement("canvas");
     canvas.width = Math.max(1, Math.round(bitmap.width * scale));
     canvas.height = Math.max(1, Math.round(bitmap.height * scale));
     const context = canvas.getContext("2d");
     if (!context) return null;
     context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-    const preview = await new Promise((resolve) => canvas.toBlob(resolve, "image/webp", 0.8));
-    return preview?.type === "image/webp" && preview.size < file.size && preview.size <= 1024 * 1024
+    const preview = await new Promise((resolve) => canvas.toBlob(resolve, "image/webp", 0.72));
+    return preview?.type === "image/webp" && preview.size < file.size && preview.size <= 256 * 1024
       ? preview
       : null;
   } catch {
@@ -93,7 +93,7 @@ async function createVideoFeedPreview(file) {
     if (!context) return null;
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
     const preview = await new Promise((resolve) => canvas.toBlob(resolve, "image/webp", 0.78));
-    return preview?.type === "image/webp" && preview.size <= 1024 * 1024 ? preview : null;
+    return preview?.type === "image/webp" && preview.size <= 256 * 1024 ? preview : null;
   } catch {
     return null;
   } finally {
@@ -101,44 +101,6 @@ async function createVideoFeedPreview(file) {
     video.load();
     URL.revokeObjectURL(objectUrl);
   }
-}
-function captureFirstVideoFrame(video) {
-  if (
-    video.dataset.posterCaptured ||
-    video.error ||
-    !video.paused ||
-    !Number.isFinite(video.duration) ||
-    video.duration <= 0
-  )
-    return;
-  video.dataset.posterCaptured = "pending";
-  const originalTime = video.currentTime;
-  const frameTime = Math.min(1, video.duration * 0.1);
-  const onSeeked = () => {
-    if (!video.paused) {
-      video.dataset.posterCaptured = "skipped";
-      return;
-    }
-    try {
-      if (!video.videoWidth || !video.videoHeight) return;
-      const scale = Math.min(1, 960 / Math.max(video.videoWidth, video.videoHeight));
-      const canvas = document.createElement("canvas");
-      canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
-      canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
-      const context = canvas.getContext("2d");
-      if (!context) return;
-      context.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const poster = canvas.toDataURL("image/webp", 0.78);
-      if (poster.startsWith("data:image/webp")) video.poster = poster;
-    } catch {
-      // Keep the designed fallback poster if this browser cannot capture a frame.
-    } finally {
-      video.dataset.posterCaptured = "done";
-      if (video.paused) video.currentTime = originalTime;
-    }
-  };
-  video.addEventListener("seeked", onSeeked, { once: true });
-  video.currentTime = frameTime;
 }
 const videoFallbackPoster =
   "data:image/svg+xml," +
@@ -156,15 +118,6 @@ const feedVideoPosterObserver =
               if (video.dataset.previewPoster) {
                 video.poster = video.dataset.previewPoster;
                 delete video.dataset.previewPoster;
-              }
-              if (video.dataset.videoSrc) {
-                video.src = video.dataset.videoSrc;
-                delete video.dataset.videoSrc;
-                video.load();
-              }
-              if (video.dataset.capturePreview === "true") {
-                video.preload = "metadata";
-                delete video.dataset.capturePreview;
               }
             }
             feedVideoPosterObserver.unobserve(entry.target);
@@ -389,7 +342,22 @@ function renderFeed(experiences, { append = false, nextCursor = "" } = {}) {
           },
           { once: true },
         );
-        image.src = file.hasPreview ? `${link.href}?variant=preview` : link.href;
+        const source = file.hasPreview ? `${link.href}?variant=preview` : link.href;
+        if (!file.hasPreview && file.sizeBytes > 256 * 1024) {
+          const load = document.createElement("button");
+          load.type = "button";
+          load.className = "secondary-button feed-load-photo";
+          load.textContent = `Load photo · ${prettySize(file.sizeBytes)}`;
+          load.addEventListener("click", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            image.src = source;
+            load.remove();
+          });
+          link.append(load);
+        } else {
+          image.src = source;
+        }
         link.append(image);
         gallery.append(link);
       });
@@ -489,15 +457,8 @@ function renderFeed(experiences, { append = false, nextCursor = "" } = {}) {
           }
         }
         const videoSource = `/api/evidence/${encodeURIComponent(file.id)}`;
-        if (feedVideoPosterObserver) video.dataset.videoSrc = videoSource;
-        else video.src = videoSource;
-        if (!file.hasPreview) {
-          video.dataset.capturePreview = "true";
-          if (feedVideoPosterObserver) feedVideoPosterObserver.observe(videoItem);
-          else video.preload = "metadata";
-          video.addEventListener("loadedmetadata", () => captureFirstVideoFrame(video), { once: true });
-          if (video.readyState >= 1) captureFirstVideoFrame(video);
-        }
+        // Keep the original video idle until the native play control is used.
+        video.src = videoSource;
         const playbackMessage = addText(
           gallery,
           "p",

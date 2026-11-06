@@ -11,10 +11,6 @@ function getFilePreviewUrl(file) {
   if (!filePreviewUrls.has(file)) filePreviewUrls.set(file, URL.createObjectURL(file));
   return filePreviewUrls.get(file);
 }
-const prettySize = (bytes) =>
-  bytes < 1024 * 1024
-    ? `${Math.max(1, Math.round(bytes / 1024))} KB`
-    : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 const iconForFile = () =>
   '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 3.8h7l4 4V20H7a2 2 0 0 1-2-2V5.8a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-width="1.6"/><path d="M14 4v4h4M8.5 12h7M8.5 15.5h7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
 function renderFiles() {

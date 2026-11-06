@@ -641,3 +641,8 @@ const storyStepFooter = document.getElementById("story-step-footer");
 const detailsStepFooter = document.getElementById("details-step-footer");
 const formStepTitle = document.getElementById("form-step-title");
 const formStepIntro = document.getElementById("form-step-intro");
+
+const prettySize = (bytes) =>
+  bytes < 1024 * 1024
+    ? `${Math.max(1, Math.round(bytes / 1024))} KB`
+    : `${(bytes / 1024 / 1024).toFixed(1)} MB`;

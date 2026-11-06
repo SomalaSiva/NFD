@@ -158,7 +158,7 @@ test("SQLite uses recipient notification indexes", async () => {
   const h = setup();
   h.message("m");
   await h.request();
-  const { sql, values } = h.statements.at(-1);
+  const { sql, values } = h.statements.findLast((statement) => statement.sql.includes("UNION ALL"));
   const plan = h.db
     .prepare("EXPLAIN QUERY PLAN " + sql)
     .all(...values)

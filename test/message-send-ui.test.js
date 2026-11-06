@@ -3,10 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import vm from "node:vm";
 
-const source = readFileSync(
-  new URL("../web/assets/app/parts/04-stories-messages.js", import.meta.url),
-  "utf8",
-);
+const source = readFileSync(new URL("../web/assets/app/parts/04-messaging.js", import.meta.url), "utf8");
 const handler = source.slice(
   source.indexOf('messageCompose.addEventListener("submit"'),
   source.indexOf("async function loadMessagesPage"),
@@ -18,6 +15,7 @@ function harness(fetch) {
   const context = {
     currentMessageFriendId: "friend-a",
     messageConversationRevision: 0,
+    messageHistory: new Map(),
     messageInput: { value: "hello" },
     messageSend: { disabled: false, textContent: "Send" },
     messageList: { dataset: {}, scrollHeight: 100 },

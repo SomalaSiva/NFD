@@ -115,4 +115,3 @@ if (location.pathname === "/login") {
   }
   loadFeed();
 }
-experienceCategoryInput.addEventListener("change", updateIncidentCategoryOptions);

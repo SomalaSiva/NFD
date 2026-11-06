@@ -1,3 +1,9 @@
+import {
+  MESSAGE_PAGE_SIZE,
+  encodeMessageCursor,
+  decodeMessageCursor,
+  conditionalMessageJson,
+} from "../lib/message-page.js";
 import { ensureMessagingTables, ensureStoryTables } from "../db/ensure.js";
 
 const MESSAGE_RETENTION_MS = 90 * 24 * 60 * 60 * 1000;
@@ -287,46 +293,58 @@ export function createSocialRoutes(services) {
       await ensureGhostTables(env);
       const now = new Date().toISOString();
       const retentionCutoff = new Date(Date.now() - MESSAGE_RETENTION_MS).toISOString();
+      const rawCursor = new URL(request.url).searchParams.get("cursor");
+      const cursor = rawCursor ? decodeMessageCursor(rawCursor) : null;
+      if (rawCursor && !cursor) return json({ error: "Invalid inbox cursor." }, 400);
       const result = await env.DB.prepare(
         `
-      SELECT u.id AS user_id, COALESCE(NULLIF(trim(u.display_name), ''), 'NFD member') AS name,
-        (SELECT substr(m.body, 1, 100) FROM nfd_messages m
-          WHERE ((m.sender_id = ? AND m.recipient_id = u.id) OR (m.sender_id = u.id AND m.recipient_id = ?))
-            AND (m.expires_at IS NULL OR m.expires_at > ?)
-            AND m.created_at > ?
-          ORDER BY m.created_at DESC LIMIT 1) AS last_message,
-        (SELECT m.created_at FROM nfd_messages m
-          WHERE ((m.sender_id = ? AND m.recipient_id = u.id) OR (m.sender_id = u.id AND m.recipient_id = ?))
-            AND (m.expires_at IS NULL OR m.expires_at > ?)
-            AND m.created_at > ?
-          ORDER BY m.created_at DESC LIMIT 1) AS last_message_at,
-        (SELECT COUNT(*) FROM nfd_messages m
-          WHERE m.sender_id = u.id AND m.recipient_id = ? AND m.seen_at IS NULL AND m.created_at > ?) AS unread_count
-      FROM nfd_friend_requests f
-      INNER JOIN nfd_users u ON u.id = CASE WHEN f.from_user_id = ? THEN f.to_user_id ELSE f.from_user_id END
-      WHERE f.status = 'accepted' AND (f.from_user_id = ? OR f.to_user_id = ?) AND ${availableIdentitySql}
-      ORDER BY COALESCE(last_message_at, f.updated_at) DESC, lower(name)
-    `,
+        WITH visible_messages AS (
+          SELECT id, substr(body, 1, 100) AS body, created_at, seen_at, sender_id,
+            CASE WHEN sender_id = ? THEN recipient_id ELSE sender_id END AS peer_id
+          FROM nfd_messages
+          WHERE (sender_id = ? OR recipient_id = ?)
+            AND (expires_at IS NULL OR expires_at > ?) AND created_at > ?
+        ), ranked AS (
+          SELECT *, ROW_NUMBER() OVER (PARTITION BY peer_id ORDER BY created_at DESC, id DESC) AS position,
+            SUM(CASE WHEN sender_id != ? AND seen_at IS NULL THEN 1 ELSE 0 END)
+              OVER (PARTITION BY peer_id) AS unread_count
+          FROM visible_messages
+        ), threads AS (
+          SELECT u.id AS user_id, COALESCE(NULLIF(trim(u.display_name), ''), 'NFD member') AS name,
+            substr(m.body, 1, 100) AS last_message, m.created_at AS last_message_at,
+            COALESCE(m.unread_count, 0) AS unread_count,
+            COALESCE(m.created_at, f.updated_at) AS sort_at
+          FROM nfd_friend_requests f
+          INNER JOIN nfd_users u ON u.id = CASE WHEN f.from_user_id = ? THEN f.to_user_id ELSE f.from_user_id END
+          LEFT JOIN ranked m ON m.peer_id = u.id AND m.position = 1
+          WHERE f.status = 'accepted' AND (f.from_user_id = ? OR f.to_user_id = ?) AND ${availableIdentitySql}
+        )
+        SELECT * FROM threads
+        ${cursor ? "WHERE sort_at < ? OR (sort_at = ? AND user_id < ?)" : ""}
+        ORDER BY sort_at DESC, user_id DESC LIMIT ?
+      `,
       )
         .bind(
           user.id,
           user.id,
-          now,
-          retentionCutoff,
-          user.id,
           user.id,
           now,
           retentionCutoff,
           user.id,
-          retentionCutoff,
           user.id,
           user.id,
           user.id,
+          ...(cursor ? [cursor.time, cursor.time, cursor.id] : []),
+          MESSAGE_PAGE_SIZE + 1,
         )
         .all();
-      return json({
+      const rows = result.results || [];
+      const page = rows.slice(0, MESSAGE_PAGE_SIZE);
+      const last = page[page.length - 1];
+      return conditionalMessageJson(request, {
         currentUserId: user.id,
-        friends: (result.results || []).map((row) => ({
+        nextCursor: rows.length > MESSAGE_PAGE_SIZE ? encodeMessageCursor(last.sort_at, last.user_id) : null,
+        friends: page.map((row) => ({
           id: row.user_id,
           name: row.name,
           lastMessage: row.last_message || "",
@@ -350,6 +368,9 @@ export function createSocialRoutes(services) {
       if (!friend) return json({ error: "Messages are available only between accepted NFD friends." }, 403);
       const now = new Date().toISOString();
       const retentionCutoff = new Date(Date.now() - MESSAGE_RETENTION_MS).toISOString();
+      const rawCursor = new URL(request.url).searchParams.get("before");
+      const cursor = rawCursor ? decodeMessageCursor(rawCursor) : null;
+      if (rawCursor && !cursor) return json({ error: "Invalid message cursor." }, 400);
       const result = await env.DB.prepare(
         `
       SELECT id, sender_id, recipient_id, body, created_at, seen_at, expires_at
@@ -357,12 +378,27 @@ export function createSocialRoutes(services) {
       WHERE ((sender_id = ? AND recipient_id = ?) OR (sender_id = ? AND recipient_id = ?))
         AND (expires_at IS NULL OR expires_at > ?)
         AND created_at > ?
-      ORDER BY created_at DESC LIMIT 300
+      ${cursor ? "AND (created_at < ? OR (created_at = ? AND id < ?))" : ""}
+      ORDER BY created_at DESC, id DESC LIMIT ?
     `,
       )
-        .bind(user.id, friend.id, friend.id, user.id, now, retentionCutoff)
+        .bind(
+          user.id,
+          friend.id,
+          friend.id,
+          user.id,
+          now,
+          retentionCutoff,
+          ...(cursor ? [cursor.time, cursor.time, cursor.id] : []),
+          MESSAGE_PAGE_SIZE + 1,
+        )
         .all();
-      const messages = (result.results || []).reverse().map((row) => ({
+      const rows = result.results || [];
+      const page = rows.slice(0, MESSAGE_PAGE_SIZE);
+      const oldest = page[page.length - 1];
+      const nextCursor =
+        rows.length > MESSAGE_PAGE_SIZE ? encodeMessageCursor(oldest.created_at, oldest.id) : null;
+      const messages = page.reverse().map((row) => ({
         id: row.id,
         senderId: row.sender_id,
         recipientId: row.recipient_id,
@@ -371,7 +407,11 @@ export function createSocialRoutes(services) {
         seenAt: row.seen_at || "",
         expiresAt: row.expires_at || "",
       }));
-      return json({ friend: { id: friend.id, name: friend.name }, messages });
+      return conditionalMessageJson(request, {
+        friend: { id: friend.id, name: friend.name },
+        messages,
+        nextCursor,
+      });
     } catch (error) {
       console.error("NFD friend conversation query failed", error);
       return json({ error: "This conversation could not be opened right now." }, 503);
