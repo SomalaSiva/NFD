@@ -2,6 +2,7 @@ import { ensureGhostTables, ensureStoryTables, ensureMessagingTables } from "../
 
 export const notificationSchema = [
   "CREATE TABLE IF NOT EXISTS nfd_notification_state (user_id TEXT PRIMARY KEY NOT NULL REFERENCES nfd_users(id) ON DELETE CASCADE, read_at TEXT NOT NULL)",
+  "CREATE TABLE IF NOT EXISTS nfd_notification_reads (user_id TEXT NOT NULL REFERENCES nfd_users(id) ON DELETE CASCADE, notification_id TEXT NOT NULL, read_at TEXT NOT NULL, PRIMARY KEY (user_id, notification_id))",
   "CREATE INDEX IF NOT EXISTS nfd_friend_notifications_accepted_idx ON nfd_friend_requests(from_user_id, status, updated_at, id)",
   "CREATE INDEX IF NOT EXISTS nfd_friend_notifications_incoming_idx ON nfd_friend_requests(to_user_id, status, created_at, id)",
   "CREATE INDEX IF NOT EXISTS nfd_message_notifications_idx ON nfd_messages(recipient_id, created_at, id)",
@@ -117,6 +118,18 @@ export function createNotificationRoutes({
         if (!request.headers.get("content-type")?.includes("application/json"))
           return Response.json({ error: "Expected JSON." }, { status: 415 });
         const body = await request.json().catch(() => null);
+        if (
+          typeof body?.notificationId === "string" &&
+          /^(request|accepted|message):[0-9a-f-]{1,100}$/i.test(body.notificationId)
+        ) {
+          await ensure(env);
+          await env.DB.prepare(
+            "INSERT OR IGNORE INTO nfd_notification_reads (user_id, notification_id, read_at) VALUES (?, ?, ?)",
+          )
+            .bind(user.id, body.notificationId, now)
+            .run();
+          return Response.json({ ok: true });
+        }
         const readAt = body?.readAt;
         if (
           typeof readAt !== "string" ||
@@ -154,8 +167,23 @@ export function createNotificationRoutes({
         .bind(...parts.flatMap((p) => p.values), summary ? 100 : 31)
         .all();
       const rows = result.results || [];
-      if (summary)
-        return Response.json({ unreadCount: rows.length }, { headers: { "cache-control": "no-store" } });
+      if (summary) {
+        const unread = rows.filter(
+          (row) => row.createdAt > readAt && (row.kind !== "message" || !row.seenAt),
+        );
+        const ids = unread.map((row) => row.id);
+        const read = ids.length
+          ? await env.DB.prepare(
+              `SELECT notification_id FROM nfd_notification_reads WHERE user_id = ? AND notification_id IN (${ids.map(() => "?").join(",")})`,
+            )
+              .bind(user.id, ...ids)
+              .all()
+          : { results: [] };
+        return Response.json(
+          { unreadCount: Math.max(0, unread.length - (read.results || []).length) },
+          { headers: { "cache-control": "no-store" } },
+        );
+      }
       const items = rows.slice(0, 30).map((row) => ({
         id: row.id,
         kind: row.kind,
@@ -170,6 +198,18 @@ export function createNotificationRoutes({
               : "/profile?tab=friends",
       }));
       const last = items.at(-1);
+      const unreadIds = items.filter((item) => item.unread).map((item) => item.id);
+      if (unreadIds.length) {
+        const read = await env.DB.prepare(
+          `SELECT notification_id FROM nfd_notification_reads WHERE user_id = ? AND notification_id IN (${unreadIds.map(() => "?").join(",")})`,
+        )
+          .bind(user.id, ...unreadIds)
+          .all();
+        const readIds = new Set((read.results || []).map((row) => row.notification_id));
+        items.forEach((item) => {
+          if (readIds.has(item.id)) item.unread = false;
+        });
+      }
       return Response.json(
         {
           items,

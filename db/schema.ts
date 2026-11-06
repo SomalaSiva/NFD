@@ -466,3 +466,17 @@ export const nfdNotificationState = sqliteTable("nfd_notification_state", {
     .references(() => nfdUsers.id, { onDelete: "cascade" }),
   readAt: text("read_at").notNull(),
 });
+
+export const nfdNotificationReads = sqliteTable(
+  "nfd_notification_reads",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => nfdUsers.id, { onDelete: "cascade" }),
+    notificationId: text("notification_id").notNull(),
+    readAt: text("read_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("nfd_notification_reads_user_notification_unique").on(table.userId, table.notificationId),
+  ],
+);
