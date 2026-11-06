@@ -6066,3 +6066,108 @@ body.has-mobile-bottom-nav {
   color: var(--green);
   font-weight: 700;
 }
+
+/* The drum frames a front story and the curved neighboring stories. */
+html.feed-scroll-snap {
+  scroll-snap-type: none;
+}
+.feed-wheel-shell {
+  position: relative;
+  isolation: isolate;
+  margin-top: 18px;
+  padding-inline: 12px;
+  border-radius: 48% / 12%;
+  background: linear-gradient(
+    90deg,
+    #244b36,
+    #91a28a 3%,
+    #e3e2d3 8%,
+    #f2eee3 50%,
+    #e3e2d3 92%,
+    #91a28a 97%,
+    #244b36
+  );
+  box-shadow: 0 16px 32px rgb(24 55 38 / 22%);
+  overflow: hidden;
+}
+.feed-wheel-shell .feed-list {
+  height: min(690px, 70svh);
+  margin-top: 0;
+  padding-block: min(120px, 13svh);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scroll-snap-type: y mandatory;
+  scroll-padding-block: 0;
+  overscroll-behavior-y: contain;
+  scrollbar-width: none;
+  perspective: 1100px;
+  perspective-origin: center center;
+  transform-style: flat;
+}
+.feed-wheel-shell .feed-list::-webkit-scrollbar {
+  display: none;
+}
+.feed-wheel-shell .feed-list::before,
+.feed-wheel-shell .feed-list::after {
+  display: none;
+}
+.feed-wheel-shell .feed-roll-card {
+  flex: 0 0 auto;
+  margin-inline: 0;
+  max-height: min(450px, 44svh);
+  border-radius: 26px;
+  background: var(--paper);
+  box-shadow: 0 8px 16px rgb(45 43 28 / 18%);
+}
+@media (prefers-reduced-motion: reduce) {
+  .feed-wheel-shell .feed-roll-card {
+    transform: none;
+  }
+}
+
+.feed-wheel-shell .feed-list {
+  height: min(690px, calc(100svh - 230px));
+  padding-block: min(120px, calc((100svh - 230px) * 0.18));
+}
+.feed-wheel-shell .feed-roll-card {
+  max-height: min(450px, calc((100svh - 230px) * 0.64));
+}
+@media (max-width: 680px) {
+  .layout.feed-mode {
+    padding-top: 12px;
+  }
+  .feed-heading .eyebrow,
+  .feed-heading .intro {
+    display: none;
+  }
+  .feed-heading h1 {
+    margin: 4px 0;
+    font-size: 1.4rem;
+  }
+  .feed-result-count {
+    margin-block: 8px;
+  }
+  .feed-wheel-shell {
+    margin-top: 8px;
+  }
+  .feed-wheel-shell .feed-title-group {
+    max-width: none;
+    flex: 1 1 auto;
+  }
+  .feed-wheel-shell .feed-header-labels {
+    flex: 0 0 30%;
+    max-width: 30%;
+  }
+}
+
+.feed-wheel-shell .feed-photo-grid .feed-photo-image,
+.feed-wheel-shell .feed-video-item .feed-video {
+  max-height: max(80px, calc(min(450px, (100svh - 230px) * 0.64) - 270px));
+  width: 100%;
+  height: auto;
+  aspect-ratio: auto;
+  object-fit: contain;
+}

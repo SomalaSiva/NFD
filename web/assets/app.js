@@ -1513,12 +1513,11 @@ function updateFeedRoll() {
   const bottomPaddingValue = `${bottomPadding}px`;
   if (root.style.getPropertyValue("--feed-scroll-padding-bottom") !== bottomPaddingValue)
     root.style.setProperty("--feed-scroll-padding-bottom", bottomPaddingValue);
-  const center = (topPadding + window.innerHeight - bottomPadding) / 2;
-  const radius = Math.max(1, window.innerHeight * 0.9);
-  const feedTop = feedList.getBoundingClientRect().top;
+  const center = feedList.clientHeight / 2;
+  const radius = Math.max(1, feedList.clientHeight * 0.65);
   const measurements = cards.map((card) => ({
     card,
-    cardCenter: feedTop + card.offsetTop + card.offsetHeight / 2,
+    cardCenter: card.offsetTop - feedList.scrollTop + card.offsetHeight / 2,
   }));
   measurements.forEach(({ card, cardCenter }) => {
     const distance = (cardCenter - center) / radius;
@@ -1552,6 +1551,15 @@ function scheduleFeedRoll() {
 window.addEventListener("scroll", scheduleFeedRoll, { passive: true });
 window.addEventListener("resize", scheduleFeedRoll, { passive: true });
 function renderFeed(experiences, { append = false, nextCursor = "" } = {}) {
+  if (!feedList.parentElement.classList.contains("feed-wheel-shell")) {
+    const shell = document.createElement("div");
+    shell.className = "feed-wheel-shell";
+    feedList.before(shell);
+    shell.append(feedList);
+    feedList.addEventListener("scroll", scheduleFeedRoll, { passive: true });
+    feedList.tabIndex = 0;
+    feedList.setAttribute("aria-label", "Story wheel. Scroll to the next story.");
+  }
   feedList.classList.add("feed-roll-track");
   if (!append) {
     feedList.replaceChildren();
@@ -1887,7 +1895,7 @@ function renderFeed(experiences, { append = false, nextCursor = "" } = {}) {
     requestAnimationFrame(() => {
       const firstCard = feedList.querySelector(".feed-roll-card");
       if (!firstCard) return;
-      firstCard.scrollIntoView({ block: "center", behavior: "auto" });
+      feedList.scrollTop = firstCard.offsetTop - (feedList.clientHeight - firstCard.offsetHeight) / 2;
       scheduleFeedRoll();
     });
   }
