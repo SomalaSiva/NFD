@@ -211,22 +211,32 @@ function updateFeedRoll() {
   feedRollFrame = 0;
   const cards = [...feedList.querySelectorAll(".feed-roll-card")];
   if (!cards.length) return;
-  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-    cards.forEach((card) => {
-      card.style.removeProperty("--feed-roll-angle");
-      card.style.removeProperty("--feed-roll-depth");
-    });
-    return;
-  }
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const root = document.documentElement;
+  const topbar = document.querySelector(".topbar");
+  const topbarHeight = topbar && getComputedStyle(topbar).position === "sticky" ? topbar.offsetHeight : 0;
   const mobileNav = document.getElementById("mobile-bottom-nav");
   const navHeight = mobileNav && getComputedStyle(mobileNav).display !== "none" ? mobileNav.offsetHeight : 0;
-  const center = (window.innerHeight - navHeight) / 2;
+  const topPadding = topbarHeight + 12;
+  const bottomPadding = Math.max(
+    navHeight,
+    Number.parseFloat(getComputedStyle(root).scrollPaddingBottom) || 0,
+  );
+  const topPaddingValue = `${topPadding}px`;
+  if (root.style.getPropertyValue("--feed-scroll-padding-top") !== topPaddingValue)
+    root.style.setProperty("--feed-scroll-padding-top", topPaddingValue);
+  const availableHeight = Math.max(1, window.innerHeight - topPadding - bottomPadding - 12);
+  const center = (topPadding + window.innerHeight - bottomPadding) / 2;
   const radius = Math.max(1, window.innerHeight * 0.78);
   const feedTop = feedList.getBoundingClientRect().top;
   const measurements = cards.map((card) => ({
     card,
     cardCenter: feedTop + card.offsetTop + card.offsetHeight / 2,
+    cardHeight: card.offsetHeight,
   }));
+  measurements.forEach(({ card, cardHeight }) => {
+    card.classList.toggle("is-feed-tall", cardHeight > availableHeight);
+  });
   let activeIndex = 0;
   let closestDistance = Infinity;
   measurements.forEach(({ cardCenter }, index) => {
@@ -237,9 +247,9 @@ function updateFeedRoll() {
     }
   });
   const activeCard = cards[activeIndex];
-  measurements.forEach(({ card, cardCenter }, index) => {
+  measurements.forEach(({ card, cardCenter, cardHeight }, index) => {
     const distance = (cardCenter - center) / radius;
-    if (Math.abs(distance) > 1.35) {
+    if (reduceMotion || cardHeight > availableHeight || Math.abs(distance) > 1.35) {
       card.style.removeProperty("--feed-roll-angle");
       card.style.removeProperty("--feed-roll-depth");
     } else {
@@ -438,7 +448,10 @@ function renderFeed(experiences, { append = false, nextCursor = "" } = {}) {
             const isPortrait = image.naturalHeight > image.naturalWidth;
             image.classList.toggle("is-portrait", isPortrait);
             link.classList.toggle("is-portrait", isPortrait);
-            if (isPortrait) card.classList.add("has-portrait-media");
+            if (isPortrait) {
+              card.classList.add("has-portrait-media");
+              scheduleFeedRoll();
+            }
           },
           { once: true },
         );
@@ -528,7 +541,10 @@ function renderFeed(experiences, { append = false, nextCursor = "" } = {}) {
         video.addEventListener("loadedmetadata", () => {
           const isPortrait = video.videoHeight > video.videoWidth;
           videoItem.classList.toggle("is-portrait", isPortrait);
-          if (isPortrait) card.classList.add("has-portrait-media");
+          if (isPortrait) {
+            card.classList.add("has-portrait-media");
+            scheduleFeedRoll();
+          }
         });
         video.poster = videoFallbackPoster;
         if (file.hasPreview) {

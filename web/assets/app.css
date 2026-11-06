@@ -987,11 +987,16 @@ textarea.control::placeholder {
 }
 html.feed-scroll-snap {
   scroll-snap-type: y mandatory;
-  scroll-padding-top: 12px;
+  scroll-padding-top: var(--feed-scroll-padding-top, 12px);
 }
 .feed-roll-card {
   scroll-snap-align: center;
   scroll-snap-stop: always;
+}
+.feed-roll-card.is-feed-tall {
+  scroll-snap-align: start;
+  transform: none !important;
+  opacity: 1;
 }
 .feed-load-more {
   scroll-snap-align: start;
@@ -5367,7 +5372,7 @@ html.feed-scroll-snap {
   }
   .feed-photo-grid .feed-photo-image.is-portrait,
   .feed-video-item.is-portrait .feed-video {
-    max-height: min(50svh, 440px);
+    max-height: min(42svh, 360px);
   }
   .feed-roll-card.has-portrait-media {
     content-visibility: visible;
