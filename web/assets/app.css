@@ -941,13 +941,50 @@ textarea.control::placeholder {
   display: grid;
   gap: 18px;
   margin-top: 23px;
+  perspective: 1200px;
+  perspective-origin: center 50%;
+  transform-style: preserve-3d;
+}
+.feed-list.feed-roll-track::before,
+.feed-list.feed-roll-track::after {
+  position: fixed;
+  z-index: 0;
+  top: 40vh;
+  bottom: 22vh;
+  width: 13px;
+  border: 1px solid rgba(24, 91, 70, 0.18);
+  border-radius: 50%;
+  background: linear-gradient(90deg, rgba(24, 91, 70, 0.2), rgba(24, 91, 70, 0.035) 70%, transparent);
+  box-shadow: 0 0 18px rgba(24, 91, 70, 0.08);
+  content: "";
+  pointer-events: none;
+}
+.feed-list.feed-roll-track::before {
+  left: max(7px, calc(50% - 470px));
+}
+.feed-list.feed-roll-track::after {
+  right: max(7px, calc(50% - 470px));
+  transform: scaleX(-1);
 }
 .feed-card {
+  position: relative;
+  z-index: 1;
+  transform: rotateX(var(--feed-roll-angle, 0deg)) translateZ(var(--feed-roll-depth, 0px));
+  transform-origin: center center;
+  backface-visibility: hidden;
   background: var(--paper);
   border: 1px solid var(--line);
   border-radius: 16px;
   box-shadow: var(--shadow);
   overflow: hidden;
+}
+.feed-roll-card.is-rolling {
+  will-change: transform;
+}
+@media (prefers-reduced-motion: reduce) {
+  .feed-roll-card {
+    transform: none !important;
+  }
 }
 .feed-card-main {
   padding: 21px 23px;

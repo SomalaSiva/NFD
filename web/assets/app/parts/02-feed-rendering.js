@@ -206,6 +206,34 @@ function renderDocumentLink(file) {
 }
 let feedLoadedCount = 0;
 let feedNextCursor = "";
+let feedRollFrame = 0;
+function updateFeedRoll() {
+  feedRollFrame = 0;
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const center = window.innerHeight / 2;
+  const radius = Math.max(1, window.innerHeight * 0.72);
+  feedList.querySelectorAll(".feed-roll-card").forEach((card) => {
+    const cardCenter = card.getBoundingClientRect().top + card.offsetHeight / 2;
+    const distance = (cardCenter - center) / radius;
+    if (Math.abs(distance) > 1.35) {
+      card.style.removeProperty("--feed-roll-angle");
+      card.style.removeProperty("--feed-roll-depth");
+      card.classList.remove("is-rolling");
+      return;
+    }
+    const angle = Math.max(-48, Math.min(48, distance * 42));
+    const radians = (Math.abs(angle) * Math.PI) / 180;
+    const depth = Math.max(0, radius * (1 - Math.cos(radians)));
+    card.style.setProperty("--feed-roll-angle", `${angle.toFixed(2)}deg`);
+    card.style.setProperty("--feed-roll-depth", `${(-depth).toFixed(1)}px`);
+    card.classList.add("is-rolling");
+  });
+}
+function scheduleFeedRoll() {
+  if (!feedRollFrame) feedRollFrame = requestAnimationFrame(updateFeedRoll);
+}
+window.addEventListener("scroll", scheduleFeedRoll, { passive: true });
+window.addEventListener("resize", scheduleFeedRoll, { passive: true });
 function renderFeed(experiences, { append = false, nextCursor = "" } = {}) {
   if (!append) {
     feedList.replaceChildren();
@@ -267,7 +295,7 @@ function renderFeed(experiences, { append = false, nextCursor = "" } = {}) {
   }
   experiences.forEach((experience, experienceIndex) => {
     const card = document.createElement("article");
-    card.className = "feed-card";
+    card.className = "feed-card feed-roll-card";
     const main = document.createElement("div");
     main.className = "feed-card-main";
     const header = document.createElement("div");
@@ -527,6 +555,7 @@ function renderFeed(experiences, { append = false, nextCursor = "" } = {}) {
     fitIncidentBadge(card.querySelector(".feed-incident"));
   });
   feedLoadedCount += experiences.length;
+  scheduleFeedRoll();
   feedResultCount.textContent = `${countLabel} · Showing ${feedLoadedCount}${feedNextCursor ? "+" : ""}`;
   feedLoadMore.hidden = !feedNextCursor;
 }
