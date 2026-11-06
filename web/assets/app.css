@@ -5361,6 +5361,19 @@ html.feed-scroll-snap {
   aspect-ratio: auto;
   object-fit: contain;
 }
+@media (max-width: 680px) {
+  html.feed-scroll-snap {
+    scroll-padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  }
+  .feed-photo-grid .feed-photo-image.is-portrait,
+  .feed-video-item.is-portrait .feed-video {
+    max-height: min(50svh, 440px);
+  }
+  .feed-roll-card.has-portrait-media {
+    content-visibility: visible;
+    contain-intrinsic-size: none;
+  }
+}
 .location-autocomplete {
   position: relative;
   min-width: 0;

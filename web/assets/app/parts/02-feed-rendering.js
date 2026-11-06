@@ -218,7 +218,9 @@ function updateFeedRoll() {
     });
     return;
   }
-  const center = window.innerHeight / 2;
+  const mobileNav = document.getElementById("mobile-bottom-nav");
+  const navHeight = mobileNav && getComputedStyle(mobileNav).display !== "none" ? mobileNav.offsetHeight : 0;
+  const center = (window.innerHeight - navHeight) / 2;
   const radius = Math.max(1, window.innerHeight * 0.78);
   const feedTop = feedList.getBoundingClientRect().top;
   const measurements = cards.map((card) => ({
@@ -436,6 +438,7 @@ function renderFeed(experiences, { append = false, nextCursor = "" } = {}) {
             const isPortrait = image.naturalHeight > image.naturalWidth;
             image.classList.toggle("is-portrait", isPortrait);
             link.classList.toggle("is-portrait", isPortrait);
+            if (isPortrait) card.classList.add("has-portrait-media");
           },
           { once: true },
         );
@@ -523,7 +526,9 @@ function renderFeed(experiences, { append = false, nextCursor = "" } = {}) {
         video.playsInline = true;
         video.title = file.originalFilename;
         video.addEventListener("loadedmetadata", () => {
-          videoItem.classList.toggle("is-portrait", video.videoHeight > video.videoWidth);
+          const isPortrait = video.videoHeight > video.videoWidth;
+          videoItem.classList.toggle("is-portrait", isPortrait);
+          if (isPortrait) card.classList.add("has-portrait-media");
         });
         video.poster = videoFallbackPoster;
         if (file.hasPreview) {
