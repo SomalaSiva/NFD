@@ -233,42 +233,26 @@ function updateFeedRoll() {
   if (root.style.getPropertyValue("--feed-scroll-padding-bottom") !== bottomPaddingValue)
     root.style.setProperty("--feed-scroll-padding-bottom", bottomPaddingValue);
   const center = (topPadding + window.innerHeight - bottomPadding) / 2;
-  const radius = Math.max(1, window.innerHeight * 0.78);
+  const radius = Math.max(1, window.innerHeight * 0.9);
   const feedTop = feedList.getBoundingClientRect().top;
   const measurements = cards.map((card) => ({
     card,
     cardCenter: feedTop + card.offsetTop + card.offsetHeight / 2,
     cardHeight: card.offsetHeight,
   }));
-  measurements.forEach(({ card }) => card.classList.remove("is-feed-tall"));
-  let activeIndex = 0;
-  let closestDistance = Infinity;
-  measurements.forEach(({ cardCenter }, index) => {
-    const distance = Math.abs(cardCenter - center);
-    if (distance < closestDistance) {
-      closestDistance = distance;
-      activeIndex = index;
-    }
-  });
-  const activeCard = cards[activeIndex];
-  measurements.forEach(({ card, cardCenter }, index) => {
+  measurements.forEach(({ card, cardCenter }) => {
     const distance = (cardCenter - center) / radius;
-    if (reduceMotion || Math.abs(distance) > 1.35) {
-      card.style.removeProperty("--feed-roll-angle");
-      card.style.removeProperty("--feed-roll-depth");
+    const angle = Math.max(-42, Math.min(42, distance * 46));
+    if (reduceMotion || Math.abs(distance) > 1.5) {
+      if (card.classList.contains("is-roll-visible")) card.classList.remove("is-roll-visible");
+      if (card.style.getPropertyValue("--feed-roll-angle"))
+        card.style.removeProperty("--feed-roll-angle");
     } else {
-      const angle = Math.max(-55, Math.min(55, distance * 58));
-      const depth = radius * (1 - Math.cos((Math.abs(angle) * Math.PI) / 180));
       const angleValue = `${angle.toFixed(1)}deg`;
-      const depthValue = `${(-depth).toFixed(1)}px`;
+      if (!card.classList.contains("is-roll-visible")) card.classList.add("is-roll-visible");
       if (card.style.getPropertyValue("--feed-roll-angle") !== angleValue)
         card.style.setProperty("--feed-roll-angle", angleValue);
-      if (card.style.getPropertyValue("--feed-roll-depth") !== depthValue)
-        card.style.setProperty("--feed-roll-depth", depthValue);
     }
-    card.classList.toggle("is-current", card === activeCard);
-    card.classList.toggle("roll-before", index === activeIndex - 1);
-    card.classList.toggle("roll-after", index === activeIndex + 1);
   });
 }
 function scheduleFeedRoll() {

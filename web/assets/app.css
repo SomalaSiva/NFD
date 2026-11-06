@@ -942,7 +942,7 @@ textarea.control::placeholder {
   display: grid;
   gap: 18px;
   margin-top: 23px;
-  perspective: 1200px;
+  perspective: 1600px;
   perspective-origin: center 50%;
   transform-style: preserve-3d;
 }
@@ -969,21 +969,11 @@ textarea.control::placeholder {
 .feed-card {
   position: relative;
   z-index: 1;
-  transform: perspective(1200px) rotateX(var(--feed-roll-angle, 0deg)) translateZ(var(--feed-roll-depth, 0px));
-  transform-origin: center center;
-  backface-visibility: hidden;
   background: var(--paper);
   border: 1px solid var(--line);
   border-radius: 26px;
   box-shadow: 0 18px 44px rgba(31, 70, 54, 0.16);
   overflow: hidden;
-}
-.feed-roll-card.roll-before,
-.feed-roll-card.roll-after {
-  opacity: 0.94;
-}
-.feed-roll-card.is-current {
-  opacity: 1;
 }
 html.feed-scroll-snap {
   scroll-snap-type: y mandatory;
@@ -1002,6 +992,10 @@ html.feed-scroll-snap {
   content-visibility: visible;
   contain-intrinsic-size: none;
 }
+.feed-roll-card.is-roll-visible {
+  transform: rotateX(var(--feed-roll-angle, 0deg));
+  transform-origin: center center;
+}
 .feed-load-more {
   scroll-snap-align: start;
   scroll-snap-stop: always;
@@ -1011,7 +1005,6 @@ html.feed-scroll-snap {
   .feed-load-more {
     scroll-snap-stop: normal;
     transition: none;
-    transform: none !important;
   }
 }
 .feed-card-main {
