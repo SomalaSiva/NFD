@@ -103,6 +103,7 @@ if (location.pathname === "/login") {
   if (initialTrustTab !== "allegations") void loadTrustDashboard();
   document.title = "Trust Score — NFD";
 } else if (location.pathname === "/feed" || location.pathname === "/feed/") {
+  document.documentElement.classList.add("feed-scroll-snap");
   appLayout.classList.add("feed-mode");
   form.hidden = true;
   reviewPage.hidden = true;

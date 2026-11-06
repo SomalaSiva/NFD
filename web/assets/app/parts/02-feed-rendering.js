@@ -206,31 +206,32 @@ function renderDocumentLink(file) {
 }
 let feedLoadedCount = 0;
 let feedNextCursor = "";
-let feedRollFrame = 0;
+let feedRollTimer = 0;
 function updateFeedRoll() {
-  feedRollFrame = 0;
-  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  feedRollTimer = 0;
+  const cards = [...feedList.querySelectorAll(".feed-roll-card")];
+  if (!cards.length) return;
   const center = window.innerHeight / 2;
-  const radius = Math.max(1, window.innerHeight * 0.72);
-  feedList.querySelectorAll(".feed-roll-card").forEach((card) => {
-    const cardCenter = card.getBoundingClientRect().top + card.offsetHeight / 2;
-    const distance = (cardCenter - center) / radius;
-    if (Math.abs(distance) > 1.35) {
-      card.style.removeProperty("--feed-roll-angle");
-      card.style.removeProperty("--feed-roll-depth");
-      card.classList.remove("is-rolling");
-      return;
+  let activeIndex = 0;
+  let closestDistance = Infinity;
+  cards.forEach((card, index) => {
+    const rect = card.getBoundingClientRect();
+    const distance = Math.abs(rect.top + Math.min(rect.height / 2, window.innerHeight / 2) - center);
+    if (distance < closestDistance) {
+      closestDistance = distance;
+      activeIndex = index;
     }
-    const angle = Math.max(-48, Math.min(48, distance * 42));
-    const radians = (Math.abs(angle) * Math.PI) / 180;
-    const depth = Math.max(0, radius * (1 - Math.cos(radians)));
-    card.style.setProperty("--feed-roll-angle", `${angle.toFixed(2)}deg`);
-    card.style.setProperty("--feed-roll-depth", `${(-depth).toFixed(1)}px`);
-    card.classList.add("is-rolling");
+  });
+  const activeCard = cards[activeIndex];
+  cards.forEach((card, index) => {
+    card.classList.toggle("is-current", card === activeCard);
+    card.classList.toggle("roll-before", index === activeIndex - 1);
+    card.classList.toggle("roll-after", index === activeIndex + 1);
   });
 }
 function scheduleFeedRoll() {
-  if (!feedRollFrame) feedRollFrame = requestAnimationFrame(updateFeedRoll);
+  clearTimeout(feedRollTimer);
+  feedRollTimer = setTimeout(updateFeedRoll, 140);
 }
 window.addEventListener("scroll", scheduleFeedRoll, { passive: true });
 window.addEventListener("resize", scheduleFeedRoll, { passive: true });
