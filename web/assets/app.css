@@ -969,12 +969,9 @@ textarea.control::placeholder {
 .feed-card {
   position: relative;
   z-index: 1;
-  transform: perspective(1200px) rotateX(0) translateZ(0) scale(1);
+  transform: perspective(1200px) rotateX(var(--feed-roll-angle, 0deg)) translateZ(var(--feed-roll-depth, 0px));
   transform-origin: center center;
   backface-visibility: hidden;
-  transition:
-    transform 360ms cubic-bezier(0.2, 0.72, 0.15, 1),
-    opacity 360ms ease;
   background: var(--paper);
   border: 1px solid var(--line);
   border-radius: 16px;
@@ -983,21 +980,19 @@ textarea.control::placeholder {
 }
 .feed-roll-card.roll-before,
 .feed-roll-card.roll-after {
-  opacity: 0.9;
-  transform: perspective(1200px) rotateX(-9deg) translateZ(-20px) scale(0.985);
-}
-.feed-roll-card.roll-after {
-  transform: perspective(1200px) rotateX(9deg) translateZ(-20px) scale(0.985);
+  opacity: 0.94;
 }
 .feed-roll-card.is-current {
   opacity: 1;
-  transform: perspective(1200px) rotateX(0) translateZ(0) scale(1);
 }
 html.feed-scroll-snap {
   scroll-snap-type: y mandatory;
   scroll-padding-top: 12px;
 }
-.feed-roll-card,
+.feed-roll-card {
+  scroll-snap-align: center;
+  scroll-snap-stop: always;
+}
 .feed-load-more {
   scroll-snap-align: start;
   scroll-snap-stop: always;

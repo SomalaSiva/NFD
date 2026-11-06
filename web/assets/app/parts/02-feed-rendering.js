@@ -206,32 +206,57 @@ function renderDocumentLink(file) {
 }
 let feedLoadedCount = 0;
 let feedNextCursor = "";
-let feedRollTimer = 0;
+let feedRollFrame = 0;
 function updateFeedRoll() {
-  feedRollTimer = 0;
+  feedRollFrame = 0;
   const cards = [...feedList.querySelectorAll(".feed-roll-card")];
   if (!cards.length) return;
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    cards.forEach((card) => {
+      card.style.removeProperty("--feed-roll-angle");
+      card.style.removeProperty("--feed-roll-depth");
+    });
+    return;
+  }
   const center = window.innerHeight / 2;
+  const radius = Math.max(1, window.innerHeight * 0.78);
+  const feedTop = feedList.getBoundingClientRect().top;
+  const measurements = cards.map((card) => ({
+    card,
+    cardCenter: feedTop + card.offsetTop + card.offsetHeight / 2,
+  }));
   let activeIndex = 0;
   let closestDistance = Infinity;
-  cards.forEach((card, index) => {
-    const rect = card.getBoundingClientRect();
-    const distance = Math.abs(rect.top + Math.min(rect.height / 2, window.innerHeight / 2) - center);
+  measurements.forEach(({ cardCenter }, index) => {
+    const distance = Math.abs(cardCenter - center);
     if (distance < closestDistance) {
       closestDistance = distance;
       activeIndex = index;
     }
   });
   const activeCard = cards[activeIndex];
-  cards.forEach((card, index) => {
+  measurements.forEach(({ card, cardCenter }, index) => {
+    const distance = (cardCenter - center) / radius;
+    if (Math.abs(distance) > 1.35) {
+      card.style.removeProperty("--feed-roll-angle");
+      card.style.removeProperty("--feed-roll-depth");
+    } else {
+      const angle = Math.max(-55, Math.min(55, distance * 58));
+      const depth = radius * (1 - Math.cos((Math.abs(angle) * Math.PI) / 180));
+      const angleValue = `${angle.toFixed(1)}deg`;
+      const depthValue = `${(-depth).toFixed(1)}px`;
+      if (card.style.getPropertyValue("--feed-roll-angle") !== angleValue)
+        card.style.setProperty("--feed-roll-angle", angleValue);
+      if (card.style.getPropertyValue("--feed-roll-depth") !== depthValue)
+        card.style.setProperty("--feed-roll-depth", depthValue);
+    }
     card.classList.toggle("is-current", card === activeCard);
     card.classList.toggle("roll-before", index === activeIndex - 1);
     card.classList.toggle("roll-after", index === activeIndex + 1);
   });
 }
 function scheduleFeedRoll() {
-  clearTimeout(feedRollTimer);
-  feedRollTimer = setTimeout(updateFeedRoll, 140);
+  if (!feedRollFrame) feedRollFrame = requestAnimationFrame(updateFeedRoll);
 }
 window.addEventListener("scroll", scheduleFeedRoll, { passive: true });
 window.addEventListener("resize", scheduleFeedRoll, { passive: true });
