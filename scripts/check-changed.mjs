@@ -20,6 +20,7 @@ const run = (label, command, args) => {
 };
 
 const testMap = new Map([
+  ["worker/routes/notifications.js", ["test/notifications.test.js"]],
   ["web/assets/app.js", ["test/app-source-bundle.test.js", "test/trust-score.test.js"]],
   [
     "worker/routes/experiences.js",

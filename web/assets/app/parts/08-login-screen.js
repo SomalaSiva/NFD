@@ -70,6 +70,16 @@ if (location.pathname === "/login") {
   );
   document.title = "Your profile — NFD";
   loadProfile();
+} else if (location.pathname === "/notifications") {
+  appLayout.classList.add("profile-mode");
+  form.hidden = true;
+  reviewPage.hidden = true;
+  feedPage.hidden = true;
+  profilePage.hidden = true;
+  messagesPage.hidden = true;
+  document.getElementById("notifications-page").hidden = false;
+  document.title = "Notifications — NFD";
+  loadNotifications();
 } else if (location.pathname === "/messages") {
   appLayout.classList.add("profile-mode");
   form.hidden = true;

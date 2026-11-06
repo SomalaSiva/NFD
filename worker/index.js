@@ -1,3 +1,4 @@
+import { createNotificationRoutes } from "./routes/notifications.js";
 import { createAdminRoutes } from "./routes/admin.js";
 import { createSocialRoutes } from "./routes/social.js";
 import { createStoryRoutes } from "./routes/stories.js";
@@ -41,6 +42,10 @@ let googleJwksExpiresAt = 0;
 let googleActivityKeySecret = "";
 let googleActivityKeyPromise;
 const googleActivityCookies = new WeakMap();
+const notificationRoutes = createNotificationRoutes({
+  getCurrentUser,
+  availableIdentitySql: AVAILABLE_IDENTITY_SQL,
+});
 const adminRoutes = createAdminRoutes({
   getCurrentUser,
   isOwner,
@@ -182,9 +187,9 @@ const worker = {
       }
       return html(PAGE_HTML);
     }
-    if (request.method === "GET" && url.pathname === "/messages") {
+    if (request.method === "GET" && ["/messages", "/notifications"].includes(url.pathname)) {
       if (!(await getCurrentUser(request, env))) {
-        return Response.redirect(new URL("/login?return_to=%2Fmessages", url), 302);
+        return Response.redirect(new URL(`/login?return_to=${encodeURIComponent(url.pathname)}`, url), 302);
       }
       return html(PAGE_HTML);
     }
@@ -383,6 +388,9 @@ const worker = {
     const friendProfileMatch = url.pathname.match(/^\/api\/friends\/([^/]+)\/profile$/i);
     if (friendProfileMatch && request.method === "GET") {
       return socialRoutes.getFriendProfile(request, env, decodeURIComponent(friendProfileMatch[1]));
+    }
+    if (url.pathname === "/api/notifications" && ["GET", "POST"].includes(request.method)) {
+      return notificationRoutes.handle(request, env);
     }
     if (request.method === "GET" && url.pathname === "/api/messages") {
       return socialRoutes.listMessageThreads(request, env);

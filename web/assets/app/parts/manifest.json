@@ -4,6 +4,7 @@
   "02-feed-rendering.js",
   "03-profile-trust-friends.js",
   "04-stories-messages.js",
+  "04-notifications.js",
   "05-feed-discovery.js",
   "06-admin.js",
   "07-navigation.js",

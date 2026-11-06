@@ -1,5 +1,5 @@
 const baseUrl = (process.env.NFD_LIVE_URL || "https://nfd.nofacedocs.com").replace(/\/$/, "");
-const routes = ["/", "/feed", "/messages", "/profile", "/trust-score"];
+const routes = ["/", "/feed", "/messages", "/notifications", "/profile", "/trust-score"];
 
 const results = await Promise.all(
   routes.map(async (route) => {

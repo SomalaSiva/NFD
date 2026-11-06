@@ -64,6 +64,13 @@
       "when": 1793835084342,
       "tag": "0008_profile_page_index",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1793949603492,
+      "tag": "0009_notifications",
+      "breakpoints": true
     }
   ]
 }

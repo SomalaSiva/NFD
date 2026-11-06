@@ -1455,22 +1455,20 @@ function setMessageFeedback(message, error = false) {
   messageFeedback.classList.toggle("error", error);
 }
 async function refreshMessageNavBadge() {
-  if (messageNavRefreshInFlight) return;
+  if (messageNavRefreshInFlight || location.pathname === "/login") return;
   messageNavRefreshInFlight = true;
   try {
-    const response = await fetch("/api/messages", {
-      headers: { accept: "application/json" },
-      cache: "no-store",
+    const response = await fetch("/api/notifications?summary=1", {
+      headers: { accept: "application/json" }, cache: "no-store", signal: AbortSignal.timeout(15000),
     });
     if (!response.ok) return;
-    const result = await response.json().catch(() => ({}));
-    const unread = (result.friends || []).reduce(
-      (total, friend) => total + (Number(friend.unreadCount) || 0),
-      0,
-    );
+    const result = await response.json();
+    const unread = Number(result.unreadCount) || 0;
     navUnreadCount.hidden = unread === 0;
     navUnreadCount.textContent = unread > 99 ? "99+" : String(unread);
-    messagesNavLink.setAttribute("aria-label", unread ? `Notifications, ${unread} unread` : "Notifications");
+    document.getElementById("account-notifications-label").textContent = unread ? `(${unread > 99 ? "99+" : unread})` : "";
+    accountMenuButton.setAttribute("aria-label", unread ? `Open your account menu, ${unread > 99 ? "99+" : unread} unread notifications` : "Open your account menu");
+    messagesNavLink.setAttribute("aria-label", "Messages");
   } catch {
     // Keep the last known count if a background refresh temporarily fails.
   } finally {

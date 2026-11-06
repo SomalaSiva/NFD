@@ -72,8 +72,12 @@
                   stroke-linecap="round"
                 />
               </svg>
+              <span class="account-notification-count" id="account-notification-count" hidden></span>
             </button>
             <div class="account-menu" id="account-menu" hidden>
+              <a href="/notifications" id="account-notifications-link"
+                >Notifications <span id="account-notifications-label"></span
+              ></a>
               <a href="/profile">My profile</a
               ><a href="/profile?ghost=setup" id="ghost-mode-setup" hidden>Set up Ghost mode</a
               ><button type="button" id="ghost-mode-toggle" hidden>Turn on Ghost mode</button
@@ -91,14 +95,9 @@
           <a class="feed-nav-link" href="/feed">Lore Feed</a>
           <a href="/trust-score" id="trust-score-nav-link">Trust Score</a>
           <div class="nav-utility-links">
-            <a class="messages-nav-link" id="messages-nav-link" href="/messages" aria-label="Notifications"
-              >Notifications<span
-                class="nav-unread-count"
-                id="nav-unread-count"
-                aria-live="polite"
-                hidden
-              ></span
-            ></a>
+            <a class="messages-nav-link" id="messages-nav-link" href="/messages" aria-label="Messages"
+              >Messages</a
+            >
           </div>
           <a class="nav-share-link" id="share-nav-link" href="/share"
             ><img src="/nfd-icon.png?v=mascot-20261105" alt="" aria-hidden="true" /><span
@@ -1563,6 +1562,29 @@
           </div>
           <section id="friend-profile-view" class="friend-profile-view" aria-live="polite" hidden></section>
           <div class="profile-message" id="profile-message" role="status" aria-live="polite" hidden></div>
+        </section>
+        <section
+          class="notifications-page"
+          id="notifications-page"
+          aria-labelledby="notifications-heading"
+          hidden
+        >
+          <div class="notifications-heading">
+            <div>
+              <p class="eyebrow">YOUR UPDATES</p>
+              <h1 id="notifications-heading">Notifications</h1>
+            </div>
+            <div class="notification-actions">
+              <button type="button" class="secondary-button" id="notifications-refresh">Refresh</button>
+              <button type="button" class="secondary-button" id="notifications-read" disabled>
+                Mark all read
+              </button>
+            </div>
+          </div>
+          <p>Friend requests, accepted requests, and new messages.</p>
+          <p id="notifications-status" role="status"></p>
+          <ul class="notification-list" id="notification-list"></ul>
+          <button type="button" class="secondary-button" id="notifications-more" hidden>Load more</button>
         </section>
         <section id="messages-page" class="messages-page" aria-labelledby="messages-heading" hidden>
           <div class="profile-heading">

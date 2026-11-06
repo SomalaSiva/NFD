@@ -132,6 +132,18 @@ export const nfdFriendRequests = sqliteTable(
     updatedAt: text("updated_at").notNull(),
   },
   (table) => [
+    index("nfd_friend_notifications_accepted_idx").on(
+      table.fromUserId,
+      table.status,
+      table.updatedAt,
+      table.id,
+    ),
+    index("nfd_friend_notifications_incoming_idx").on(
+      table.toUserId,
+      table.status,
+      table.createdAt,
+      table.id,
+    ),
     uniqueIndex("nfd_friend_requests_pair_unique").on(table.fromUserId, table.toUserId),
     index("nfd_friend_requests_from_status_idx").on(table.fromUserId, table.status, table.createdAt),
     index("nfd_friend_requests_to_status_idx").on(table.toUserId, table.status, table.createdAt),
@@ -208,6 +220,7 @@ export const nfdMessages = sqliteTable(
   (table) => [
     index("nfd_messages_sender_recipient_created_idx").on(table.senderId, table.recipientId, table.createdAt),
     index("nfd_messages_recipient_sender_created_idx").on(table.recipientId, table.senderId, table.createdAt),
+    index("nfd_message_notifications_idx").on(table.recipientId, table.createdAt, table.id),
     index("nfd_messages_expires_idx").on(table.expiresAt),
   ],
 );
@@ -445,3 +458,11 @@ export const nfdTrustAllegationVotes = sqliteTable(
     index("nfd_trust_votes_allegation_group_idx").on(table.allegationId, table.voterGroup, table.choice),
   ],
 );
+
+export const nfdNotificationState = sqliteTable("nfd_notification_state", {
+  userId: text("user_id")
+    .primaryKey()
+    .notNull()
+    .references(() => nfdUsers.id, { onDelete: "cascade" }),
+  readAt: text("read_at").notNull(),
+});

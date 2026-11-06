@@ -175,7 +175,7 @@ const ghostModeBanner = document.getElementById("ghost-mode-banner");
 const ghostModeHandle = document.getElementById("ghost-mode-handle");
 const ghostModeExit = document.getElementById("ghost-mode-exit");
 const messagesNavLink = document.getElementById("messages-nav-link");
-const navUnreadCount = document.getElementById("nav-unread-count");
+const navUnreadCount = document.getElementById("account-notification-count");
 const FEED_TAGLINES = [
   "Good days. Bad calls. Plot twists.",
   "Small moments. Stories that stay.",

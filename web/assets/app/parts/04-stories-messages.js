@@ -537,7 +537,7 @@ function appendMessageBubble(message, friendId) {
   bubble.dataset.messageId = message.id;
   addText(bubble, "div", "message-bubble-text", message.body);
   const meta = addText(bubble, "div", "message-bubble-meta",
-    `${formatMessageTime(message.createdAt)}${own ? ` · ${messageExpiryLabel(message)}` : ""}`);
+    `${formatMessageTime(message.createdAt)}${own ? ` Â· ${messageExpiryLabel(message)}` : ""}`);
   meta.title = own && message.seenAt ? `Seen at ${new Date(message.seenAt).toLocaleString()}` : "";
   messageList.append(bubble);
   if (!own && !message.seenAt) observeIncomingMessage(bubble, message, friendId);
