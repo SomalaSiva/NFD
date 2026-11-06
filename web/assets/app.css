@@ -6171,3 +6171,41 @@ html.feed-scroll-snap {
   aspect-ratio: auto;
   object-fit: contain;
 }
+
+/* Use the full feed area; pagination lives at the end of the wheel. */
+.layout.feed-mode {
+  padding-bottom: 0;
+}
+.layout.feed-mode .trust-note {
+  display: none;
+}
+.feed-wheel-shell {
+  padding-inline: 6px;
+}
+.feed-wheel-shell .feed-list {
+  height: var(--feed-wheel-height, calc(100svh - 230px));
+  padding-block: calc(var(--feed-wheel-height, 600px) * 0.12);
+}
+.feed-wheel-shell .feed-roll-card {
+  max-height: calc(var(--feed-wheel-height, 600px) * 0.82);
+  border-radius: 22px;
+}
+.feed-wheel-shell .feed-roll-card.has-portrait-media {
+  max-height: calc(var(--feed-wheel-height, 600px) * 0.96);
+}
+.feed-wheel-shell .feed-photo-grid .feed-photo-image,
+.feed-wheel-shell .feed-video-item .feed-video {
+  max-height: max(120px, calc(var(--feed-wheel-height, 600px) * 0.82 - 220px));
+}
+.feed-wheel-shell .has-portrait-media .feed-photo-grid .feed-photo-image,
+.feed-wheel-shell .has-portrait-media .feed-video-item .feed-video {
+  max-height: max(180px, calc(var(--feed-wheel-height, 600px) * 0.96 - 220px));
+}
+.feed-wheel-shell .feed-load-more {
+  flex: 0 0 auto;
+  width: auto;
+  margin: 8px 12px;
+}
+.feed-load-more[hidden] {
+  display: none;
+}

@@ -232,6 +232,14 @@ function updateFeedRoll() {
   const bottomPaddingValue = `${bottomPadding}px`;
   if (root.style.getPropertyValue("--feed-scroll-padding-bottom") !== bottomPaddingValue)
     root.style.setProperty("--feed-scroll-padding-bottom", bottomPaddingValue);
+  const shell = feedList.parentElement;
+  const wheelHeight = Math.max(
+    280,
+    window.innerHeight - Math.max(topbarHeight, shell.getBoundingClientRect().top) - navHeight - 8,
+  );
+  const wheelHeightValue = `${wheelHeight}px`;
+  if (shell.style.getPropertyValue("--feed-wheel-height") !== wheelHeightValue)
+    shell.style.setProperty("--feed-wheel-height", wheelHeightValue);
   const center = feedList.clientHeight / 2;
   const radius = Math.max(1, feedList.clientHeight * 0.65);
   const measurements = cards.map((card) => ({
@@ -244,8 +252,7 @@ function updateFeedRoll() {
     const angle = Math.max(-55, Math.min(55, distance * 58));
     if (reduceMotion || Math.abs(distance) > 1.5) {
       if (card.classList.contains("is-roll-visible")) card.classList.remove("is-roll-visible");
-      if (card.style.getPropertyValue("--feed-roll-angle"))
-        card.style.removeProperty("--feed-roll-angle");
+      if (card.style.getPropertyValue("--feed-roll-angle")) card.style.removeProperty("--feed-roll-angle");
       if (card.style.getPropertyValue("--feed-roll-scale-x"))
         card.style.removeProperty("--feed-roll-scale-x");
       if (card.style.getPropertyValue("--feed-roll-scale-y"))
@@ -620,6 +627,7 @@ function renderFeed(experiences, { append = false, nextCursor = "" } = {}) {
   }
   feedResultCount.textContent = `${countLabel} · Showing ${feedLoadedCount}${feedNextCursor ? "+" : ""}`;
   feedLoadMore.hidden = !feedNextCursor;
+  feedList.append(feedLoadMore);
 }
 const reactionChoices = [
   ["like", "👍", "Like"],
