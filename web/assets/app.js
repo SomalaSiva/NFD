@@ -1519,20 +1519,30 @@ function updateFeedRoll() {
   const measurements = cards.map((card) => ({
     card,
     cardCenter: feedTop + card.offsetTop + card.offsetHeight / 2,
-    cardHeight: card.offsetHeight,
   }));
   measurements.forEach(({ card, cardCenter }) => {
     const distance = (cardCenter - center) / radius;
-    const angle = Math.max(-42, Math.min(42, distance * 46));
+    const curve = Math.min(1, Math.abs(distance));
+    const angle = Math.max(-55, Math.min(55, distance * 58));
     if (reduceMotion || Math.abs(distance) > 1.5) {
       if (card.classList.contains("is-roll-visible")) card.classList.remove("is-roll-visible");
       if (card.style.getPropertyValue("--feed-roll-angle"))
         card.style.removeProperty("--feed-roll-angle");
+      if (card.style.getPropertyValue("--feed-roll-scale-x"))
+        card.style.removeProperty("--feed-roll-scale-x");
+      if (card.style.getPropertyValue("--feed-roll-scale-y"))
+        card.style.removeProperty("--feed-roll-scale-y");
     } else {
       const angleValue = `${angle.toFixed(1)}deg`;
+      const scaleXValue = (1 - curve * 0.13).toFixed(3);
+      const scaleYValue = (1 - curve * 0.04).toFixed(3);
       if (!card.classList.contains("is-roll-visible")) card.classList.add("is-roll-visible");
       if (card.style.getPropertyValue("--feed-roll-angle") !== angleValue)
         card.style.setProperty("--feed-roll-angle", angleValue);
+      if (card.style.getPropertyValue("--feed-roll-scale-x") !== scaleXValue)
+        card.style.setProperty("--feed-roll-scale-x", scaleXValue);
+      if (card.style.getPropertyValue("--feed-roll-scale-y") !== scaleYValue)
+        card.style.setProperty("--feed-roll-scale-y", scaleYValue);
     }
   });
 }
