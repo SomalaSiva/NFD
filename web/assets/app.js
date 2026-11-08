@@ -1409,7 +1409,29 @@ function makeVideoPosterFromFrame(video) {
     }, "image/webp", 0.62);
   } catch {
     delete video.dataset.generatedPoster;
+  } finally {
+    const restoreTime = Number(video.dataset.posterRestoreTime);
+    delete video.dataset.posterRestoreTime;
+    if (Number.isFinite(restoreTime) && video.paused && Math.abs(video.currentTime - restoreTime) > 0.05) {
+      video.currentTime = restoreTime;
+    }
   }
+}
+function prepareVideoPosterFrame(video) {
+  if (video.dataset.generatedPoster) return;
+  const frameTime = Number.isFinite(video.duration) ? Math.min(1, video.duration * 0.1) : 0;
+  if (frameTime > 0.05 && Math.abs(video.currentTime - frameTime) > 0.05) {
+    video.dataset.posterRestoreTime = String(video.currentTime);
+    video.addEventListener("seeked", () => makeVideoPosterFromFrame(video), { once: true });
+    try {
+      video.currentTime = frameTime;
+      return;
+    } catch {
+      delete video.dataset.posterRestoreTime;
+    }
+  }
+  if (video.readyState >= 2) makeVideoPosterFromFrame(video);
+  else video.addEventListener("loadeddata", () => makeVideoPosterFromFrame(video), { once: true });
 }
 function releaseGeneratedVideoPosters(root) {
   root.querySelectorAll("video").forEach((video) => {
@@ -1757,7 +1779,7 @@ function renderFeed(experiences, { append = false, nextCursor = "" } = {}) {
             delete video.dataset.previewPoster;
           }
         } else {
-          video.addEventListener("loadeddata", () => makeVideoPosterFromFrame(video), { once: true });
+          video.addEventListener("loadedmetadata", () => prepareVideoPosterFrame(video), { once: true });
         }
         if (feedVideoPosterObserver) feedVideoPosterObserver.observe(videoItem);
         const videoSource = `/api/evidence/${encodeURIComponent(file.id)}`;
