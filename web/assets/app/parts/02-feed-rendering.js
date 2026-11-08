@@ -107,6 +107,35 @@ const videoFallbackPoster =
   encodeURIComponent(
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 540"><rect width="960" height="540" fill="#e9f1ec"/><circle cx="480" cy="250" r="66" fill="#0d7058"/><path d="M462 210v80l68-40z" fill="#fff"/><text x="480" y="390" text-anchor="middle" fill="#155b49" font-family="Arial,sans-serif" font-size="34" font-weight="700">Video story</text></svg>',
   );
+const generatedVideoPosterUrls = new WeakMap();
+function makeVideoPosterFromFrame(video) {
+  if (video.dataset.generatedPoster || !video.videoWidth || !video.videoHeight) return;
+  video.dataset.generatedPoster = "true";
+  const scale = Math.min(1, 640 / Math.max(video.videoWidth, video.videoHeight));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
+  canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
+  const context = canvas.getContext("2d");
+  if (!context) return;
+  try {
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    canvas.toBlob((blob) => {
+      if (!blob || !video.isConnected) return;
+      const url = URL.createObjectURL(blob);
+      generatedVideoPosterUrls.set(video, url);
+      video.poster = url;
+    }, "image/webp", 0.62);
+  } catch {
+    delete video.dataset.generatedPoster;
+  }
+}
+function releaseGeneratedVideoPosters(root) {
+  root.querySelectorAll("video").forEach((video) => {
+    const url = generatedVideoPosterUrls.get(video);
+    if (url) URL.revokeObjectURL(url);
+    generatedVideoPosterUrls.delete(video);
+  });
+}
 const feedVideoPosterObserver =
   typeof IntersectionObserver === "function"
     ? new IntersectionObserver(
@@ -165,6 +194,7 @@ let feedNextCursor = "";
 function renderFeed(experiences, { append = false, nextCursor = "" } = {}) {
   feedList.classList.remove("feed-roll-track");
   if (!append) {
+    releaseGeneratedVideoPosters(feedList);
     feedList.replaceChildren();
     feedLoadedCount = 0;
   }
@@ -444,6 +474,8 @@ function renderFeed(experiences, { append = false, nextCursor = "" } = {}) {
             video.poster = video.dataset.previewPoster;
             delete video.dataset.previewPoster;
           }
+        } else {
+          video.addEventListener("loadeddata", () => makeVideoPosterFromFrame(video), { once: true });
         }
         if (feedVideoPosterObserver) feedVideoPosterObserver.observe(videoItem);
         const videoSource = `/api/evidence/${encodeURIComponent(file.id)}`;
