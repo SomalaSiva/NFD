@@ -1397,6 +1397,9 @@ const feedVideoPosterObserver =
             if (!entry.isIntersecting) return;
             const video = entry.target.querySelector("video");
             if (video) {
+              // Fetch video metadata when the card is near the viewport, without
+              // downloading every full video in the feed up front.
+              video.preload = "metadata";
               if (video.dataset.previewPoster) {
                 video.poster = video.dataset.previewPoster;
                 delete video.dataset.previewPoster;
@@ -1624,22 +1627,9 @@ function renderFeed(experiences, { append = false, nextCursor = "" } = {}) {
           },
           { once: true },
         );
-        const source = file.hasPreview ? `${link.href}?variant=preview` : link.href;
-        if (!file.hasPreview && file.sizeBytes > 256 * 1024) {
-          const load = document.createElement("button");
-          load.type = "button";
-          load.className = "secondary-button feed-load-photo";
-          load.textContent = `Load photo · ${prettySize(file.sizeBytes)}`;
-          load.addEventListener("click", (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            image.src = source;
-            load.remove();
-          });
-          link.append(load);
-        } else {
-          image.src = source;
-        }
+        // Prefer the compressed WebP for every viewer, including the author.
+        // Older posts without a preview still load automatically at lazy-load time.
+        image.src = file.hasPreview ? `${link.href}?variant=preview` : link.href;
         link.append(image);
         gallery.append(link);
       });
@@ -1719,7 +1709,7 @@ function renderFeed(experiences, { append = false, nextCursor = "" } = {}) {
         const video = document.createElement("video");
         video.className = "feed-video";
         video.controls = true;
-        video.preload = "none";
+        video.preload = feedVideoPosterObserver ? "none" : "metadata";
         video.playsInline = true;
         video.title = file.originalFilename;
         video.addEventListener("loadedmetadata", () => {
@@ -1732,12 +1722,12 @@ function renderFeed(experiences, { append = false, nextCursor = "" } = {}) {
         video.poster = videoFallbackPoster;
         if (file.hasPreview) {
           video.dataset.previewPoster = `/api/evidence/${encodeURIComponent(file.id)}?variant=preview`;
-          if (feedVideoPosterObserver) feedVideoPosterObserver.observe(videoItem);
-          else {
+          if (!feedVideoPosterObserver) {
             video.poster = video.dataset.previewPoster;
             delete video.dataset.previewPoster;
           }
         }
+        if (feedVideoPosterObserver) feedVideoPosterObserver.observe(videoItem);
         const videoSource = `/api/evidence/${encodeURIComponent(file.id)}`;
         // Keep the original video idle until the native play control is used.
         video.src = videoSource;
